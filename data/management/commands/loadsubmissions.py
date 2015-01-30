@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 
 from data import files
-from data.files import student_name
+from data.files import safe_student_name
 from data.models import Exercise, Submission, Student, URLKeyField
 
 
@@ -24,9 +24,10 @@ class Command(BaseCommand):
         for i in range(1, len(args)):
             path = args[i]
             text = files.join_files(files.read_directory(path), exercise.tokenizer)
-            student_name = URLKeyField.safe_version(student_name(path))
+            student_name = URLKeyField.safe_version(safe_student_name(path))
 
-            student = Student.objects.get_or_create(course=exercise.course, name=student_name)
+            student, _ = Student.objects.get_or_create(course=exercise.course, name=student_name)
             submission = Submission(exercise=exercise, student=student)
             submission.save()
             files.put_submission_text(submission, text)
+            self.stdout.write("Saved submission for %s" % (student.name))

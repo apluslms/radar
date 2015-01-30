@@ -9,6 +9,13 @@ from django.db.models.aggregates import Avg
 from tokens.tokens import overlap
 
 
+def _make_choices(settings_value):
+    choices = []
+    for key in settings_value.keys():
+        choices.append((key, settings_value[key]["name"]))
+    return choices
+
+
 class URLKeyField(models.CharField):
 
     def clean(self, value, model_instance):
@@ -19,7 +26,7 @@ class URLKeyField(models.CharField):
 
     @staticmethod
     def safe_version(text):
-        return "".join([c for c in text if re.match(r'[A-z0-9]')])
+        return "".join([c for c in text if re.match(r'[A-z0-9]', c)])
 
 
 class Course(models.Model):
@@ -29,8 +36,8 @@ class Course(models.Model):
     """
     created = models.DateTimeField(auto_now_add=True)
     name = URLKeyField(max_length=64, unique=True, help_text="Unique alphanumeric course _instance_ name")
-    provider = models.CharField(max_length=16, choices=_make_choices(settings.PROVIDERS), help_text="Provider for submission data")
-    tokenizer = models.CharField(max_length=16, choices=_make_choices(settings.TOKENIZERS), help_text="Tokenizer for the submission contents")
+    provider = models.CharField(max_length=16, choices=_make_choices(settings.PROVIDERS), help_text="Provider for submission data", default=settings.PROVIDERS.keys()[0])
+    tokenizer = models.CharField(max_length=16, choices=_make_choices(settings.TOKENIZERS), help_text="Tokenizer for the submission contents", default=settings.TOKENIZERS.keys()[0])
     minimum_match_tokens = models.IntegerField(default=15, help_text="Minimum number of tokens to consider a match")
     tolerance = models.FloatField(default=0.4, help_text="Automatically hide matches that this ratio of submissions have in common")
     reviewers = models.ManyToManyField(User, blank=True, null=True, help_text="Reviewers for match analysis")
@@ -191,10 +198,3 @@ class Match(models.Model):
     
     def __unicode__(self):
         return "%s/%s: %s group=%d length=%d" % (self.submission.exercise.course.name, self.submission.exercise.name, self.submission.student.name, self.group.id, self.length)
-
-
-def _make_choices(settings_value):
-    choices = []
-    for key in settings_value.keys:
-        choices.append((key, settings_value[key]["name"]))
-    return choices

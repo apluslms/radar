@@ -37,6 +37,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'data',
+    'access',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -50,15 +51,23 @@ MIDDLEWARE_CLASSES = (
 )
 
 TOKENIZERS = {
-    "scala": { "name": "Scala", "def": "tokens.tokenizer.scala", "separator": "/****** %s ******/" },
-    "python": { "name": "Python", "def": "tokens.tokenizer.python", "separator": "###### %s ######" },
-    "text": { "name": "Natural text", "def": "tokens.tokenizer.text", "separator": "###### %s ######" },
-    "java": { "name": "Java", "def": "tokens.tokenizer.java", "separator": "/****** %s ******/" },
+    "scala": { "name": "Scala", "def": "tokens.tokenizer.scala",
+              "separator": "/****** %s ******/" },
+    "python": { "name": "Python", "def": "tokens.tokenizer.python",
+               "separator": "###### %s ######" },
+    "text": { "name": "Natural text", "def": "tokens.tokenizer.text",
+             "separator": "###### %s ######" },
+    "java": { "name": "Java", "def": "tokens.tokenizer.java",
+             "separator": "/****** %s ******/" },
 }
 
 PROVIDERS = {
-    "a+": { "name": "A+", "def": "integration.provider.aplus" },
-    "filesystem": { "name": "filesystem", "def": "integration.provider.filesystem" },
+             
+    "a+": { "name": "A+", "def": "integration.aplus.get_submission",
+           "host": "130.233.193.139", "user": "test",
+           "key": "4511004ec512bbcccbed7aa31d479a93fa039a72" },
+             
+    "filesystem": { "name": "filesystem", "def": "integration.filesystem.get_submission" },
 }
 
 ROOT_URLCONF = 'radar.urls'
@@ -98,3 +107,9 @@ STATIC_URL = '/static/'
 
 # Directory to store all the submitted files.
 SUBMISSION_DIRECTORY = os.path.join(BASE_DIR, "submission_files")
+
+
+try:
+    from local_settings import *
+except ImportError:
+    pass
