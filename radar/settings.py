@@ -51,23 +51,25 @@ MIDDLEWARE_CLASSES = (
 )
 
 TOKENIZERS = {
-    "scala": { "name": "Scala", "def": "tokens.tokenizer.scala",
+    "scala": { "name": "Scala", "cron": "tokens.tokenizer.scala",
               "separator": "/****** %s ******/" },
-    "python": { "name": "Python", "def": "tokens.tokenizer.python",
+    "python": { "name": "Python", "cron": "tokens.tokenizer.python",
                "separator": "###### %s ######" },
-    "text": { "name": "Natural text", "def": "tokens.tokenizer.text",
+    "text": { "name": "Natural text", "cron": "tokens.tokenizer.text",
              "separator": "###### %s ######" },
-    "java": { "name": "Java", "def": "tokens.tokenizer.java",
+    "java": { "name": "Java", "cron": "tokens.tokenizer.java",
              "separator": "/****** %s ******/" },
 }
 
-PROVIDERS = {
-             
-    "a+": { "name": "A+", "def": "integration.aplus.get_submission",
-           "host": "130.233.193.139", "user": "test",
+PROVIDERS = {             
+    "a+": { "name": "A+",
+           "hook": "integration.aplus.hook",
+           "cron": "integration.aplus.cron",
+           "host": "localhost:8000", "user": "root",
            "key": "4511004ec512bbcccbed7aa31d479a93fa039a72" },
-             
-    "filesystem": { "name": "filesystem", "def": "integration.filesystem.get_submission" },
+    "filesystem": { "name": "File system",
+                   "hook": "integration.filesystem.hook",
+                   "cron": "integration.filesystem.cron" },
 }
 
 ROOT_URLCONF = 'radar.urls'
@@ -107,6 +109,36 @@ STATIC_URL = '/static/'
 
 # Directory to store all the submitted files.
 SUBMISSION_DIRECTORY = os.path.join(BASE_DIR, "submission_files")
+
+
+LOGGING = {
+  'version': 1,
+  'disable_existing_loggers': False,
+  'formatters': {
+    'verbose': {
+      'format': '[%(asctime)s: %(levelname)s/%(module)s] %(message)s'
+    },
+  },
+  'handlers': {
+    'console': {
+      'level': 'DEBUG',
+      'class': 'logging.StreamHandler',
+      'stream': 'ext://sys.stdout',
+      'formatter': 'verbose',
+    },
+    'email': {
+      'level': 'ERROR',
+      'class': 'django.utils.log.AdminEmailHandler',
+    },
+  },
+  'loggers': {
+    'radar': {
+      'level': 'DEBUG',
+      'handlers': ['email', 'console'],
+      'propagate': True
+    },
+  },
+}
 
 
 try:

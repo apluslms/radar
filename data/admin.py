@@ -1,9 +1,10 @@
 from django.contrib import admin
-from data.models import Course, Exercise, Student, Submission, Match, MatchGroup
+from data import models
 
-admin.site.register(Course)
-admin.site.register(Exercise)
-admin.site.register(Student)
-admin.site.register(Submission)
-admin.site.register(MatchGroup)
-admin.site.register(Match)
+admin.site.register(models.Course)
+admin.site.register(models.Exercise)
+admin.site.register(models.Student)
+admin.site.register(models.Submission)
+admin.site.register(models.MatchGroup)
+admin.site.register(models.Match)
+admin.site.register(models.ProviderQueue)

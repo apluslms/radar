@@ -35,15 +35,24 @@ class Course(models.Model):
     
     """
     created = models.DateTimeField(auto_now_add=True)
-    name = URLKeyField(max_length=64, unique=True, help_text="Unique alphanumeric course _instance_ name")
-    provider = models.CharField(max_length=16, choices=_make_choices(settings.PROVIDERS), help_text="Provider for submission data", default=settings.PROVIDERS.keys()[0])
-    tokenizer = models.CharField(max_length=16, choices=_make_choices(settings.TOKENIZERS), help_text="Tokenizer for the submission contents", default=settings.TOKENIZERS.keys()[0])
+    name = URLKeyField(max_length=64, unique=True, help_text="Unique alphanumeric course instance id")
+    provider = models.CharField(max_length=16, choices=_make_choices(settings.PROVIDERS), help_text="Provider for submission data", default=next(iter(settings.PROVIDERS)))
+    tokenizer = models.CharField(max_length=16, choices=_make_choices(settings.TOKENIZERS), help_text="Tokenizer for the submission contents", default=next(iter(settings.TOKENIZERS)))
     minimum_match_tokens = models.IntegerField(default=15, help_text="Minimum number of tokens to consider a match")
     tolerance = models.FloatField(default=0.4, help_text="Automatically hide matches that this ratio of submissions have in common")
     reviewers = models.ManyToManyField(User, blank=True, null=True, help_text="Reviewers for match analysis")
+    archived = models.BooleanField(db_index=True, default=False)
     
     class Meta:
         ordering = ["-created"]
+    
+    def get_exercise(self, name):
+        exercise, _ = self.exercises.get_or_create(name=URLKeyField.safe_version(name))
+        return exercise
+    
+    def get_student(self, name):
+        student, _ = self.students.get_or_create(name=URLKeyField.safe_version(name))
+        return student
     
     def __unicode__(self):
         return "%s (%s)" % (self.name, self.created)
@@ -56,7 +65,7 @@ class Exercise(models.Model):
     """
     created = models.DateTimeField(auto_now_add=True)
     course = models.ForeignKey(Course, related_name="exercises")
-    name = URLKeyField(max_length=64, help_text="Alphanumeric exercise name")
+    name = URLKeyField(max_length=64, help_text="Alphanumeric exercise id")
     override_tokenizer = models.CharField(max_length=8, choices=_make_choices(settings.TOKENIZERS), blank=True, null=True)
     override_minimum_match_tokens = models.IntegerField(blank=True, null=True)
     override_tolerance = models.FloatField(blank=True, null=True)
@@ -88,7 +97,7 @@ class Student(models.Model):
     """
     created = models.DateTimeField(auto_now_add=True)
     course = models.ForeignKey(Course, related_name="students")
-    name = URLKeyField(max_length=64, help_text="Alphanumeric student name")
+    name = URLKeyField(max_length=64, help_text="Alphanumeric student id")
     
     class Meta:
         unique_together = ("course", "name")
@@ -106,11 +115,10 @@ class Submission(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     exercise = models.ForeignKey(Exercise, related_name="submissions")
     student = models.ForeignKey(Student, related_name="submissions")
-    provider_link = models.CharField(max_length=256, blank=True, null=True, default=None)
     grade = models.FloatField(default=0.0)
     tokens = models.TextField(blank=True, null=True, default=None)
     token_positions = models.TextField(blank=True, null=True, default=None)
-    matching_finished = models.BooleanField(default=False)
+    matching_finished = models.BooleanField(db_index=True, default=False)
     
     def __unicode__(self):
         return "%s/%s: %s grade=%.1f (%s)" % (self.exercise.course.name, self.exercise.name, self.student.name, self.grade, self.created)
@@ -144,9 +152,9 @@ class MatchGroup(models.Model):
     """
     exercise = models.ForeignKey(Exercise, related_name="match_groups")
     tokens = models.TextField()
-    size = models.IntegerField(default=0)
+    size = models.IntegerField(db_index=True, default=0)
     average_grade = models.FloatField(default=0.0)
-    hide = models.BooleanField(default=False)
+    hide = models.BooleanField(db_index=True, default=False)
     plagiate = models.BooleanField(default=False)
     objects = MatchGroupManager()
 
@@ -198,3 +206,18 @@ class Match(models.Model):
     
     def __unicode__(self):
         return "%s/%s: %s group=%d length=%d" % (self.submission.exercise.course.name, self.submission.exercise.name, self.submission.student.name, self.group.id, self.length)
+
+
+class ProviderQueue(models.Model):
+    """
+    Queues a submission for provider. Some providers can not create
+    a submission object based on the hook alone.
+    
+    """
+    created = models.DateTimeField(auto_now_add=True)
+    course = models.ForeignKey(Course, related_name="+")
+    data = models.CharField(max_length=128)
+    processed = models.BooleanField(db_index=True, default=False)
+
+    def __unicode__(self):
+        return "%s (%s)" % (self.course.name, self.created)

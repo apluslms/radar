@@ -1,8 +1,7 @@
 from django.core.management.base import BaseCommand
 
-from data import files
-from data.files import safe_student_name
-from data.models import Exercise, Submission, Student, URLKeyField
+from integration.filesystem import load_submission_dir
+from data.models import Course, Exercise, URLKeyField
 
 
 class Command(BaseCommand):
@@ -15,19 +14,13 @@ class Command(BaseCommand):
             self.stdout.write("The course/exercise parameter is required.")
             return
         (course_name, exercise_name) = args[0].split("/", 1)
-        exercise = Exercise.objects.get(course__name=course_name, name=exercise_name)
-        self.stdout.write("Inserting to exercise %s." % (exercise))
+        course = Course.objects.get(name=course_name)
+        exercise = course.get_exercise(exercise_name)
+        self.stdout.write("Inserting to exercise %s" % (exercise))
 
         if len(args) < 2:
             self.stdout.write("At least one submission directory is required.")
             return
         for i in range(1, len(args)):
-            path = args[i]
-            text = files.join_files(files.read_directory(path), exercise.tokenizer)
-            student_name = URLKeyField.safe_version(safe_student_name(path))
-
-            student, _ = Student.objects.get_or_create(course=exercise.course, name=student_name)
-            submission = Submission(exercise=exercise, student=student)
-            submission.save()
-            files.put_submission_text(submission, text)
-            self.stdout.write("Saved submission for %s" % (student.name))
+            submission = load_submission_dir(exercise, args[i])
+            self.stdout.write("Saved submission %s" % (submission))

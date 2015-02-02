@@ -1,15 +1,15 @@
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
-from django.http.response import HttpResponse
+from django.http.response import HttpResponse, Http404
 from django.shortcuts import get_object_or_404
-from django.utils.module_loading import import_by_path
+from django.views.decorators.csrf import csrf_exempt
 import logging
 
 from data.models import Course
+from radar.config import provider, named_function
 
 
 logger = logging.getLogger("radar.hook")
 
+@csrf_exempt
 def hook_submission(request, course_name=None):
     """
     Receives the hook call for new submission
@@ -17,11 +17,16 @@ def hook_submission(request, course_name=None):
     
     """
     course = get_object_or_404(Course, name=course_name)
-    config = settings.PROVIDERS[course.provider]
+    
+    if course.archived:
+        logger.error("Submission hook failed, Archived course")
+        raise Http404()
+    
+    config = provider(course)
     try:
-        getdef = import_by_path(config["def"])
-        getdef(request, config)
-    except ImproperlyConfigured:
-        logger.error("Could not find configured submission hook: %s" % (config["def"]))        
+        f = named_function(config, "hook")
+        f(request, course, config)
+    except Exception:
+        logger.exception("Submission hook failed")
     
     return HttpResponse("Working on it sire!")

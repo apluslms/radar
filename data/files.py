@@ -1,10 +1,9 @@
 """
-File system operations.
+Storing submission source in file system.
 
 """
-import os
-
 from django.conf import settings
+import os
 
 
 def get_submission_text(submission):
@@ -30,24 +29,9 @@ def path_to_submission_text(submission):
                         "%s.%d" % (submission.student.name, submission.pk))
 
 
-def join_files(file_map, tokenizer):
+def join_files(file_map, config):
     content = []
-    for file_name in sorted(file_map.keys(), key=str.lower):
-        content.append(settings.TOKENIZERS[tokenizer]["separator"] % (file_name))
+    for file_name in sorted(file_map.keys()):
+        content.append(config["separator"] % (file_name))
         content.append(file_map[file_name])
     return os.linesep.join(content)
-
-
-def read_directory(path):
-    file_map = {}
-    for file_name in os.listdir(path):
-        file_path = os.path.join(path, file_name)
-        if os.path.isfile(file_path):
-            with open(file_path, "r") as f:
-                file_map[file_name] = f.read()
-    return file_map
-
-
-def safe_student_name(path):
-    (name, _) = os.path.basename(path).split(".", 1)
-    return name
