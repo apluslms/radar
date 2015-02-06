@@ -1,7 +1,9 @@
-from data import files
-from data.models import URLKeyField, Student, Submission
 import os
+
+from data import files
+from data.models import Submission
 from radar.config import tokenizer
+
 
 def hook(request, course, config):
     """

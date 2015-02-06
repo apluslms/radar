@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 
-from integration.filesystem import load_submission_dir
-from data.models import Course, Exercise, URLKeyField
+from provider.filesystem import load_submission_dir
+from data.models import Course
 
 
 class Command(BaseCommand):
@@ -9,7 +9,7 @@ class Command(BaseCommand):
     help = "Inserts submissions to system."
 
     def handle(self, *args, **options):
-        
+
         if len(args) < 1:
             self.stdout.write("The course/exercise parameter is required.")
             return

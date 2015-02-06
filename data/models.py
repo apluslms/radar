@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.aggregates import Avg
 
-from tokens.tokens import overlap
+from matcher.tokens import overlap
 
 
 def _make_choices(settings_value):

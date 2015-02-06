@@ -1,5 +1,5 @@
 """
-WSGI config for hound project.
+WSGI config for radar project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 

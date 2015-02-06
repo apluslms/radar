@@ -51,25 +51,25 @@ MIDDLEWARE_CLASSES = (
 )
 
 TOKENIZERS = {
-    "scala": { "name": "Scala", "cron": "tokens.tokenizer.scala",
+    "scala": { "name": "Scala", "cron": "tokenizer.scala.cron",
               "separator": "/****** %s ******/" },
-    "python": { "name": "Python", "cron": "tokens.tokenizer.python",
+    "python": { "name": "Python", "cron": "tokenizer.python.cron",
                "separator": "###### %s ######" },
-    "text": { "name": "Natural text", "cron": "tokens.tokenizer.text",
+    "text": { "name": "Natural text", "cron": "tokenizer.text.cron",
              "separator": "###### %s ######" },
-    "java": { "name": "Java", "cron": "tokens.tokenizer.java",
+    "java": { "name": "Java", "cron": "tokenizer.java.cron",
              "separator": "/****** %s ******/" },
 }
 
 PROVIDERS = {             
     "a+": { "name": "A+",
-           "hook": "integration.aplus.hook",
-           "cron": "integration.aplus.cron",
+           "hook": "provider.aplus.hook",
+           "cron": "provider.aplus.cron",
            "host": "localhost:8000", "user": "root",
            "key": "4511004ec512bbcccbed7aa31d479a93fa039a72" },
     "filesystem": { "name": "File system",
-                   "hook": "integration.filesystem.hook",
-                   "cron": "integration.filesystem.cron" },
+                   "hook": "provider.filesystem.hook",
+                   "cron": "provider.filesystem.cron" },
 }
 
 ROOT_URLCONF = 'radar.urls'

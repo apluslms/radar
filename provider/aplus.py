@@ -1,10 +1,12 @@
-import logging
-import json
 import base64
+import json
+import logging
 from urllib.request import urlopen
-from data.models import ProviderQueue, Submission
+
 from data import files
+from data.models import ProviderQueue, Submission
 from radar.config import tokenizer
+
 
 API_URL = "http://%(host)s/api/v1/submission_content/%(sid)s/" + \
             "?format=json&username=%(user)s&api_key=%(key)s"
@@ -15,7 +17,7 @@ logger = logging.getLogger("radar.provider")
 
 def hook(request, course, config):
     """
-    Stores the submission id for further provider work.
+    Stores the submission id from A+ for further provider work.
     
     """
     sid = _detect_submission_id(request)
@@ -46,14 +48,14 @@ def cron(course, config):
         try:
             data = _fetch_submission_data(int(queued.data), config)
             text = files.join_files(_decode_files(data["files"]), tokenizer(course))
-            #TODO fetch exercise title from api
+            # TODO fetch exercise title from api
             exercise = course.get_exercise(data["exercise"])
             student = course.get_student("_".join(_decode_students(data["student_ids"])))
             submission = Submission(exercise=exercise, student=student)
             submission.grade = float(data["service_points"]) / float(data["service_max_points"])
             submission.save()
             files.put_submission_text(submission, text)
-            
+
             queued.processed = True
             queued.save()
         except Exception:
@@ -69,6 +71,7 @@ def _fetch_submission_data(sid, config):
         "sid": sid,
     }
     url = API_URL % (context)
+    logger.debug("Requesting A+ API: %s" % (url))
     resource = urlopen(url, timeout=6)
     data = resource.read().decode(resource.headers.get_content_charset())
     return json.loads(data)
