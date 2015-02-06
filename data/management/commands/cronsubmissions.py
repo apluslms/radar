@@ -15,14 +15,20 @@ class Command(BaseCommand):
 
             # TODO ensure never parallel, file lock
 
-            # Provider tasks.
+            # Run provider tasks.
             p_config = provider(course)
             f = named_function(p_config, "cron")
             f(course, p_config)
 
+            # Tokenize new submissions.
             for submission in Submission.objects.filter(exercise__course=course, tokens=None):
                 t_config = tokenizer(submission.exercise)
                 f = named_function(t_config, "cron")
                 f(submission, t_config)
 
+                # While at it match it too.
                 # TODO run match
+
+            # Check again for yet unmatched submissions.
+            for submission in Submission.objects.filter(exercise__course=Course, matching_finished=False):
+              pass
