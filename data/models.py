@@ -116,21 +116,21 @@ class Exercise(models.Model):
 
     @property
     def size(self):
-        if not hasattr(self, '_size'):
-            self._size = Submission.objects.filter(exercise=self).order_by('student').distinct().count()
+        if not hasattr(self, "_size"):
+            self._size = Submission.objects.filter(exercise=self).values("student").distinct().count()
         return self._size
     
     @property
     def active_limit(self):
-        if not hasattr(self, '_limit'):
+        if not hasattr(self, "_limit"):
             self._limit = int(self.size * self.tolerance)
         return self._limit
     
     def active_groups(self):
-        return self.match_groups.filter(hide=False, size__lt=self.active_limit).order_by('-size')
+        return self.match_groups.filter(hide=False, size__lt=self.active_limit).order_by("-size")
     
     def hidden_groups(self):
-        return self.match_groups.exclude(hide=False, size__lt=self.active_limit).order_by('hide', 'size')
+        return self.match_groups.exclude(hide=False, size__lt=self.active_limit).order_by("hide", "size")
 
     def __str__(self):
         return "%s/%s (%s)" % (self.course.name, self.name, self.created)
@@ -223,8 +223,8 @@ class MatchGroup(models.Model):
                 compare.matches.update(group=self)
                 compare.delete()
         # TODO confirm this filter works
-        submissions = Submission.objects.filter(matches__group=self).order_by('student', '-average_grade').distinct("student")
-        self.size = submissions.count()
+        submissions = Submission.objects.filter(matches__group=self)
+        self.size = submissions.values("student").distinct().count()
         self.average_grade = submissions.aggregate(a=Avg("grade"))["a"]
         self.save()
         logger.debug("Updated group %s", self)
