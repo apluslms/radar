@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<table class="table">
+	<tr>
+		<th>Student</th>
+		<th>Submission</th>
+		<th>Grade</th>
+		<th>Tokens</th>
+	</tr>
+	{% for match in matches %}
+	<tr>
+		<td>
+			<a href="{% url 'access.views.student' course_name=course.name student_name=match.submission.student.name %}">
+				{{ match.submission.student.name }}
+			</a>
+		</td>
+		<td>
+			<a href="{% url 'access.views.submission' course_name=course.name student_name=match.submission.student.name submission_id=match.submission.pk %}">
+				{{ match.submission.pk }}
+			</a>
+		</td>
+		<td>{{ match.submission.grade }}</td>
+		<td>{{ match.length }}</td>
+	</tr>
+	{% endfor %}
+</table>
+
+{% endblock %}

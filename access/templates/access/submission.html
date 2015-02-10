@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<p><a href="{% url 'access.views.exercise' course_name=course.name exercise_name=exercise.name %}">{{ exercise.name }}</a></p>
+
+<table>
+	<tr>
+		<td>First</td>
+		<td>Length</td>
+		<td>Group</td>
+		<td>Active</td>
+	</tr>
+	{% for match in matches %}
+	<tr>
+		<td>{{ match.first_token }}</td>
+		<td>{{ match.length }}</td>
+		<td>
+			<a href="{% url 'access.views.group' course_name=course.name exercise_name=exercise.name group_id=match.group.pk %}">
+				{{ match.group.size }}
+			</a>
+		</td>
+		<td>{% if match.is_active %}Yes{% else %}No{% endif %}</td>
+	</tr>
+	{% endfor %}
+</table>
+
+<pre>
+{{ source }}
+</pre>
+
+{% endblock %}

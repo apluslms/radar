@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<table class="table">
+	<tr>
+		<th>Exercise</th>
+		<th>Created</th>
+		<th>Students</th>
+		<th>Match Groups</th>
+	</tr>
+	{% for exercise in exercises %}
+	<tr>
+		<td><a href="{% url 'access.views.exercise' course_name=course.name exercise_name=exercise.name %}">{{ exercise.name }}</a></td>
+		<td>{{ exercise.created|date:"Y-m-d" }}</td>
+		<td>{{ exercise.size }}</td>
+		<td>{{ exercise.group_count }}</td>
+	</tr>
+	{% endfor %}
+</table>
+
+{% endblock %}

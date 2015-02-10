@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Radar{% for i in hierarchy %}{% if forloop.counter > 1 %} - {{ i.0 }}{% endif %}{% endfor %}</title>
+		{% load staticfiles %}
+		<link rel="stylesheet" href="{% static 'bootstrap-3.3.2-dist/css/bootstrap.min.css' %}" />
+		<link rel="stylesheet" href="{% static 'bootstrap-3.3.2-dist/css/bootstrap-theme.min.css' %}" />
+		<link rel="stylesheet" href="{% static 'main.css' %}" />
+		<script src="{% static 'jquery-1.11.2.min.js' %}"></script>
+		<script src="{% static 'bootstrap-3.3.2-dist/js/bootstrap.min.js' %}"></script>
+		<script src="{% static 'main.js' %}"></script>
+	</head>
+	<body>
+		{% if user.is_authenticated %}
+		<header class="navbar navbar-default">
+			<div class="container-fluid">
+				<div class="navbar-header">
+					<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target=".bs-navbar-collapse">
+						<span class="sr-only">Toggle navigation</span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+					</button>
+					<span class="navbar-brand" id="brand">Radar</span>
+				</div>
+				<nav class="collapse navbar-collapse bs-navbar-collapse">
+					<ul class="nav navbar-nav">
+						<li>
+							<ul class="breadcrumb">
+								{% for i in hierarchy %}
+									{% if i.1 %}
+									<li><a href="{{ i.1 }}">{{ i.0 }}</a></li>
+									{% else %}
+									<li class="active">{{ i.0 }}</li>
+									{% endif %}
+								{% endfor %}
+							</ul>
+						</li>			
+						{% comment %}
+						<li><a href="#">link</a></li>
+						{% endcomment %}
+					</ul>
+					<form class="navbar-form navbar-right" role="logout" action="{% url 'logout' %}">
+						{{ user.username }} &nbsp;
+		        		<button type="submit" class="btn btn-default">Logout</button>
+		        	</form>
+				</nav>
+			</div>
+		</header>
+		{% endif %}
+		<div class="container-fluid">
+			{% block content %}
+			{% endblock %}
+		</div>
+	</body>
+</html>

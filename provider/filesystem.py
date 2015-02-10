@@ -13,7 +13,7 @@ def hook(request, course, config):
     pass
 
 
-def cron(course):
+def cron(course, config):
     """
     Nothing to do.
     
@@ -26,6 +26,8 @@ def load_submission_dir(exercise, path):
     Inserts a submission from directory for a given exercise.
     
     """
+    if not os.path.isdir(path):
+        return None
     text = files.join_files(_read_directory(path), tokenizer(exercise))
     student = exercise.course.get_student(_safe_student_name(path))
     submission = Submission(exercise=exercise, student=student)

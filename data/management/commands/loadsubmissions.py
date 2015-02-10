@@ -23,4 +23,5 @@ class Command(BaseCommand):
             return
         for i in range(1, len(args)):
             submission = load_submission_dir(exercise, args[i])
-            self.stdout.write("Saved submission %s" % (submission))
+            if submission is not None:
+                self.stdout.write("Saved submission %s" % (submission))

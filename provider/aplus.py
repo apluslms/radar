@@ -33,8 +33,7 @@ def _detect_submission_id(request):
     try:
         return int(request.POST[POST_KEY])
     except ValueError:
-        logger.exception("Received invalid A+ submission id \"%s\" from hook"
-                     % (request.POST[POST_KEY]))
+        logger.exception("Received invalid A+ submission id \"%s\" from hook", request.POST[POST_KEY])
         return None
 
 
@@ -44,6 +43,7 @@ def cron(course, config):
     System guarantees the cron calls are never parallel.
     
     """
+    logger.info("Running A+ provider for submission queue")
     for queued in ProviderQueue.objects.filter(course=course, processed=False):
         try:
             data = _fetch_submission_data(int(queued.data), config)
@@ -71,7 +71,7 @@ def _fetch_submission_data(sid, config):
         "sid": sid,
     }
     url = API_URL % (context)
-    logger.debug("Requesting A+ API: %s" % (url))
+    logger.info("Requesting A+ API: %s", url)
     resource = urlopen(url, timeout=6)
     data = resource.read().decode(resource.headers.get_content_charset())
     return json.loads(data)

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h4>Match Groups</h4>
+
+<table class="table">
+	<tr>
+		<th>Student count</th>
+		<th>Average grade</th>
+		<th>Tokens</th>
+	</tr>
+	{% for group in groups %}
+	<tr>
+		<td>
+			<a href="{% url 'access.views.group' course_name=course.name exercise_name=exercise.name group_id=group.pk %}">
+				{{ group.size }} ({{ group.ratio|floatformat:1 }})
+			</a>
+		</td>
+		<td>{{ group.average_grade }}</td>
+		<td>{{ group.length }}</td>
+	</tr>
+	{% endfor %}
+</table>
+
+{% endblock %}

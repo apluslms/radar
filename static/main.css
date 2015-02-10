@@ -1,0 +1,4 @@
+
+header ul.breadcrumb { margin:7px 0; }
+
+span[data-toggle="tooltip"]::after { content: "*"; }

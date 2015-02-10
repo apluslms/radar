@@ -13,15 +13,17 @@ def cron(submission, config):
     
     """
     try:
-      parsed = run(
-          ("scala", "-cp",
-           "tokenizer/scalariform:tokenizer/scalariform/scalariform.jar", "ScalariformTokens"),
-          get_submission_text(submission))
-      lines = parsed.decode("utf-8").split("\n", 1)
-      submission.tokens = lines[0]
-      submission.token_positions = lines[1]
-      submission.save()
-      logger.debug("Tokenized submission: %s" % (submission))
-    except Exception:
-      # TODO lower log level as bad submissions will not tokenize
-      logger.exception("Failed to tokenize submission: %s" % (submission))
+        logger.info("Tokenizing Scala submission %s", submission)
+        parsed = run(
+            ("scala", "-cp",
+             "tokenizer/scalariform:tokenizer/scalariform/scalariform.jar", "ScalariformTokens"),
+        get_submission_text(submission))
+        lines = parsed.decode("utf-8").split("\n", 1)
+        submission.tokens = lines[0]
+        submission.token_positions = lines[1]
+        submission.save()
+    except Exception as e:
+        logger.info("Failed to tokenize: %s", e)
+        submission.tokens = ""
+        submission.token_positions = ""
+        submission.save()

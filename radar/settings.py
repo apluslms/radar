@@ -10,11 +10,14 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+from django.conf.global_settings import LOGIN_REDIRECT_URL
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
+
+#ADMINS = (("Teemu", "teemu.t.lehtinen@aalto.fi"),)
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'r#=r)@i3iucw1tak*3(!h8une%=r7-rif63)7f(5(gm+-@^-)0'
@@ -36,6 +39,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'bootstrapform',
     'data',
     'access',
 )
@@ -61,7 +65,7 @@ TOKENIZERS = {
              "separator": "/****** %s ******/" },
 }
 
-PROVIDERS = {             
+PROVIDERS = {   
     "a+": { "name": "A+",
            "hook": "provider.aplus.hook",
            "cron": "provider.aplus.cron",
@@ -72,9 +76,13 @@ PROVIDERS = {
                    "cron": "provider.filesystem.cron" },
 }
 
+MATCH_ALGORITHM = "matcher.jplag.match"
+
 ROOT_URLCONF = 'radar.urls'
 
 WSGI_APPLICATION = 'radar.wsgi.application'
+
+LOGIN_REDIRECT_URL = 'index'
 
 
 # Database
@@ -100,12 +108,14 @@ USE_L10N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.7/howto/static-files/
 
 STATIC_URL = '/static/'
 
+# Add project level templates and static files
+TEMPLATE_DIRS = (os.path.join(BASE_DIR, 'templates'),)
+STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
 
 # Directory to store all the submitted files.
 SUBMISSION_DIRECTORY = os.path.join(BASE_DIR, "submission_files")
@@ -139,7 +149,6 @@ LOGGING = {
     },
   },
 }
-
 
 try:
     from local_settings import *
