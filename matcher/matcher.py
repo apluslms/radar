@@ -64,7 +64,7 @@ class TokenMatchSet():
         return True
 
     def clear(self):
-        self.store.clear()
+        del self.store[:]
 
     def all(self):
         return self.store
