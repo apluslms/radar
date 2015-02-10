@@ -18,13 +18,13 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('created', models.DateTimeField(auto_now_add=True)),
-                ('name', data.models.URLKeyField(help_text=b'Unique alphanumeric course instance id', unique=True, max_length=64)),
-                ('provider', models.CharField(default=b'a+', help_text=b'Provider for submission data', max_length=16, choices=[(b'a+', b'A+'), (b'filesystem', b'File system')])),
-                ('tokenizer', models.CharField(default=b'python', help_text=b'Tokenizer for the submission contents', max_length=16, choices=[(b'python', b'Python'), (b'text', b'Natural text'), (b'java', b'Java'), (b'scala', b'Scala')])),
-                ('minimum_match_tokens', models.IntegerField(default=15, help_text=b'Minimum number of tokens to consider a match')),
-                ('tolerance', models.FloatField(default=0.4, help_text=b'Automatically hide matches that this ratio of submissions have in common')),
+                ('name', data.models.URLKeyField(help_text='Unique alphanumeric course instance id', unique=True, max_length=64)),
+                ('provider', models.CharField(default='a+', help_text='Provider for submission data', max_length=16, choices=[('a+', 'A+'), ('filesystem', 'File system')])),
+                ('tokenizer', models.CharField(default='python', help_text='Tokenizer for the submission contents', max_length=16, choices=[('python', 'Python'), ('text', 'Natural text'), ('java', 'Java'), ('scala', 'Scala')])),
+                ('minimum_match_tokens', models.IntegerField(default=15, help_text='Minimum number of tokens to consider a match')),
+                ('tolerance', models.FloatField(default=0.4, help_text='Automatically hide matches that this ratio of submissions have in common')),
                 ('archived', models.BooleanField(default=False, db_index=True)),
-                ('reviewers', models.ManyToManyField(help_text=b'Reviewers for match analysis', to=settings.AUTH_USER_MODEL, null=True, blank=True)),
+                ('reviewers', models.ManyToManyField(help_text='Reviewers for match analysis', to=settings.AUTH_USER_MODEL, null=True, blank=True)),
             ],
             options={
                 'ordering': ['-created'],
@@ -36,8 +36,8 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('created', models.DateTimeField(auto_now_add=True)),
-                ('name', data.models.URLKeyField(help_text=b'Alphanumeric exercise id', max_length=64)),
-                ('override_tokenizer', models.CharField(blank=True, max_length=8, null=True, choices=[(b'python', b'Python'), (b'text', b'Natural text'), (b'java', b'Java'), (b'scala', b'Scala')])),
+                ('name', data.models.URLKeyField(help_text='Alphanumeric exercise id', max_length=64)),
+                ('override_tokenizer', models.CharField(blank=True, max_length=8, null=True, choices=[('python', 'Python'), ('text', 'Natural text'), ('java', 'Java'), ('scala', 'Scala')])),
                 ('override_minimum_match_tokens', models.IntegerField(null=True, blank=True)),
                 ('override_tolerance', models.FloatField(null=True, blank=True)),
                 ('course', models.ForeignKey(related_name='exercises', to='data.Course')),
@@ -91,7 +91,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('created', models.DateTimeField(auto_now_add=True)),
-                ('name', data.models.URLKeyField(help_text=b'Alphanumeric student id', max_length=64)),
+                ('name', data.models.URLKeyField(help_text='Alphanumeric student id', max_length=64)),
                 ('course', models.ForeignKey(related_name='students', to='data.Course')),
             ],
             options={
