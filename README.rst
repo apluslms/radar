@@ -24,7 +24,7 @@ Directory structure
 ...................
 * `radar/` Django main
 * `data/` Django app: models, commands and cron
-* `access/` Django app: web interface
+* `review/` Django app: reviewer interface
 * `bootstrapform/` Django app: formats Django forms for Bootstrap
 * `provider/` Data integrations for different sources
 * `tokenizer/` Tokenizers for supported data formats

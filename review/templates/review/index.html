@@ -11,8 +11,12 @@
 		<th>Exercises</th>
 	</tr>
 	{% for course in courses %}
-	<tr class="{% if course.archived %}archived{% endif %}">
-		<td><a href="{% url 'access.views.course' course_name=course.name %}">{{ course.name }}</a></td>
+	<tr>
+		<td>
+			<a href="{% url 'review.views.course' course_name=course.name %}">
+				{{ course.name }}
+			</a>
+		</td>
 		<td>{{ course.created|date:"Y-m-d" }}</td>
 		<td>{{ course.exercises.count }}</td>
 	</tr>

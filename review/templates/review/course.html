@@ -10,7 +10,7 @@
 	</tr>
 	{% for exercise in exercises %}
 	<tr>
-		<td><a href="{% url 'access.views.exercise' course_name=course.name exercise_name=exercise.name %}">{{ exercise.name }}</a></td>
+		<td><a href="{% url 'review.views.exercise' course_name=course.name exercise_name=exercise.name %}">{{ exercise.name }}</a></td>
 		<td>{{ exercise.created|date:"Y-m-d" }}</td>
 		<td>{{ exercise.size }}</td>
 		<td>{{ exercise.group_count }}</td>

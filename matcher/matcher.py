@@ -34,11 +34,11 @@ class TokenMatch():
 
     @property
     def a_end(self):
-        return self.a + self.length
+        return self.a + self.length - 1
 
     @property
     def b_end(self):
-        return self.b + self.length
+        return self.b + self.length - 1
 
     def overlaps(self, another):
         return (self.a >= another.a - self.length and self.a < another.a + self.length) \

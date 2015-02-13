@@ -116,21 +116,17 @@ class Exercise(models.Model):
 
     @property
     def size(self):
-        if not hasattr(self, "_size"):
-            self._size = Submission.objects.filter(exercise=self).values("student").distinct().count()
-        return self._size
+        return Submission.objects.filter(exercise=self).values("student").distinct().count()
     
     @property
-    def active_limit(self):
-        if not hasattr(self, "_limit"):
-            self._limit = int(self.size * self.tolerance)
-        return self._limit
+    def active_group_limit(self):
+        return int(self.size * self.tolerance)
     
     def active_groups(self):
-        return self.match_groups.filter(hide=False, size__lt=self.active_limit).order_by("-size")
+        return self.match_groups.filter(hide=False, size__lt=self.active_group_limit).order_by('-size')
     
     def hidden_groups(self):
-        return self.match_groups.exclude(hide=False, size__lt=self.active_limit).order_by("hide", "size")
+        return self.match_groups.exclude(hide=False, size__lt=self.active_group_limit).order_by('size')
 
     def __str__(self):
         return "%s/%s (%s)" % (self.course.name, self.name, self.created)
@@ -167,6 +163,10 @@ class Submission(models.Model):
     tokens = models.TextField(blank=True, null=True, default=None)
     token_positions = models.TextField(blank=True, null=True, default=None)
     matching_finished = models.BooleanField(db_index=True, default=False)
+
+    def active_matches(self):
+        limit = self.exercise.active_group_limit
+        return self.matches.filter(group__hide=False, group__size__lt=limit).order_by("first_token")
 
     def __str__(self):
         return "%s/%s: %s grade=%.1f (%s)" % (self.exercise.course.name, self.exercise.name, self.student.name, self.grade, self.created)
@@ -206,7 +206,7 @@ class MatchGroup(models.Model):
     def add_match(self, submission, beg, length):
         if self.matches.filter(submission=submission, first_token=beg, length=length).exists():
             return
-        end = beg + length
+        end = beg + length - 1
         for m in self.matches.filter(submission=submission):
             if m.overlaps(beg, end):
                 logger.debug("Forget overlapping match: %d-%d", m.first_token, m.last_token)
@@ -214,7 +214,7 @@ class MatchGroup(models.Model):
                 end = max(end, m.last_token)
                 m.delete()
         logger.debug("Record match: %d-%d", beg, end)
-        self.matches.create(submission=submission, first_token=beg, length=(end - beg))
+        self.matches.create(submission=submission, first_token=beg, length=(end - beg + 1))
 
     def recalculate(self):
         for compare in MatchGroup.objects.filter(exercise=self.exercise).exclude(pk=self.pk):
@@ -261,11 +261,7 @@ class Match(models.Model):
 
     @property
     def last_token(self):
-        return self.first_token + self.length
-
-    @property
-    def is_active(self):
-        return self.group.hide == False and self.group.size < self.submission.exercise.active_limit
+        return self.first_token + self.length - 1
 
     def overlaps(self, beg, end):
         return (beg >= self.first_token and beg <= self.last_token) \
