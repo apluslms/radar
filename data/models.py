@@ -1,6 +1,3 @@
-
-
-
 import logging
 import re
 
@@ -222,7 +219,6 @@ class MatchGroup(models.Model):
                 logger.debug("Join group, length %d", len(compare.tokens))
                 compare.matches.update(group=self)
                 compare.delete()
-        # TODO confirm this filter works
         submissions = Submission.objects.filter(matches__group=self)
         self.size = submissions.values("student").distinct().count()
         self.average_grade = submissions.aggregate(a=Avg("grade"))["a"]
@@ -264,8 +260,8 @@ class Match(models.Model):
         return self.first_token + self.length - 1
 
     def overlaps(self, beg, end):
-        return (beg >= self.first_token and beg <= self.last_token) \
-            or (end >= self.first_token and end <= self.last_token) \
+        return (beg >= self.first_token and beg <= self.last_token + 1) \
+            or (end >= self.first_token - 1 and end <= self.last_token) \
             or (beg < self.first_token and end > self.last_token)
 
     def __str__(self):

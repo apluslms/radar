@@ -19,8 +19,8 @@ def cron(submission, config):
              "tokenizer/scalariform:tokenizer/scalariform/scalariform.jar", "ScalariformTokens"),
         get_submission_text(submission))
         lines = parsed.decode("utf-8").split("\n", 1)
-        submission.tokens = lines[0]
-        submission.token_positions = lines[1]
+        submission.tokens = lines[0].strip()
+        submission.token_positions = lines[1].strip()
         submission.save()
     except Exception as e:
         logger.info("Failed to tokenize: %s", e)

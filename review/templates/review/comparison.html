@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<pre id="a" class="sourceview">
+<pre id="a" class="prettyprint linenums {{ lang_class }}">
 {{ source_a }}
 </pre>
-
-<pre id="b" class="sourceview">
-{{ source_b }}
+<pre id="a_parts" class="json">
+{{ parts_a}}
 </pre>
 
-<pre>
-{{ parts_a}}
-
+<pre id="b" class="prettyprint linenums {{ lang_class }}">
+{{ source_b }}
+</pre>
+<pre id="b_parts" class="json">
 {{ parts_b }}
 </pre>
 

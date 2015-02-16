@@ -56,13 +56,13 @@ MIDDLEWARE_CLASSES = (
 
 TOKENIZERS = {
     "scala": { "name": "Scala", "cron": "tokenizer.scala.cron",
-              "separator": "/****** %s ******/" },
+              "separator": "/****** %s ******/", "lang_class": "lang-scala" },
     "python": { "name": "Python", "cron": "tokenizer.python.cron",
-               "separator": "###### %s ######" },
+               "separator": "###### %s ######", "lang_class": "lang-python" },
     "text": { "name": "Natural text", "cron": "tokenizer.text.cron",
-             "separator": "###### %s ######" },
+             "separator": "###### %s ######", "lang_class": "" },
     "java": { "name": "Java", "cron": "tokenizer.java.cron",
-             "separator": "/****** %s ******/" },
+             "separator": "/****** %s ******/", "lang_class": "lang-java" },
 }
 
 PROVIDERS = {   

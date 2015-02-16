@@ -1,8 +1,13 @@
 __pycache__
 *.pyc
+
 db.sqlite3
 local_settings.py
 submission_files
+
+.project
+.pydevproject
+.settings
 .DS_Store
 *~
 

@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, render, redirect
 from data.files import get_submission_text
 from data.models import Course, MatchGroup
 from review.decorators import access_resource
+from radar.config import tokenizer
 
 
 logger = logging.getLogger("radar.review")
@@ -68,6 +69,8 @@ def comparison(request, course_name=None, exercise_name=None, g_id=None, a_name=
     match_b = group.matches.filter(submission__student__name=b_name).first()
     if match_a is None or match_b is None:
         raise Http404()
+    
+    config = tokenizer(exercise)
 
     return render(request, "review/comparison.html", {
         "hierarchy": (("Courses", reverse("index")),
@@ -76,6 +79,7 @@ def comparison(request, course_name=None, exercise_name=None, g_id=None, a_name=
                       ("%s vs %s" % (match_a.submission.student.name, match_b.submission.student.name), None)),
         "course": course,
         "exercise": exercise,
+        "lang_class": config["lang_class"],
         "source_a": get_submission_text(match_a.submission),
         "parts_a": json.dumps(active_parts(match_a.submission, match_b.submission)),
         "source_b": get_submission_text(match_b.submission),
