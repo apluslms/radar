@@ -17,25 +17,18 @@ pre.codeview {
 	float: left;
 	position: relative;
 }
+pre.codeview span.source {
+	background: #fff;
+}
 .hljs a {
 	color: #333;
 }
 .hljs a:hover {
 	text-decoration: none;
 }
-
-/*
-li.L0,li.L1,li.L2,li.L3,li.L4,li.L5,li.L6,li.L7,li.L8,li.L9 {
-	list-style-type: decimal !important;
-	background: #eee;
-}
-pre.prettyprint li span {
-	background: white;
-}
-pre.prettyprint li span.selected {
-	background: lightpink;
-}
-pre.prettyprint li span.matched {
+.hljs a.match {
 	background: yellow;
 }
-*/
+.hljs a.compared {
+	background: lightpink;
+}
