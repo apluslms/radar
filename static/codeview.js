@@ -13,81 +13,33 @@ function codeview(codeSelector, matchSelector) {
 		var text = matchPre.text().trim();
 		if (text != "") {
 			var json = $.parseJSON(text);
-			
-			
+			codePre.html(_codeviewMatches(codePre.text(), json));
 		}
 	}
 	
-	var code = null;
+	hljs.highlightBlock(codePre[0]);
+	
+	return true;
 }
 
-/**
- * Formats code for a match.
- */
-function _codeviewFormat(templateMatches, matches, index, source_or_target, code) {
-
-	var path = matches[index][source_or_target + "_start_path"];
-
-	// Take next part from template matches or comparison matches.
-	var result = "", ti = 0, mi = 0, c = 0;
-	while (ti < templateMatches.length || mi < matches.length) {
-		var n = null, tn = null;
-		if (mi < matches.length) {
-
-			// Skip matches in other files.
-			if (matches[mi][source_or_target + "_start_path"] != path) {
-				mi++;
-				continue;
-			}
-			n = matches[mi][source_or_target + "_start_char"];
+function _codeviewMatches(code, matches) {
+	result = "";
+	var last = 0;
+	var m = null;
+	for (i in matches) {
+		m = matches[i];
+		if (m["first"] > last) {
+			result += code.substring(last, m["first"]);
 		}
-		if (ti < templateMatches.length) {
-
-			// Skip template matches in other files.
-			if (templateMatches[ti]["target_start_path"] != path) {
-				ti++;
-				continue;
-			}
-			tn = templateMatches[ti]["target_start_char"];
-		}
-
-		// Add template part.
-		if (n === null || (tn !== null && tn < n)) {
-			if (tn > c) {
-				result += code.substring(c, tn);
-			}
-			c = templateMatches[ti]["target_stop_char"] + 1;
-			result += '/* PLAGGIE2:tplbegin:' + ti + ' */'
-					+ code.substring(tn, c) + '/* PLAGGIE2:tplend:'
-					+ ti + ' */';
-			ti++;
-		}
-
-		// Add match part.
-		else {
-			if (n > c) {
-				result += code.substring(c, n);
-			}
-			if (mi == index) {
-				result += '/* PLAGGIE2:anchor */';
-			}
-			c = matches[mi][source_or_target + "_stop_char"] + 1;
-			if (matches[mi].exact) {
-				result += '/* PLAGGIE2:exbegin:' + mi + ' */'
-						+ code.substring(n, c) + '/* PLAGGIE2:exend:'
-						+ mi + ' */';
-			} else {
-				result += '/* PLAGGIE2:begin:' + mi + ' */'
-						+ code.substring(n, c) + '/* PLAGGIE2:end:'
-						+ mi + ' */';
-			}
-			mi++;
-		}
-	}
-	if (c < code.length) {
-		result += code.substring(c);
+		result += _codeviewMatchWrap(code, m);
+		last = m["last"] + 1
 	}
 	return result;
+}
+
+function _codeviewMatchWrap(code, m) {
+	return "<a class=\"match\" data-id=\"" + m["group"]+ "\">"
+		+ code.substring(m["first"], m["last"]) + "</a>";
 }
 
 /**

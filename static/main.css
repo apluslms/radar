@@ -7,7 +7,7 @@ header ul.breadcrumb { margin:7px 0; }
 pre.json {
 	display:none;
 }
-pre.prettyprint {
+pre.codeview {
 	display: block;
 	width: 48em;
 	height: 50em;
@@ -17,6 +17,14 @@ pre.prettyprint {
 	float: left;
 	position: relative;
 }
+.hljs a {
+	color: #333;
+}
+.hljs a:hover {
+	text-decoration: none;
+}
+
+/*
 li.L0,li.L1,li.L2,li.L3,li.L4,li.L5,li.L6,li.L7,li.L8,li.L9 {
 	list-style-type: decimal !important;
 	background: #eee;
@@ -30,3 +38,4 @@ pre.prettyprint li span.selected {
 pre.prettyprint li span.matched {
 	background: yellow;
 }
+*/

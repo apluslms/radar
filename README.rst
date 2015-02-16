@@ -38,3 +38,4 @@ Built on open source
 * http://jquery.com/
 * http://getbootstrap.com/
 * https://github.com/tzangms/django-bootstrap-form
+* https://highlightjs.org/

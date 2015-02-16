@@ -2,5 +2,7 @@ $(function () {
 
 	//$('[data-toggle="tooltip"]').tooltip();
 
-	// Highlite code matches.
+	// Highlight code matches.
+	codeview("#a", "#a_parts");
+	codeview("#b", "#b_parts");
 });
