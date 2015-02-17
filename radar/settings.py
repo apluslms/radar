@@ -163,6 +163,5 @@ try:
                 a[key] = b[key]
     if "PROVIDERS_MERGE" in locals():
         merge_dict(PROVIDERS, PROVIDERS_MERGE)
-        print(PROVIDERS)
 except ImportError:
     pass

@@ -3,6 +3,15 @@
 
 <h4>Match Groups</h4>
 
+<form method="post" action="{% url 'review.views.exercise_setup' course_name=course.name exercise_name=exercise.name %}" class="form-inline">
+	<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+	<div class="form-group">
+		<label for="ratio">Highest student ratio to list</label>
+		<input type="text" id="ratio" name="ratio" value="{{ exercise.tolerance }}" size="3">
+	</div>
+	<button class="btn btn-default">Update</button>
+</form>
+
 <table class="table">
 	<tr>
 		<th>Student count (ratio of all)</th>

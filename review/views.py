@@ -63,6 +63,17 @@ def exercise(request, course_name=None, exercise_name=None, course=None, exercis
 
 @access_resource
 def exercise_setup(request, course_name=None, exercise_name=None, course=None, exercise=None):
+    if request.method == "POST" and "ratio" in request.POST:
+        ratio = 0.0
+        try:
+            ratio = float(request.POST["ratio"])
+        except ValueError:
+            pass
+        if ratio > 0.0:
+            exercise.override_tolerance = ratio
+            exercise.save()
+        return redirect("review.views.exercise", course_name=course.name, exercise_name=exercise.name)
+    
     if request.method == "POST" and "tokenizer" in request.POST and "length" in request.POST:
         tokenizer = request.POST["tokenizer"]
         length = 0
@@ -77,6 +88,7 @@ def exercise_setup(request, course_name=None, exercise_name=None, course=None, e
         exercise.save()
         exercise.match_groups.all().delete()
         exercise.submissions.all().update(tokens=None, token_positions=None, matching_finished=False)
+    
     return redirect("review.views.course", course_name=course.name)
     
 
@@ -127,7 +139,6 @@ def comparison(request, course_name=None, exercise_name=None, g_id=None, a_id=No
     match_b = group.matches.filter(submission=b).first()
     if match_a is None or match_b is None:
         raise Http404()
-    config = tokenizer(exercise)
     def match_dict(match):
         idx = match.submission.token_position_indexes()
         return [{ "first": idx[match.first_token][0], "last": idx[match.last_token][1],
@@ -139,7 +150,6 @@ def comparison(request, course_name=None, exercise_name=None, g_id=None, a_id=No
                       ("%s vs %s" % (match_a.submission.student.name, match_b.submission.student.name), None)),
         "course": course,
         "exercise": exercise,
-        "lang_class": config["lang_class"],
         "source_a": get_submission_text(match_a.submission),
         "parts_a": json.dumps(match_dict(match_a)),
         "source_b": get_submission_text(match_b.submission),
