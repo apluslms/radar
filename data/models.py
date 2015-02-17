@@ -120,10 +120,10 @@ class Exercise(models.Model):
         return int(self.size * self.tolerance)
     
     def active_groups(self):
-        return self.match_groups.filter(hide=False, size__lt=self.active_group_limit).order_by('-size')
+        return self.match_groups.filter(hide=False, size__lte=self.active_group_limit).order_by('-size')
     
     def hidden_groups(self):
-        return self.match_groups.exclude(hide=False, size__lt=self.active_group_limit).order_by('size')
+        return self.match_groups.exclude(hide=False, size__lte=self.active_group_limit).order_by('size')
 
     def __str__(self):
         return "%s/%s (%s)" % (self.course.name, self.name, self.created)
@@ -161,9 +161,12 @@ class Submission(models.Model):
     token_positions = models.TextField(blank=True, null=True, default=None)
     matching_finished = models.BooleanField(db_index=True, default=False)
 
+    def token_position_indexes(self):
+        return list(map(lambda s: list(map(int, s.split("-"))), self.token_positions.split(",")))
+
     def active_matches(self):
         limit = self.exercise.active_group_limit
-        return self.matches.filter(group__hide=False, group__size__lt=limit).order_by("first_token")
+        return self.matches.filter(group__hide=False, group__size__lte=limit).order_by("first_token")
 
     def __str__(self):
         return "%s/%s: %s grade=%.1f (%s)" % (self.exercise.course.name, self.exercise.name, self.student.name, self.grade, self.created)

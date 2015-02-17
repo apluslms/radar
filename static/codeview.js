@@ -16,9 +16,12 @@ function codeview(codeSelector, matchSelector) {
 			codePre.html(_codeviewMatches(codePre.text(), json));
 		}
 	}
-	
 	hljs.highlightBlock(codePre[0]);
 	
+	var as = codePre.find("a.match").bind("mouseenter", _codeviewEnter)
+		.bind("mouseleave", _codeviewLeave)
+		.bind("click", _codeviewClick);
+	codePre.scrollTop(as.filter(".compared").eq(0).position().top - 30);
 	return true;
 }
 
@@ -34,6 +37,9 @@ function _codeviewMatches(code, matches) {
 		result += _codeviewMatchWrap(code, m);
 		last = m["last"] + 1
 	}
+	if (last < code.length) {
+		result += code.substring(last, code.length);
+	}
 	return "<span class=\"source\">" + result + "</span>";
 }
 
@@ -43,5 +49,19 @@ function _codeviewMatchWrap(code, m) {
 		classes += " compared";
 	}
 	return "<a class=\"" + classes + "\" data-id=\"" + m["group"]+ "\" href=\"#\">"
-		+ code.substring(m["first"], m["last"]) + "</a>";
+		+ code.substring(m["first"], m["last"] + 1) + "</a>";
+}
+
+function _codeviewEnter(event) {
+	var id = $(this).attr("data-id");
+	$("pre.codeview a[data-id=\"" + id + "\"]").addClass("current");
+}
+
+function _codeviewLeave(event) {
+	var id = $(this).attr("data-id");
+	$("pre.codeview a[data-id=\"" + id + "\"]").removeClass("current");
+}
+
+function _codeviewClick(event) {
+	event.preventDefault();
 }

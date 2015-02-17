@@ -8,7 +8,7 @@ from data.models import ProviderQueue, Submission
 from radar.config import tokenizer
 
 
-API_URL = "http://%(host)s/api/v1/submission_content/%(sid)s/" + \
+API_URL = "%(host)s/api/v1/submission_content/%(sid)s/" + \
             "?format=json&username=%(user)s&api_key=%(key)s"
 POST_KEY = "submission_id"
 

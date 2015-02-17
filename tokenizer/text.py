@@ -2,7 +2,7 @@ import logging
 
 logger = logging.getLogger("radar.tokenizer")
 
-def cron():
+def cron(submission, config):
     """
     Tokenizes natural text to a sequence of high level structural tokens
     that are independent from word choices. A minimum length to match

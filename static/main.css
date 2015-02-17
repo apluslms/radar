@@ -22,13 +22,25 @@ pre.codeview span.source {
 }
 .hljs a {
 	color: #333;
-}
-.hljs a:hover {
 	text-decoration: none;
 }
 .hljs a.match {
-	background: yellow;
+	background: #ffb;
 }
 .hljs a.compared {
-	background: lightpink;
+	background: #fcc;
+}
+.hljs a.current {
+	background: #faa;
+}
+
+/* Match group */
+table.grouptable td {
+	white-space: nowrap;
+}
+table.grouptable td span.tokens {
+	font-size:8px;
+}
+table.grouptable td span.tokens span.match {
+	color:red;
 }

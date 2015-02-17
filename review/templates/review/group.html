@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+
+<table class="table grouptable">
+	{% for match in matches %}
+	<tr>
+		<td>
+			<a href="{% url 'review.views.submission' course_name=course.name exercise_name=exercise.name g_id=group.pk a_id=match.submission.pk %}">
+				{{ match.submission.student.name }}
+			</a>
+		</td>
+		<td>{{ match.submission.created|date:"Y-m-d H:i" }}</td>
+		<td>{{ match.submission.grade }}</td>
+		<td><span class="tokens">{{ match.tokens|safe }}</span></td>
+	</tr>
+	{% endfor %}
+</table>
+
+{% endblock %}

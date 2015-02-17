@@ -7,6 +7,7 @@
 		<th>Created</th>
 		<th>Students</th>
 		<th>Match Groups</th>
+		<th>Tokenizer settings</th>
 	</tr>
 	{% for exercise in exercises %}
 	<tr>
@@ -14,6 +15,24 @@
 		<td>{{ exercise.created|date:"Y-m-d" }}</td>
 		<td>{{ exercise.size }}</td>
 		<td>{{ exercise.group_count }}</td>
+		<td>
+			<form method="post" action="{% url 'review.views.exercise_setup' course_name=course.name exercise_name=exercise.name %}" class="form-inline">
+				<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+				<div class="form-group">
+					<select name="tokenizer">
+						{% for t in tokenizers %}
+						<option value="{{ t.value }}"{% if t.value == exercise.tokenizer %} selected{% endif %}>{{ t.name }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="form-group">
+					<input type="text" id="length" name="length" value="{{ exercise.minimum_match_tokens }}" size="2">
+					tokens min match
+				</div>
+				<button class="btn btn-default">Save and Re-Tokenize</button>
+			</form>
+		</td>
+		
 	</tr>
 	{% endfor %}
 </table>

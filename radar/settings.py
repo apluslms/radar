@@ -55,21 +55,24 @@ MIDDLEWARE_CLASSES = (
 )
 
 TOKENIZERS = {
+    "skip": { "name": "Skip", "cron": "tokenizer.skip.cron",
+              "separator": "" },
     "scala": { "name": "Scala", "cron": "tokenizer.scala.cron",
-              "separator": "/****** %s ******/", "lang_class": "lang-scala" },
+              "separator": "/****** %s ******/" },
     "python": { "name": "Python", "cron": "tokenizer.python.cron",
-               "separator": "###### %s ######", "lang_class": "lang-python" },
+               "separator": "###### %s ######" },
     "text": { "name": "Natural text", "cron": "tokenizer.text.cron",
              "separator": "###### %s ######", "lang_class": "" },
     "java": { "name": "Java", "cron": "tokenizer.java.cron",
-             "separator": "/****** %s ******/", "lang_class": "lang-java" },
+             "separator": "/****** %s ******/" },
 }
 
 PROVIDERS = {   
     "a+": { "name": "A+",
            "hook": "provider.aplus.hook",
            "cron": "provider.aplus.cron",
-           "host": "localhost:8000", "user": "root",
+           "host": "http://localhost:8000",
+           "user": "root",
            "key": "4511004ec512bbcccbed7aa31d479a93fa039a72" },
     "filesystem": { "name": "File system",
                    "hook": "provider.filesystem.hook",
@@ -152,5 +155,13 @@ LOGGING = {
 
 try:
     from local_settings import *
+    def merge_dict(a, b):
+        for key in b:
+            if isinstance(b[key], dict) and key in a and isinstance(a[key], dict):
+                a[key] = merge_dict(a[key], b[key])
+            else:
+                a[key] = b[key]
+    if "PROVIDERS_MERGE" in locals():
+        merge_dict(PROVIDERS, PROVIDERS_MERGE)
 except ImportError:
     pass
