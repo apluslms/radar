@@ -158,10 +158,11 @@ try:
     def merge_dict(a, b):
         for key in b:
             if isinstance(b[key], dict) and key in a and isinstance(a[key], dict):
-                a[key] = merge_dict(a[key], b[key])
+                merge_dict(a[key], b[key])
             else:
                 a[key] = b[key]
     if "PROVIDERS_MERGE" in locals():
         merge_dict(PROVIDERS, PROVIDERS_MERGE)
+        print(PROVIDERS)
 except ImportError:
     pass
