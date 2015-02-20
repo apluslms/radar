@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import F
 from django.db.models.aggregates import Avg
 from django.utils.encoding import python_2_unicode_compatible
 
@@ -172,23 +173,6 @@ class Submission(models.Model):
         return "%s/%s: %s grade=%.1f (%s)" % (self.exercise.course.name, self.exercise.name, self.student.name, self.grade, self.created)
 
 
-class MatchGroupManager(models.Manager):
-
-    def find_group(self, exercise, tokens):
-        for group in self.filter(exercise=exercise):
-            if tokens in group.tokens:
-                return group
-            if group.tokens in tokens:
-                group.tokens = tokens
-                group.save()
-                logger.debug("Match group expanded, length %d", len(tokens))
-                return group
-        group = MatchGroup(exercise=exercise, tokens=tokens)
-        group.save()
-        logger.debug("New match group, length %d", len(tokens))
-        return group
-
-
 @python_2_unicode_compatible
 class MatchGroup(models.Model):
     """
@@ -201,27 +185,19 @@ class MatchGroup(models.Model):
     average_grade = models.FloatField(default=0.0)
     hide = models.BooleanField(db_index=True, default=False)
     plagiate = models.BooleanField(default=False)
-    objects = MatchGroupManager()
 
     def add_match(self, submission, beg, length):
-        if self.matches.filter(submission=submission, first_token=beg, length=length).exists():
-            return
-        end = beg + length - 1
-        for m in self.matches.filter(submission=submission):
-            if m.overlaps(beg, end):
-                logger.debug("Forget overlapping match: %d-%d", m.first_token, m.last_token)
-                beg = min(beg, m.first_token)
-                end = max(end, m.last_token)
-                m.delete()
-        logger.debug("Record match: %d-%d", beg, end)
-        self.matches.create(submission=submission, first_token=beg, length=(end - beg + 1))
+        m = self.matches.filter(submission=submission).first()
+        if m is None:
+            self.matches.create(submission=submission, first_token=beg, length=length)
+            logger.debug("New match: %d:%d", beg, length)
+        else:
+            m.first_token = beg
+            m.length = length
+            m.save()
+            logger.debug("Update match: %d:%d", beg, length)
 
     def recalculate(self):
-        for compare in MatchGroup.objects.filter(exercise=self.exercise).exclude(pk=self.pk):
-            if compare.tokens in self.tokens:
-                logger.debug("Join group, length %d", len(compare.tokens))
-                compare.matches.update(group=self)
-                compare.delete()
         submissions = Submission.objects.filter(matches__group=self)
         self.size = submissions.values("student").distinct().count()
         self.average_grade = submissions.aggregate(a=Avg("grade"))["a"]
@@ -239,8 +215,62 @@ class MatchManager(models.Manager):
         Record a match between two submissions.
         
         """
+        exercise = submission_a.exercise
         tokens = submission_a.tokens[match.a:match.a_end]
-        group = MatchGroup.objects.find_group(submission_a.exercise, tokens)
+        min_l = exercise.minimum_match_tokens
+        for g in MatchGroup.objects.filter(exercise=exercise):
+            
+            # Look for contained groups.
+            i = tokens.find(g.tokens)
+            if i >= 0:
+                b = 0
+                l = len(tokens)
+                if i >= min_l:
+                    b = i
+                    self.record(submission_a, submission_b, match.sub(0, i))
+                e = i + len(g.tokens) - 1
+                if l - e >= min_l:
+                    l = e + 1
+                    self.record(submission_a, submission_b, match.sub(l, match.length))
+                g.tokens = tokens[b:l]
+                g.save()
+                m = match.sub(b, l)
+                g.add_match(submission_a, m.a, m.length)
+                g.add_match(submission_b, m.b, m.length)
+                g.recalculate()
+                return
+        
+            # Look for containing groups.
+            i = g.tokens.find(tokens)
+            if i >= 0:
+                b = 0
+                l = len(g.tokens)
+                if i >= min_l:
+                    b = i
+                    bg = MatchGroup.objects.create(exercise=exercise, tokens=g.tokens[0:i])
+                    for m in g.matches.all():
+                        bg.add_match(m.submission, m.first_token, i)
+                    bg.recalculate()
+                e = i + len(tokens) - 1
+                s = l - e
+                if s >= min_l:
+                    l = e + 1
+                    eg = MatchGroup.objects.create(exercise=exercise, tokens=g.tokens[l:])
+                    for m in g.matches.all():
+                        eg.add_match(m.submission, m.first_token + l, s)
+                    eg.recalculate()
+                else:
+                    s = 0
+                g.tokens = g.tokens[b:l]
+                g.save()
+                Match.objects.filter(group=g).update(first_token=F("first_token") + b, length=F("length") - s)
+                m = match.sub(b, l)
+                g.add_match(submission_a, m.a, m.length)
+                g.add_match(submission_b, m.b, m.length)
+                g.recalculate()
+                return
+        
+        group = MatchGroup.objects.create(exercise=exercise, tokens=tokens)
         group.add_match(submission_a, match.a, match.length)
         group.add_match(submission_b, match.b, match.length)
         group.recalculate()

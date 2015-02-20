@@ -19,6 +19,7 @@ def match(a):
     for b in Submission.objects.filter(exercise=a.exercise, matching_finished=True).exclude(student=a.student):
         logger.debug("Match %s and %s", a.student.name, b.student.name)
         for m in f(a.tokens, b.tokens, a.exercise.minimum_match_tokens):
+            #TODO add pairwise matches
             Match.objects.record(a, b, m)
     
     a.matching_finished = True
@@ -46,6 +47,11 @@ class TokenMatch():
 
     def reverse(self):
         return TokenMatch(self.b, self.a, self.length)
+    
+    def sub(self, start, end):
+        if start < 0 and start >= self.length and not start < end:
+            raise ValueError("Not subsection indexes")
+        return TokenMatch(self.a + start, self.b + start, min(self.length, end - start))
 
 
 class TokenMatchSet():
