@@ -120,8 +120,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='course',
             name='name',
-            field=models.CharField(max_length=128, help_text='Descriptive course name'),
-            preserve_default=True,
+            field=models.CharField(max_length=128, default="unknown", help_text='Descriptive course name'),
+            preserve_default=False,
         ),
         #migrations.AlterField(
         #    model_name='course',
