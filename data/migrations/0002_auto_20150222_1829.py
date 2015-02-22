@@ -77,18 +77,28 @@ class Migration(migrations.Migration):
             model_name='submission',
             name='matching_finished',
         ),
-        migrations.AddField(
+        migrations.RenameField(
             model_name='course',
-            name='key',
-            field=data.models.URLKeyField(max_length=64, unique=True, default=datetime.datetime(2015, 2, 22, 18, 29, 19, 355569, tzinfo=utc), help_text='Unique alphanumeric course instance id'),
-            preserve_default=False,
+            old_name='name',
+            new_name='key',
         ),
-        migrations.AddField(
+        #migrations.AddField(
+        #    model_name='course',
+        #    name='key',
+        #    field=data.models.URLKeyField(max_length=64, unique=True, default=datetime.datetime(2015, 2, 22, 18, 29, 19, 355569, tzinfo=utc), help_text='Unique alphanumeric course instance id'),
+        #    preserve_default=False,
+        #),
+        migrations.RenameField(
             model_name='exercise',
-            name='key',
-            field=data.models.URLKeyField(max_length=64, default=datetime.datetime(2015, 2, 22, 18, 29, 24, 547614, tzinfo=utc), help_text='Alphanumeric exercise id'),
-            preserve_default=False,
+            old_name='name',
+            new_name='key',
         ),
+        #migrations.AddField(
+        #    model_name='exercise',
+        #    name='key',
+        #    field=data.models.URLKeyField(max_length=64, default=datetime.datetime(2015, 2, 22, 18, 29, 24, 547614, tzinfo=utc), help_text='Alphanumeric exercise id'),
+        #    preserve_default=False,
+        #),
         migrations.AddField(
             model_name='exercise',
             name='template_tokens',
@@ -107,24 +117,36 @@ class Migration(migrations.Migration):
             field=models.FloatField(blank=True, db_index=True, null=True, default=None),
             preserve_default=True,
         ),
-        migrations.AlterField(
+        migrations.AddField(
             model_name='course',
             name='name',
             field=models.CharField(max_length=128, help_text='Descriptive course name'),
             preserve_default=True,
         ),
+        #migrations.AlterField(
+        #    model_name='course',
+        #    name='name',
+        #    field=models.CharField(max_length=128, help_text='Descriptive course name'),
+        #    preserve_default=True,
+        #),
         migrations.AlterField(
             model_name='course',
             name='tokenizer',
             field=models.CharField(choices=[('skip', 'Skip'), ('scala', 'Scala')], max_length=16, default='skip', help_text='Tokenizer for the submission contents'),
             preserve_default=True,
         ),
-        migrations.AlterField(
+        migrations.AddField(
             model_name='exercise',
             name='name',
             field=models.CharField(max_length=128, default='unknown', help_text='Descriptive exercise name'),
             preserve_default=True,
         ),
+        #migrations.AlterField(
+        #    model_name='exercise',
+        #    name='name',
+        #    field=models.CharField(max_length=128, default='unknown', help_text='Descriptive exercise name'),
+        #    preserve_default=True,
+        #),
         migrations.AlterField(
             model_name='exercise',
             name='override_tokenizer',
