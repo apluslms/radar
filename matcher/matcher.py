@@ -17,8 +17,8 @@ def match(a):
     """
     logger.info("Matching submission %s", a)
     if Submission.objects.get(pk=a.pk).tokens == None:
-        logger.error("Submission is not tokenized.")
-        return
+        logger.info("Submission is not tokenized.")
+        return False
     
     f = named_function(settings.MATCH_ALGORITHM)
 
@@ -71,6 +71,7 @@ def match(a):
         a.max_similarity = 0.0
     a.authored_token_count = count_a
     a.save()
+    return True
 
 class TokenMatchSet():
 

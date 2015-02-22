@@ -31,8 +31,10 @@ class Command(BaseCommand):
             # Tokenize and match new submissions.
             for submission in Submission.objects.filter(exercise__course=course, tokens__isnull=True):
                 tokenize_submission(submission)
-                match(submission)
+                if not match(submission):
+                    return
 
             # Check again for yet unmatched submissions.
             for submission in Submission.objects.filter(exercise__course=course, max_similarity__isnull=True):
-                match(submission)
+                if not match(submission):
+                    return
