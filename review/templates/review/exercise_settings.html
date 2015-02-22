@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+{% load bootstrap %}
+
+<form method="post" class="well">
+	<h4>Exercise description</h4>
+	{% csrf_token %}
+	{{ form|bootstrap }}
+	<button type="submit" name="save" class="btn btn-primary">Save</button>
+</form>
+
+<form method="post" class="well">
+	<h4>Exercise tokenizer and matcher</h4>
+	<div class="alert alert-warning">
+		<p>Changing these settings will clear the current comparisons from the database.
+		Calculating the new results will take approximately 1 minute per 10 submissions.</p>
+	</div>
+	{% csrf_token %}
+	{{ form_tokenizer|bootstrap }}
+	<button type="submit" name="save_and_clear" class="btn btn-warning">Save and re-compare</button>
+</form>
+
+{% endblock %}

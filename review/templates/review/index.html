@@ -1,7 +1,4 @@
 {% extends 'base.html' %}
-{% block breadcrumb %}
-<li class="active">Courses</li>
-{% endblock %}
 {% block content %}
 
 <table class="table">
@@ -9,16 +6,20 @@
 		<th>Name</th>
 		<th>Created</th>
 		<th>Exercises</th>
+		<th>Students</th>
+		<th>Submissions</th>
 	</tr>
 	{% for course in courses %}
 	<tr>
 		<td>
-			<a href="{% url 'review.views.course' course_name=course.name %}">
+			<a href="{% url 'review.views.course' course_key=course.key %}">
 				{{ course.name }}
 			</a>
 		</td>
 		<td>{{ course.created|date:"Y-m-d" }}</td>
 		<td>{{ course.exercises.count }}</td>
+		<td>{{ course.students.count }}</td>
+		<td>{{ course.submissions.count }} ({{ course.matched_submissions.count }} matched)</td>
 	</tr>
 	{% endfor %}
 </table>

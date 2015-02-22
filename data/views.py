@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from data.models import Course
-from radar.config import provider, configured_function
+from radar.config import provider_config, configured_function
 
 
 logger = logging.getLogger("radar.hook")
@@ -23,7 +23,7 @@ def hook_submission(request, course_name=None):
         logger.error("Submission hook failed, archived course %s", course)
         raise Http404()
 
-    config = provider(course)
+    config = provider_config(course.provider)
     try:
         f = configured_function(config, "hook")
         f(request, course, config)

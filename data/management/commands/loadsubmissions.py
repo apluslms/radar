@@ -13,9 +13,9 @@ class Command(BaseCommand):
         if len(args) < 1:
             self.stdout.write("The course/exercise parameter is required.")
             return
-        (course_name, exercise_name) = args[0].split("/", 1)
-        course = Course.objects.get(name=course_name)
-        exercise = course.get_exercise(exercise_name)
+        (course_key, exercise_key) = args[0].split("/", 1)
+        course = Course.objects.get(key=course_key)
+        exercise = course.get_exercise(exercise_key)
         self.stdout.write("Inserting to exercise %s" % (exercise))
 
         if len(args) < 2:

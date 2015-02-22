@@ -1,46 +1,52 @@
 
+div.content > * + * { margin-top: 1em; }
+div.content > .pull-right + * { margin-top:0; }
+
+pre.json { display:none; }
+
 header ul.breadcrumb { margin:7px 0; }
 
-/*span[data-toggle="tooltip"]::after { content: "*"; }*/
+form.well { max-width:50em; margin-left:auto; margin-right:auto; }
+form.well h4 { margin:0 0 15px 0; color:#777; }
+
+/* The heat */
+.heat-1 { background-color:#e96e5c !important; fill:#e96e5c !important; }
+.heat-2 { background-color:#fdbb83 !important; fill:#fdbb83 !important; }
+.heat-3 { background-color:#fee8c8 !important; fill:#fee8c8 !important; }
+
+/* Comparison table */
+table.comparison td { border:1px solid grey; line-height:1em; }
+table.comparison td a { display:block; padding:0.1em 0.3em; color:inherit; text-decoration:none; }
+table.comparison td a:hover, table.comparison td.selected a { background-color:#333; color:white; }
+table.comparison td .similarity { font-style:oblique; }
+table.comparison td small { display:block; font-size:x-small; white-space:nowrap; }
+table.comparison td.success { background-color:transparent !important; }
+
+
+/* Histogram */
+.histogram { margin:0 0 1em 0; }
+.histogram .bar { fill:#ccc; shape-rendering:crispEdges; }
+.histogram .bar text { fill:#000; }
+.histogram .axis path, .axis line { fill:none; stroke:#000; shape-rendering:crispEdges; }
 
 /* Code */
-pre.json {
-	display:none;
+.code-comparison { clear:both; overflow:hidden; }
+pre.code-view {
+	display:block;
+	max-width:50%;
+	min-width:370px;
+	height:50em;
+	overflow-y:scroll;
+	word-wrap:break-word;
+	float:left;
+	position:relative;
 }
-pre.codeview {
-	display: block;
-	width: 48em;
-	height: 50em;
-	overflow-y: scroll;
-	word-wrap: break-word;
-	border: 1px solid black;
-	float: left;
-	position: relative;
-}
-pre.codeview span.source {
-	background: #fff;
-}
-.hljs a {
-	color: #333;
-	text-decoration: none;
-}
-.hljs a.match {
-	background: #ffb;
-}
-.hljs a.compared {
-	background: #fcc;
-}
-.hljs a.current {
-	background: #faa;
-}
-
-/* Match group */
-table.grouptable td {
-	white-space: nowrap;
-}
-table.grouptable td span.tokens {
-	font-size:8px;
-}
-table.grouptable td span.tokens span.match {
-	color:red;
-}
+.source { background-color:#fff; }
+.source a { color:#333; text-decoration:none; }
+.source a.template { background-color:#f8f8f8; }
+.source a.match { background-color:#ffff99; }
+.source a.match.current { background-color:#ffcc66; }
+.source a.match.exact { background-color:#ff9966; }
+.source a.match.exact.current { background-color:#ff6600; }
+pre.sample-highlight { display:inline-block; }
+#review button { width:13em; }

@@ -1,23 +1,16 @@
+import json
 import logging
 import re
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, FieldError
 from django.db import models
-from django.db.models import F
-from django.db.models.aggregates import Avg
 from django.utils.encoding import python_2_unicode_compatible
+from radar.config import choice_name
 
 
 logger = logging.getLogger("radar.model")
-
-
-def _make_choices(settings_value):
-    choices = []
-    for key in settings_value.keys():
-        choices.append((key, settings_value[key]["name"]))
-    return choices
 
 
 class URLKeyField(models.CharField):
@@ -34,7 +27,7 @@ class URLKeyField(models.CharField):
 
 
 class CourseManager(models.Manager):
-    
+
     def get_available_courses(self, user):
         if user.is_staff:
             return self.all()
@@ -48,11 +41,11 @@ class Course(models.Model):
     
     """
     created = models.DateTimeField(auto_now_add=True)
-    name = URLKeyField(max_length=64, unique=True, help_text="Unique alphanumeric course instance id")
-    provider = models.CharField(max_length=16, choices=_make_choices(settings.PROVIDERS), help_text="Provider for submission data", default=next(iter(settings.PROVIDERS)))
-    tokenizer = models.CharField(max_length=16, choices=_make_choices(settings.TOKENIZERS), help_text="Tokenizer for the submission contents", default=next(iter(settings.TOKENIZERS)))
+    key = URLKeyField(max_length=64, unique=True, help_text="Unique alphanumeric course instance id")
+    name = models.CharField(max_length=128, help_text="Descriptive course name")
+    provider = models.CharField(max_length=16, choices=settings.PROVIDER_CHOICES, help_text="Provider for submission data", default=settings.PROVIDER_CHOICES[0][0])
+    tokenizer = models.CharField(max_length=16, choices=settings.TOKENIZER_CHOICES, help_text="Tokenizer for the submission contents", default=settings.TOKENIZER_CHOICES[0][0])
     minimum_match_tokens = models.IntegerField(default=15, help_text="Minimum number of tokens to consider a match")
-    tolerance = models.FloatField(default=0.4, help_text="Automatically hide matches that this ratio of submissions have in common")
     reviewers = models.ManyToManyField(User, blank=True, null=True, help_text="Reviewers for match analysis")
     archived = models.BooleanField(db_index=True, default=False)
     objects = CourseManager()
@@ -62,243 +55,33 @@ class Course(models.Model):
 
     @property
     def provider_name(self):
-        return settings.PROVIDERS[self.provider]["name"]
+        return choice_name(settings.PROVIDER_CHOICES, self.provider)
 
-    @property    
+    @property
     def tokenizer_name(self):
-        return settings.TOKENIZERS[self.tokenizer]["name"]
+        return choice_name(settings.TOKENIZER_CHOICES, self.tokenizer)
+
+    @property
+    def submissions(self):
+        return Submission.objects.filter(exercise__course=self)
+
+    @property
+    def matched_submissions(self):
+        return Submission.objects.filter(exercise__course=self).exclude(max_similarity__isnull=True)
 
     def has_access(self, user):
         return user.is_staff or self.reviewers.filter(pk=user.pk).exists()
 
-    def get_exercise(self, name):
-        exercise, _ = self.exercises.get_or_create(name=URLKeyField.safe_version(name))
+    def get_exercise(self, key_str):
+        exercise, _ = self.exercises.get_or_create(key=URLKeyField.safe_version(key_str))
         return exercise
 
-    def get_student(self, name):
-        student, _ = self.students.get_or_create(name=URLKeyField.safe_version(name))
+    def get_student(self, key_str):
+        student, _ = self.students.get_or_create(key=URLKeyField.safe_version(key_str))
         return student
 
     def __str__(self):
         return "%s (%s)" % (self.name, self.created)
-
-
-@python_2_unicode_compatible
-class Exercise(models.Model):
-    """
-    Each submission includes an exercise key and exercise objects are created as needed.
-    
-    """
-    created = models.DateTimeField(auto_now_add=True)
-    course = models.ForeignKey(Course, related_name="exercises")
-    name = URLKeyField(max_length=64, help_text="Alphanumeric exercise id")
-    override_tokenizer = models.CharField(max_length=8, choices=_make_choices(settings.TOKENIZERS), blank=True, null=True)
-    override_minimum_match_tokens = models.IntegerField(blank=True, null=True)
-    override_tolerance = models.FloatField(blank=True, null=True)
-
-    class Meta:
-        unique_together = ("course", "name")
-        ordering = ["course", "name", "created"]
-
-    @property
-    def tokenizer(self):
-        return self.override_tokenizer if self.override_tokenizer is not None else self.course.tokenizer
-
-    @property
-    def minimum_match_tokens(self):
-        return self.override_minimum_match_tokens if self.override_minimum_match_tokens is not None else self.course.minimum_match_tokens
-
-    @property
-    def tolerance(self):
-        return self.override_tolerance if self.override_tolerance is not None else self.course.tolerance
-
-    @property
-    def size(self):
-        return Submission.objects.filter(exercise=self).values("student").distinct().count()
-    
-    @property
-    def active_group_limit(self):
-        return int(self.size * self.tolerance)
-    
-    def active_groups(self):
-        return self.match_groups.filter(hide=False, size__lte=self.active_group_limit).order_by('-size')
-    
-    def hidden_groups(self):
-        return self.match_groups.exclude(hide=False, size__lte=self.active_group_limit).order_by('size')
-
-    def __str__(self):
-        return "%s/%s (%s)" % (self.course.name, self.name, self.created)
-
-
-@python_2_unicode_compatible
-class Student(models.Model):
-    """
-    Each submission includes a student key and student objects are created as needed.
-    
-    """
-    created = models.DateTimeField(auto_now_add=True)
-    course = models.ForeignKey(Course, related_name="students")
-    name = URLKeyField(max_length=64, help_text="Alphanumeric student id")
-
-    class Meta:
-        unique_together = ("course", "name")
-        ordering = ["course", "name", "created"]
-
-    def __str__(self):
-        return "%s: %s (%s)" % (self.course.name, self.name, self.created)
-
-
-@python_2_unicode_compatible
-class Submission(models.Model):
-    """
-    A submission for an exercise.
-    
-    """
-    created = models.DateTimeField(auto_now_add=True)
-    exercise = models.ForeignKey(Exercise, related_name="submissions")
-    student = models.ForeignKey(Student, related_name="submissions")
-    grade = models.FloatField(default=0.0)
-    tokens = models.TextField(blank=True, null=True, default=None)
-    token_positions = models.TextField(blank=True, null=True, default=None)
-    matching_finished = models.BooleanField(db_index=True, default=False)
-
-    def token_position_indexes(self):
-        return list(map(lambda s: list(map(int, s.split("-"))), self.token_positions.split(",")))
-
-    def active_matches(self):
-        limit = self.exercise.active_group_limit
-        return self.matches.filter(group__hide=False, group__size__lte=limit).order_by("first_token")
-
-    def __str__(self):
-        return "%s/%s: %s grade=%.1f (%s)" % (self.exercise.course.name, self.exercise.name, self.student.name, self.grade, self.created)
-
-
-@python_2_unicode_compatible
-class MatchGroup(models.Model):
-    """
-    Groups common matches together.
-    
-    """
-    exercise = models.ForeignKey(Exercise, related_name="match_groups")
-    tokens = models.TextField()
-    size = models.IntegerField(db_index=True, default=0)
-    average_grade = models.FloatField(default=0.0)
-    hide = models.BooleanField(db_index=True, default=False)
-    plagiate = models.BooleanField(default=False)
-
-    def add_match(self, submission, beg, length):
-        m = self.matches.filter(submission=submission).first()
-        if m is None:
-            self.matches.create(submission=submission, first_token=beg, length=length)
-            logger.debug("New match: %d:%d", beg, length)
-        else:
-            m.first_token = beg
-            m.length = length
-            m.save()
-            logger.debug("Update match: %d:%d", beg, length)
-
-    def recalculate(self):
-        submissions = Submission.objects.filter(matches__group=self)
-        self.size = submissions.values("student").distinct().count()
-        self.average_grade = submissions.aggregate(a=Avg("grade"))["a"]
-        self.save()
-        logger.debug("Updated group %s", self)
-
-    def __str__(self):
-        return "%s/%s: %d size=%d average_grade=%1.f" % (self.exercise.course.name, self.exercise.name, self.id, self.size, self.average_grade)
-
-
-class MatchManager(models.Manager):
-
-    def record(self, submission_a, submission_b, match):
-        """
-        Record a match between two submissions.
-        
-        """
-        exercise = submission_a.exercise
-        tokens = submission_a.tokens[match.a:match.a_end]
-        min_l = exercise.minimum_match_tokens
-        for g in MatchGroup.objects.filter(exercise=exercise):
-            
-            # Look for contained groups.
-            i = tokens.find(g.tokens)
-            if i >= 0:
-                b = 0
-                l = len(tokens)
-                if i >= min_l:
-                    b = i
-                    self.record(submission_a, submission_b, match.sub(0, i))
-                e = i + len(g.tokens) - 1
-                if l - e >= min_l:
-                    l = e + 1
-                    self.record(submission_a, submission_b, match.sub(l, match.length))
-                g.tokens = tokens[b:l]
-                g.save()
-                m = match.sub(b, l)
-                g.add_match(submission_a, m.a, m.length)
-                g.add_match(submission_b, m.b, m.length)
-                g.recalculate()
-                return
-        
-            # Look for containing groups.
-            i = g.tokens.find(tokens)
-            if i >= 0:
-                b = 0
-                l = len(g.tokens)
-                if i >= min_l:
-                    b = i
-                    bg = MatchGroup.objects.create(exercise=exercise, tokens=g.tokens[0:i])
-                    for m in g.matches.all():
-                        bg.add_match(m.submission, m.first_token, i)
-                    bg.recalculate()
-                e = i + len(tokens) - 1
-                s = l - e
-                if s >= min_l:
-                    l = e + 1
-                    eg = MatchGroup.objects.create(exercise=exercise, tokens=g.tokens[l:])
-                    for m in g.matches.all():
-                        eg.add_match(m.submission, m.first_token + l, s)
-                    eg.recalculate()
-                else:
-                    s = 0
-                g.tokens = g.tokens[b:l]
-                g.save()
-                Match.objects.filter(group=g).update(first_token=F("first_token") + b, length=F("length") - s)
-                m = match.sub(b, l)
-                g.add_match(submission_a, m.a, m.length)
-                g.add_match(submission_b, m.b, m.length)
-                g.recalculate()
-                return
-        
-        group = MatchGroup.objects.create(exercise=exercise, tokens=tokens)
-        group.add_match(submission_a, match.a, match.length)
-        group.add_match(submission_b, match.b, match.length)
-        group.recalculate()
-
-
-@python_2_unicode_compatible
-class Match(models.Model):
-    """
-    Records matches in match groups.
-    
-    """
-    submission = models.ForeignKey(Submission, related_name="matches")
-    group = models.ForeignKey(MatchGroup, related_name="matches")
-    first_token = models.IntegerField()
-    length = models.IntegerField()
-    objects = MatchManager()
-
-    @property
-    def last_token(self):
-        return self.first_token + self.length - 1
-
-    def overlaps(self, beg, end):
-        return (beg >= self.first_token and beg <= self.last_token + 1) \
-            or (end >= self.first_token - 1 and end <= self.last_token) \
-            or (beg < self.first_token and end > self.last_token)
-
-    def __str__(self):
-        return "%s/%s: %s group=%d length=%d" % (self.submission.exercise.course.name, self.submission.exercise.name, self.submission.student.name, self.group.id, self.length)
 
 
 @python_2_unicode_compatible
@@ -315,3 +98,177 @@ class ProviderQueue(models.Model):
 
     def __str__(self):
         return "%s (%s)" % (self.course.name, self.created)
+
+
+@python_2_unicode_compatible
+class Exercise(models.Model):
+    """
+    Each submission includes an exercise key and exercise objects are created as needed.
+    
+    """
+    created = models.DateTimeField(auto_now_add=True)
+    course = models.ForeignKey(Course, related_name="exercises")
+    key = URLKeyField(max_length=64, help_text="Alphanumeric exercise id")
+    name = models.CharField(max_length=128, default="unknown", help_text="Descriptive exercise name")
+    override_tokenizer = models.CharField(max_length=8, choices=settings.TOKENIZER_CHOICES, blank=True, null=True)
+    override_minimum_match_tokens = models.IntegerField(blank=True, null=True)
+    template_tokens = models.TextField(blank=True, default="")
+
+    class Meta:
+        unique_together = ("course", "key")
+        ordering = ["course", "created"]
+
+    @property
+    def tokenizer(self):
+        return self.override_tokenizer if self.override_tokenizer is not None else self.course.tokenizer
+
+    @property
+    def tokenizer_name(self):
+        return choice_name(settings.TOKENIZER_CHOICES, self.tokenizer)
+
+    @property
+    def minimum_match_tokens(self):
+        return self.override_minimum_match_tokens if self.override_minimum_match_tokens is not None else self.course.minimum_match_tokens
+
+    @property
+    def template_length(self):
+        return len(self.template_tokens)
+
+    @property
+    def student_count(self):
+        return Submission.objects.filter(exercise=self).values("student").distinct().count()
+
+    @property
+    def unmatched_submissions(self):
+        return self.submissions.filter(max_similarity__isnull=True)
+
+    @property
+    def matched_submissions(self):
+        return self.submissions.exclude(max_similarity__isnull=True)
+
+    @property
+    def submissions_max_similarity(self):
+        return self.matched_submissions.order_by("max_similarity").values_list("max_similarity", flat=True)
+
+    @property
+    def submissions_max_similarity_json(self):
+        return json.dumps(list(self.submissions_max_similarity))
+
+    @property
+    def comparisons(self):
+        return Comparison.objects.filter(submission_a__exercise=self).exclude(submission_b__isnull=True).order_by("-similarity")
+
+    def comparisons_for_student(self, student):
+        return self.comparisons.filter(models.Q(submission_a__student=student) | models.Q(submission_b__student=student))
+
+    def clear_tokens_and_matches(self):
+        self.comparisons.delete()
+        self.submissions.update(tokens=None, indexes_json=None, max_similarity=None)
+
+    def __str__(self):
+        return "%s/%s (%s)" % (self.course.name, self.name, self.created)
+
+
+@python_2_unicode_compatible
+class Student(models.Model):
+    """
+    Each submission includes a student key and student objects are created as needed.
+    
+    """
+    created = models.DateTimeField(auto_now_add=True)
+    course = models.ForeignKey(Course, related_name="students")
+    key = URLKeyField(max_length=64, help_text="Alphanumeric student id")
+
+    class Meta:
+        unique_together = ("course", "key")
+        ordering = ["course", "key"]
+
+    def __str__(self):
+        return "%s: %s (%s)" % (self.course.name, self.key, self.created)
+
+
+@python_2_unicode_compatible
+class Submission(models.Model):
+    """
+    A submission for an exercise.
+    
+    """
+    created = models.DateTimeField(auto_now_add=True)
+    exercise = models.ForeignKey(Exercise, related_name="submissions")
+    student = models.ForeignKey(Student, related_name="submissions")
+    grade = models.FloatField(default=0.0)
+    tokens = models.TextField(blank=True, null=True, default=None)
+    indexes_json = models.TextField(blank=True, null=True, default=None)
+    authored_token_count = models.IntegerField(blank=True, null=True, default=None)
+    max_similarity = models.FloatField(db_index=True, blank=True, null=True, default=None)
+
+    @property
+    def submissions_to_compare(self):
+        return self.exercise.matched_submissions.exclude(student=self.student)
+
+    @property
+    def template_comparison(self):
+        return Comparison.objects.filter(submission_a=self, submission_b__isnull=True).first()
+
+    def template_matches(self):
+        ct = self.template_comparison
+        if ct is None:
+            raise FieldError("Template matches requested before matching a submission")
+        return json.loads(ct.matches_json)
+
+    def template_marks(self):
+        marks = [ False ] * len(self.tokens)
+        for m in self.template_matches():
+            for i in range(0, m[2]):
+                marks[m[0] + i] = True
+        return marks
+
+    def calculate_authored_token_count(self):
+        return len(self.tokens) - sum(map(lambda m: m[2], self.template_matches()))
+
+    def __str__(self):
+        return "%s/%s: %s grade=%.1f (%s)" % (self.exercise.course.name, self.exercise.name, self.student.key, self.grade, self.created)
+
+
+@python_2_unicode_compatible
+class Comparison(models.Model):
+    """
+    Compares two submissions.
+    
+    """
+    submission_a = models.ForeignKey(Submission, related_name="+")
+    submission_b = models.ForeignKey(Submission, related_name="+", blank=True, null=True)
+    similarity = models.FloatField(default=0.0)
+    matches_json = models.TextField(blank=True, null=True, default=None)
+    review = models.IntegerField(choices=settings.REVIEW_CHOICES, default=0)
+
+    class Meta:
+        unique_together = ("submission_a", "submission_b")
+        ordering = ["-similarity", ]
+
+    @property
+    def review_options(self):
+        return settings.REVIEWS
+
+    @property
+    def review_name(self):
+        return choice_name(settings.REVIEW_CHOICES, self.review)
+
+    @property
+    def review_class(self):
+        return next((m["class"] for m in settings.REVIEWS if m["value"] == self.review), "unknown")
+
+    def update_review(self, review):
+        try:
+            r = int(review)
+            if choice_name(settings.REVIEW_CHOICES, r) != "unknown":
+                self.review = r
+                self.save()
+                return True
+        except ValueError:
+            pass
+        return False
+
+    def __str__(self):
+        c = "template" if self.submission_b is None else "vs %s" % (self.submission_b.student.key)
+        return "%s/%s: %s %s similarity %.2f" % (self.submission_a.exercise.course.name, self.submission_a.exercise.name, self.submission_a.student.key, c, self.similarity)

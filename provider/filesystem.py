@@ -2,7 +2,7 @@ import os
 
 from data import files
 from data.models import Submission
-from radar.config import tokenizer
+from radar.config import tokenizer_config
 
 
 def hook(request, course, config):
@@ -28,7 +28,7 @@ def load_submission_dir(exercise, path):
     """
     if not os.path.isdir(path):
         return None
-    text = files.join_files(_read_directory(path), tokenizer(exercise))
+    text = files.join_files(_read_directory(path), tokenizer_config(exercise.tokenizer))
     student = exercise.course.get_student(_safe_student_name(path))
     submission = Submission(exercise=exercise, student=student)
     submission.save()

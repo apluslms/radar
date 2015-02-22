@@ -1,34 +1,23 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h4>Match Groups</h4>
+<div class="histogram"></div>
 
-<form method="post" action="{% url 'review.views.exercise_setup' course_name=course.name exercise_name=exercise.name %}" class="form-inline">
-	<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-	<div class="form-group">
-		<label for="ratio">Highest student ratio to list</label>
-		<input type="text" id="ratio" name="ratio" value="{{ exercise.tolerance }}" size="3">
-	</div>
-	<button class="btn btn-default">Update</button>
-</form>
+<table class="comparison" data-url="{% url 'review.views.exercise_json' course_key=course.key exercise_key=exercise.key %}"></table>
 
-<table class="table">
-	<tr>
-		<th>Student count (ratio of all)</th>
-		<th>Average grade</th>
-		<th>Max tokens</th>
-	</tr>
-	{% for group in groups %}
-	<tr>
-		<td>
-			<a href="{% url 'review.views.group' course_name=course.name exercise_name=exercise.name g_id=group.pk %}">
-				{{ group.size }} ({{ group.ratio|floatformat:1 }})
-			</a>
-		</td>
-		<td>{{ group.average_grade }}</td>
-		<td>{{ group.length }}</td>
-	</tr>
-	{% endfor %}
-</table>
+<pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
+
+<pre id="js" class="well">
+Waiting for Javascript...
+</pre>
+<script>
+$(function() {
+	var js = new JS();
+	var similarity = js.parseJSON($("#similarity"));
+	js.buildHeat(similarity);
+	js.tableSubmissions($("table.comparison"), 8, function(s) { return s.student; });
+	js.histogram($("div.histogram"), similarity, 600, 80);
+});
+</script>
 
 {% endblock %}

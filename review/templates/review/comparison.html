@@ -1,10 +1,50 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<pre id="a" class="codeview">{{ source_a }}</pre>
-<pre id="a_parts" class="json">{{ parts_a}}</pre>
+<form id="review" class="btn-group pull-right" method="post" action="{% url 'review.views.comparison' course_key=course.key exercise_key=exercise.key ak=comparison.submission_a.student.key bk=comparison.submission_b.student.key ck=comparison.pk %}">
+	<button type="button" name="review" value="{{ comparison.review }}"
+		data-toggle="dropdown" aria-expanded="false" class="btn btn-default dropdown-toggle">
+		<span class="text">{{ comparison.review_name }}</span> <span class="caret"></span>
+	</button>
+	<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+	<ul class="dropdown-menu" role="menu">
+		{% for opt in comparison.review_options %}
+		<li><a href="#" data-review="{{ opt.value }}" data-class="{{ opt.class }}">{{ opt.name }}</a></li>
+		{% endfor %}
+	</ul>
+</form>
 
-<pre id="b" class="codeview">{{ source_b }}</pre>
-<pre id="b_parts" class="json">{{ parts_b }}</pre>
+<table class="comparison"
+	data-url="{% url 'review.views.exercise_json' course_key=course.key exercise_key=exercise.key student_key=compared.student.key %}"
+	data-selected="{{ comparison.submission_a.id }}-{{ comparison.submission_b.id }}">
+</table>
+
+<div class="code-comparison"{% if reverse %} data-reverse{% endif %}>
+	<pre class="code-a code-view">{{ source_a }}</pre>
+	<pre class="code-b code-view">{{ source_b }}</pre>
+	<pre class="matches json">{{ comparison.matches_json }}</pre>
+	<pre class="template-a json">{{ comparison.submission_a.template_comparison.matches_json }}</pre>
+	<pre class="template-b json">{{ comparison.submission_b.template_comparison.matches_json }}</pre>
+	<pre class="indexes-a json">{{ comparison.submission_a.indexes_json }}</pre>
+	<pre class="indexes-b json">{{ comparison.submission_b.indexes_json }}</pre>
+</div>
+
+<pre class="sample-highlight hljs"><span class="source"><a class="template">Unlike template, </a><a>unique parts</a><a class="template"> can </a><a class="match">match</a><a class="template"> or </a><a class="match exact">match by every character</a></span></pre>
+
+<pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
+
+<pre id="js" class="well">
+Waiting for Javascript...
+</pre>
+<script>
+$(function() {
+	var js = new JS();
+	js.quickReview($("#review"));
+	js.codeview($("div.code-comparison"));
+	var similarity = js.parseJSON($("#similarity"));
+	js.buildHeat(similarity);
+	js.tableSubmissions($("table.comparison"), 8, function(s) { return s.id; });
+});
+</script>
 
 {% endblock %}

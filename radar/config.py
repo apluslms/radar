@@ -1,19 +1,23 @@
 from django.conf import settings
-from django.utils.module_loading import import_by_path
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.module_loading import import_by_path
+
 
 class ConfigError(Exception):
     pass
 
-def provider(course):
-    if course.provider not in settings.PROVIDERS:
-        raise ConfigError("Unknown course provider settings.")
-    return settings.PROVIDERS[course.provider]
+def choice_name(choices, name):
+    return next((c[1] for c in choices if c[0] == name), "unknown")
 
-def tokenizer(exercise):
-    if exercise.tokenizer not in settings.TOKENIZERS:
-        raise ConfigError("Unknown exercise tokenizer settings.")
-    return settings.TOKENIZERS[exercise.tokenizer]
+def provider_config(key):
+    if key not in settings.PROVIDERS:
+        raise ConfigError("Unknown provider settings.")
+    return settings.PROVIDERS[key]
+
+def tokenizer_config(key):
+    if key not in settings.TOKENIZERS:
+        raise ConfigError("Unknown tokenizer settings.")
+    return settings.TOKENIZERS[key]
 
 def configured_function(config, key):
     if key not in config:

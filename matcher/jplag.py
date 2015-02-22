@@ -4,7 +4,7 @@ from matcher.matcher import TokenMatchSet, TokenMatch
 
 logger = logging.getLogger("radar.matcher")
 
-def match(tokens_a, tokens_b, min_length):
+def match(tokens_a, marks_a, tokens_b, marks_b, min_length):
     """
     Tries to cover a token string with substrings of at least a minimum length
     from the other token string. This "Greedy String Tiling" algorithm is
@@ -14,7 +14,7 @@ def match(tokens_a, tokens_b, min_length):
     http://wwwipd.ira.uka.de/~prechelt/Biblio/jplagTR.pdf [8 Jul 2014].
     
     """
-    matches = []
+    matches = TokenMatchSet()
     if len(tokens_a) < min_length or len(tokens_b) < min_length:
         logger.debug("Token string shorten than minimum length")
         return matches
@@ -23,18 +23,20 @@ def match(tokens_a, tokens_b, min_length):
     reverse = len(tokens_b) < len(tokens_a)
     A = tokens_b if reverse else tokens_a
     B = tokens_a if reverse else tokens_b
+    A_marks = list(marks_b) if reverse else list(marks_a)
+    B_marks = list(marks_a) if reverse else list(marks_b)
 
-    # Create a hash map of each minimum length tile in B.
+    # Create a hash map of unmarked minimum length tiles in B.
     B_hash = {}
     for i in range(0, len(B) - min_length + 1):
+        if B_marks[i]:
+            continue
         h = hash_for_range(B, i, min_length)
         if h not in B_hash:
             B_hash[h] = []
         B_hash[h].append(i)
 
     # Iterate until no matches of minimum length exist.
-    A_marks = [ False ] * len(A)
-    B_marks = [ False ] * len(B)
     max_match = min_length + 1
     while max_match > min_length:
         max_match = min_length
@@ -50,8 +52,6 @@ def match(tokens_a, tokens_b, min_length):
             if h not in B_hash:
                 continue
             for b in B_hash[h]:
-                if B_marks[b]:
-                    continue
 
                 # Find longest identical token tile.
                 i = 0
@@ -77,9 +77,11 @@ def match(tokens_a, tokens_b, min_length):
             for i in range(0, m.length):
                 A_marks[m.a + i] = True
                 B_marks[m.b + i] = True
-            matches.append(m.reverse() if reverse else m)
+        matches.extend(matchset)
 
-    logger.debug("Total %d matching tiles", len(matches))
+    logger.debug("Total %d matching tiles", matches.match_count())
+    if reverse:
+        return matches.reverse()
     return matches
 
 

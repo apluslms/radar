@@ -2,11 +2,8 @@
 
 {% block content %}
 
-<div class="page-header">
-	<h1>Login</h1>
-</div>
-
-<form method="post" action="{% url 'django.contrib.auth.views.login' %}">
+<form method="post" action="{% url 'django.contrib.auth.views.login' %}" class="well">
+	<h4>Radar</h4>
 	<input type="hidden" name="next" value="{{ next }}" />
 	{% csrf_token %}
 	{% load bootstrap %}

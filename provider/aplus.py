@@ -5,7 +5,7 @@ from urllib.request import urlopen
 
 from data import files
 from data.models import ProviderQueue, Submission
-from radar.config import tokenizer
+from radar.config import tokenizer_config
 
 
 API_URL = "%(host)s/api/v1/submission_content/%(sid)s/" + \
@@ -43,17 +43,17 @@ def cron(course, config):
     System guarantees the cron calls are never parallel.
     
     """
-    logger.info("Running A+ provider for submission queue")
     for queued in ProviderQueue.objects.filter(course=course, processed=False):
         try:
+            logger.info("Processing queued A+ entry for %s", course)
             data = _fetch_submission_data(int(queued.data), config)
-            text = files.join_files(_decode_files(data["files"]), tokenizer(course))
-            # TODO fetch exercise title from api
             exercise = course.get_exercise(data["exercise"])
+            # TODO fetch exercise title from api
             student = course.get_student("_".join(_decode_students(data["student_ids"])))
             submission = Submission(exercise=exercise, student=student)
             submission.grade = float(data["service_points"]) / float(data["service_max_points"])
             submission.save()
+            text = files.join_files(_decode_files(data["files"]), tokenizer_config(exercise.tokenizer))
             files.put_submission_text(submission, text)
 
             queued.processed = True

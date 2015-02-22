@@ -2,20 +2,31 @@
 Storing submission source in file system.
 
 """
-from django.conf import settings
+import fcntl
 import os
 
+from django.conf import settings
 
-def get_submission_text(submission):
-    path = path_to_submission_text(submission)
+
+def acquire_lock():
+    f = open(os.path.join(settings.SUBMISSION_DIRECTORY, "manage.lock"), "w")
+    try:
+        fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        return None
+    return f
+
+
+def get_text(exercise, name):
+    path = path_to_exercise(exercise, name)
     if os.path.exists(path):
         with open(path, "r") as f:
             return f.read()
     return ""
 
 
-def put_submission_text(submission, text):
-    path = path_to_submission_text(submission)
+def put_text(exercise, name, text):
+    path = path_to_exercise(exercise, name)
     dirpath = os.path.dirname(path)
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
@@ -23,11 +34,16 @@ def put_submission_text(submission, text):
         f.write(text)
 
 
-def path_to_submission_text(submission):
-    return os.path.join(settings.SUBMISSION_DIRECTORY,
-                        submission.exercise.course.name,
-                        submission.exercise.name,
-                        "%s.%d" % (submission.student.name, submission.pk))
+def get_submission_text(submission):
+    return get_text(submission.exercise, "%s.%d" % (submission.student.key, submission.pk))
+
+
+def put_submission_text(submission, text):
+    return put_text(submission.exercise, "%s.%d" % (submission.student.key, submission.pk), text)
+
+
+def path_to_exercise(exercise, name):
+    return os.path.join(settings.SUBMISSION_DIRECTORY, exercise.course.key, exercise.key, name)
 
 
 def join_files(file_map, config):

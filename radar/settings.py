@@ -10,7 +10,7 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
-from django.conf.global_settings import LOGIN_REDIRECT_URL
+
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 
@@ -54,32 +54,56 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
+TOKENIZER_CHOICES = (("skip", "Skip"), ("scala", "Scala"))
 TOKENIZERS = {
-    "skip": { "name": "Skip", "cron": "tokenizer.skip.cron",
-              "separator": "" },
-    "scala": { "name": "Scala", "cron": "tokenizer.scala.cron",
-              "separator": "/****** %s ******/" },
-    "python": { "name": "Python", "cron": "tokenizer.python.cron",
-               "separator": "###### %s ######" },
-    "text": { "name": "Natural text", "cron": "tokenizer.text.cron",
-             "separator": "###### %s ######", "lang_class": "" },
-    "java": { "name": "Java", "cron": "tokenizer.java.cron",
-             "separator": "/****** %s ******/" },
+    "skip": {
+        "tokenize": "tokenizer.skip.tokenize",
+        "separator": "###### %s ######"
+    },
+    "scala": {
+        "tokenize": "tokenizer.scala.tokenize",
+        "separator": "/****** %s ******/"
+    },
+    "python": {
+        "tokenize": "tokenizer.python.tokenize", 
+        "separator": "###### %s ######"
+    },
+    "text": {
+        "tokenize": "tokenizer.text.tokenize",
+        "separator": "###### %s ######"
+    },
+    "java": {
+        "tokenize": "tokenizer.java.tokenize",
+        "separator": "/****** %s ******/"
+    },
 }
 
+PROVIDER_CHOICES = (("a+", "A+"), ("filesystem", "File system"))
 PROVIDERS = {   
-    "a+": { "name": "A+",
-           "hook": "provider.aplus.hook",
-           "cron": "provider.aplus.cron",
-           "host": "http://localhost:8000",
-           "user": "root",
-           "key": "4511004ec512bbcccbed7aa31d479a93fa039a72" },
-    "filesystem": { "name": "File system",
-                   "hook": "provider.filesystem.hook",
-                   "cron": "provider.filesystem.cron" },
+    "a+": {
+        "hook": "provider.aplus.hook",
+        "cron": "provider.aplus.cron",
+        "host": "http://localhost:8000",
+        "user": "root",
+        "key": "4511004ec512bbcccbed7aa31d479a93fa039a72",
+    },
+    "filesystem": {
+        "hook": "provider.filesystem.hook",
+        "cron": "provider.filesystem.cron",
+    },
 }
+
+REVIEW_CHOICES = ((-10, "False alert"), (0, "Unspecified match"), (5, "Suspicious match"), (10, "Plagiate"))
+REVIEWS = (
+    { "value": REVIEW_CHOICES[0][0], "name": REVIEW_CHOICES[0][1], "class": "success" },
+    { "value": REVIEW_CHOICES[1][0], "name": REVIEW_CHOICES[1][1], "class": "default" },
+    { "value": REVIEW_CHOICES[2][0], "name": REVIEW_CHOICES[2][1], "class": "warning" },
+    { "value": REVIEW_CHOICES[3][0], "name": REVIEW_CHOICES[3][1], "class": "danger" },
+)
 
 MATCH_ALGORITHM = "matcher.jplag.match"
+MATCH_STORE_MIN_SIMILARITY = 0.2
+MATCH_STORE_MAX_COUNT = 20
 
 ROOT_URLCONF = 'radar.urls'
 
@@ -161,7 +185,8 @@ try:
                 merge_dict(a[key], b[key])
             else:
                 a[key] = b[key]
-    if "PROVIDERS_MERGE" in locals():
-        merge_dict(PROVIDERS, PROVIDERS_MERGE)
+    for var in ["PROVIDERS_MERGE",]:
+        if var in locals():
+            merge_dict(PROVIDERS, locals()[var])
 except ImportError:
     pass
