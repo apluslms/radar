@@ -1,12 +1,13 @@
 import logging
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
 from django.http.response import JsonResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
 
 from data.files import get_text, get_submission_text
-from data.models import Course, Submission, Comparison
+from data.models import Course, Comparison
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTokenizerForm
 
@@ -55,7 +56,7 @@ def exercise(request, course_key=None, exercise_key=None, course=None, exercise=
 
 @access_resource
 def exercise_json(request, course_key=None, exercise_key=None, student_key=None, course=None, exercise=None, student=None):
-    LIMIT = 300
+    limit = settings.MAX_JSON_COMPARISONS
     def submission_data(s):
         return { "student": s.student.key, "id": s.id,
             "created": s.created, "grade": s.grade, "length": s.authored_token_count }
@@ -67,7 +68,7 @@ def exercise_json(request, course_key=None, exercise_key=None, student_key=None,
         "url": reverse("review.views.comparison",
             kwargs={ "course_key": course.key, "exercise_key": exercise.key,
                 "ak": c.submission_a.student.key, "bk": c.submission_b.student.key, "ck": c.pk })
-    }, exercise.comparisons[:LIMIT] if student is None else exercise.comparisons_for_student(student)[:LIMIT])
+    }, exercise.comparisons[:limit] if student is None else exercise.comparisons_for_student(student)[:limit])
     return JsonResponse(list(data), safe=False)
 
 
