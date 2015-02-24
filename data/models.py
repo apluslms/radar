@@ -116,7 +116,7 @@ class Exercise(models.Model):
 
     class Meta:
         unique_together = ("course", "key")
-        ordering = ["course", "created"]
+        ordering = ["course", "name", "created"]
 
     @property
     def tokenizer(self):

@@ -5,6 +5,7 @@ from django.conf import settings
 
 from data.models import Comparison, Submission
 from radar.config import named_function
+import gc
 
 
 logger = logging.getLogger("radar.matcher")
@@ -17,11 +18,9 @@ def match(a):
     """
     logger.info("Matching submission %s", a)
     if Submission.objects.get(pk=a.pk).tokens == None:
-        logger.error("Submission is not tokenized.")
-        return
+        logger.info("Submission is not tokenized.")
+        return False
     
-    f = named_function(settings.MATCH_ALGORITHM)
-
     def safe_div(a, b):
         return a / b if b > 0 else 0.0
 
@@ -31,6 +30,11 @@ def match(a):
             marks[i] = True
         return marks
 
+    f = named_function(settings.MATCH_ALGORITHM)
+
+    # Clear any unfinished business.
+    Comparison.objects.filter(submission_a=a).delete()
+    
     # Match against template.
     logger.debug("Match %s vs template", a.student.key)
     l = 0
@@ -46,11 +50,16 @@ def match(a):
                    matches_json=ms.json())
     c.save()
     del c
+    del ms
 
     # Match against previously matched submissions.
     marks_a = a.template_marks()
     count_a = a.calculate_authored_token_count()
     for b in a.submissions_to_compare:
+        
+        # Force garbage collection.
+        gc.collect()
+        
         logger.debug("Match %s and %s", a.student.key, b.student.key)
         ms = f(a.tokens, marks_a, b.tokens, b.template_marks(), a.exercise.minimum_match_tokens)
         s = safe_div(ms.token_count(), min(count_a, b.authored_token_count))
@@ -63,6 +72,7 @@ def match(a):
         if a.max_similarity is None or s > a.max_similarity:
             a.max_similarity = s
             a.save()
+    
     tail = Comparison.objects.filter(submission_a=a).exclude(submission_b__isnull=True)\
         .order_by("-similarity")[settings.MATCH_STORE_MAX_COUNT:].values_list("id", flat=True)
     Comparison.objects.filter(pk__in=list(tail)).delete()
@@ -71,6 +81,7 @@ def match(a):
         a.max_similarity = 0.0
     a.authored_token_count = count_a
     a.save()
+    return True
 
 class TokenMatchSet():
 
