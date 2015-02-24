@@ -11,13 +11,13 @@ from radar.config import provider_config, configured_function
 logger = logging.getLogger("radar.hook")
 
 @csrf_exempt
-def hook_submission(request, course_name=None):
+def hook_submission(request, course_key=None):
     """
     Receives the hook call for new submission
     and passes it to the course provider.
     
     """
-    course = get_object_or_404(Course, name=course_name)
+    course = get_object_or_404(Course, key=course_key)
 
     if course.archived:
         logger.error("Submission hook failed, archived course %s", course)
