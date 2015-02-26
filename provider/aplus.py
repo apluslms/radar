@@ -79,7 +79,11 @@ def _fetch_submission_data(sid, config):
 
 def _decode_files(file_map):
     for key in file_map.keys():
-        file_map[key] = base64.b64decode(file_map[key].encode('ascii')).decode("utf-8")
+        try:
+            file_map[key] = base64.b64decode(file_map[key].encode('ascii')).decode("utf-8")
+        except Exception:
+            file_map[key] = "encode error"
+            logger.exception("Unable to decode submission file from A+ API: %s", key)
     return file_map
 
 
