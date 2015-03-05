@@ -1,4 +1,5 @@
 import logging
+import time
 
 from django.core.management.base import BaseCommand
 
@@ -22,8 +23,7 @@ class Command(BaseCommand):
             logger.info("Cannot get manage lock, another process running.")
             return
 
-        limit = settings.MAX_CRON_SUBMISSIONS
-
+        start = time.time()
         for course in Course.objects.filter(archived=False):
 
             # Run provider tasks.
@@ -32,12 +32,12 @@ class Command(BaseCommand):
             f(course, p_config)
 
             # Tokenize and match new submissions.
-            for submission in Submission.objects.filter(exercise__course=course, tokens__isnull=True)[:limit]:
+            for submission in Submission.objects.filter(exercise__course=course, tokens__isnull=True):
                 tokenize_submission(submission)
-                if not match(submission):
+                if not match(submission) or time.time() - start > settings.CRON_STOP_SECONDS:
                     return
 
             # Check again for yet unmatched submissions.
-            for submission in Submission.objects.filter(exercise__course=course, max_similarity__isnull=True)[:limit]:
-                if not match(submission):
+            for submission in Submission.objects.filter(exercise__course=course, max_similarity__isnull=True):
+                if not match(submission) or time.time() - start > settings.CRON_STOP_SECONDS:
                     return

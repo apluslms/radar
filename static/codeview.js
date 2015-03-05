@@ -6,12 +6,12 @@ JS.prototype.codeview = function(element) {
 	var right_view = element.find("pre.code-b");
 	
 	var reverse = element.attr("data-reverse") != undefined;
-	var a_code = reverse ? right_view.text() : left_view.text();
-	var b_code = reverse ? left_view.text() : right_view.text();
-	var a_indexes = this.parseJSON(element.find(reverse ? "pre.indexes-b" : "pre.indexes-a"));
-	var b_indexes = this.parseJSON(element.find(reverse ? "pre.indexes-a" : "pre.indexes-b"));
-	var a_template = this.parseJSON(element.find(reverse ? "pre.template-b" : "pre.template-a"));
-	var b_template = this.parseJSON(element.find(reverse ? "pre.template-a" : "pre.template-b"));
+	var a_code = left_view.text();
+	var b_code = right_view.text();
+	var a_indexes = this.parseJSON(element.find("pre.indexes-a"));
+	var b_indexes = this.parseJSON(element.find("pre.indexes-b"));
+	var a_template = this.parseJSON(element.find("pre.template-a"));
+	var b_template = this.parseJSON(element.find("pre.template-b"));
 	
 	var matches = this.parseJSON(element.find("pre.matches"));
 	var matches02 = function(e) { return([ e[0], 0, e[2] ]); };

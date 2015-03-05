@@ -15,18 +15,20 @@
 </form>
 
 <table class="comparison"
-	data-url="{% url 'review.views.exercise_json' course_key=course.key exercise_key=exercise.key student_key=compared.student.key %}"
+	data-url="{% url 'review.views.exercise_json' course_key=course.key exercise_key=exercise.key student_key=a.student.key %}"
 	data-selected="{{ comparison.submission_a.id }}-{{ comparison.submission_b.id }}">
 </table>
 
 <div class="code-comparison"{% if reverse %} data-reverse{% endif %}>
+	{% if a.provider_url %}<a href="{{ a.provider_url }}" target="_blank" class="provider">{{ a.provider_url }}</a>{% endif %}
+	{% if b.provider_url %}<a href="{{ b.provider_url }}" target="_blank" class="provider">{{ b.provider_url }}</a>{% endif %}
 	<pre class="code-a code-view">{{ source_a }}</pre>
 	<pre class="code-b code-view">{{ source_b }}</pre>
 	<pre class="matches json">{{ comparison.matches_json }}</pre>
-	<pre class="template-a json">{{ comparison.submission_a.template_comparison.matches_json }}</pre>
-	<pre class="template-b json">{{ comparison.submission_b.template_comparison.matches_json }}</pre>
-	<pre class="indexes-a json">{{ comparison.submission_a.indexes_json }}</pre>
-	<pre class="indexes-b json">{{ comparison.submission_b.indexes_json }}</pre>
+	<pre class="template-a json">{{ a.template_comparison.matches_json }}</pre>
+	<pre class="template-b json">{{ b.template_comparison.matches_json }}</pre>
+	<pre class="indexes-a json">{{ a.indexes_json }}</pre>
+	<pre class="indexes-b json">{{ b.indexes_json }}</pre>
 </div>
 
 <pre class="sample-highlight hljs"><span class="source"><a class="template">Unlike template, </a><a>unique parts</a><a class="template"> can </a><a class="match">match</a><a class="template"> or </a><a class="match exact">match by every character</a></span></pre>

@@ -83,6 +83,7 @@ PROVIDERS = {
     "a+": {
         "hook": "provider.aplus.hook",
         "cron": "provider.aplus.cron",
+        "reload": "provider.aplus.reload",
         "host": "http://localhost:8000",
         "user": "root",
         "key": "4511004ec512bbcccbed7aa31d479a93fa039a72",
@@ -106,7 +107,7 @@ MATCH_STORE_MIN_SIMILARITY = 0.2
 MATCH_STORE_MAX_COUNT = 20
 
 MAX_JSON_COMPARISONS = 300
-MAX_CRON_SUBMISSIONS = 200
+CRON_STOP_SECONDS = 120
 
 ROOT_URLCONF = 'radar.urls'
 

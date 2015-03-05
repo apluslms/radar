@@ -5,7 +5,7 @@
 	{% for exercise in exercises %}
 	<li>
 		<p><a href="{% url 'review.views.exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }}:
-		Submissions {{ exercise.submissions.count }} ({{ course.matched_submissions.count }} matched)</a></p>
+		Submissions {{ exercise.submissions.count }} ({{ exercise.matched_submissions.count }} matched)</a></p>
 		<div class="histogram">
 			<pre class="json">{{ exercise.submissions_max_similarity_json }}</pre>
 		</div>

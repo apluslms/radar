@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError, FieldError
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
-from radar.config import choice_name
+from radar.config import choice_name, provider_config, configured_function
 
 
 logger = logging.getLogger("radar.model")
@@ -85,22 +85,6 @@ class Course(models.Model):
 
 
 @python_2_unicode_compatible
-class ProviderQueue(models.Model):
-    """
-    Queues a submission for provider. Some providers can not create
-    a submission object based on the hook alone.
-    
-    """
-    created = models.DateTimeField(auto_now_add=True)
-    course = models.ForeignKey(Course, related_name="+")
-    data = models.CharField(max_length=128)
-    processed = models.BooleanField(db_index=True, default=False)
-
-    def __str__(self):
-        return "%s (%s)" % (self.course.name, self.created)
-
-
-@python_2_unicode_compatible
 class Exercise(models.Model):
     """
     Each submission includes an exercise key and exercise objects are created as needed.
@@ -164,7 +148,7 @@ class Exercise(models.Model):
     def clear_tokens_and_matches(self):
         self.comparisons.delete()
         self.submissions.update(tokens=None, indexes_json=None, max_similarity=None)
-
+    
     def __str__(self):
         return "%s/%s (%s)" % (self.course.name, self.name, self.created)
 
@@ -196,6 +180,7 @@ class Submission(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     exercise = models.ForeignKey(Exercise, related_name="submissions")
     student = models.ForeignKey(Student, related_name="submissions")
+    provider_url = models.CharField(max_length=256, blank=True, null=True, default=None)
     grade = models.FloatField(default=0.0)
     tokens = models.TextField(blank=True, null=True, default=None)
     indexes_json = models.TextField(blank=True, null=True, default=None)
@@ -272,3 +257,19 @@ class Comparison(models.Model):
     def __str__(self):
         c = "template" if self.submission_b is None else "vs %s" % (self.submission_b.student.key)
         return "%s/%s: %s %s similarity %.2f" % (self.submission_a.exercise.course.name, self.submission_a.exercise.name, self.submission_a.student.key, c, self.similarity)
+
+
+@python_2_unicode_compatible
+class ProviderQueue(models.Model):
+    """
+    Queues a submission for provider. Some providers can not create
+    a submission object based on the hook alone.
+    
+    """
+    created = models.DateTimeField(auto_now_add=True)
+    course = models.ForeignKey(Course, related_name="+")
+    data = models.CharField(max_length=128)
+
+    def __str__(self):
+        return "%s (%s)" % (self.course.name, self.created)
+

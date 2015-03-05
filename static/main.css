@@ -31,6 +31,7 @@ table.comparison td.success { background-color:transparent !important; }
 
 /* Code */
 .code-comparison { clear:both; overflow:hidden; }
+.code-comparison a.provider { display:block; width:50%; float:left; }
 pre.code-view {
 	display:block;
 	max-width:50%;

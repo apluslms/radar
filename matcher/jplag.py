@@ -16,7 +16,7 @@ def match(tokens_a, marks_a, tokens_b, marks_b, min_length):
     """
     matches = TokenMatchSet()
     if len(tokens_a) < min_length or len(tokens_b) < min_length:
-        logger.debug("Token string shorten than minimum length")
+        logger.debug("Token string shorter than minimum length")
         return matches
 
     # Take the shorter token string as A, the longer as B.

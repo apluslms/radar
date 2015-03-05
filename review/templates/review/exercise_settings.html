@@ -17,7 +17,20 @@
 	</div>
 	{% csrf_token %}
 	{{ form_tokenizer|bootstrap }}
-	<button type="submit" name="save_and_clear" class="btn btn-warning">Save and re-compare</button>
+	<button type="submit" name="save_and_clear" class="btn btn-warning">Clear and re-compare</button>
 </form>
+
+{% if provider_reload %}
+<form method="post" class="well">
+	<h4>Exercise provider</h4>
+	<div class="alert alert-warning">
+		<p>This function will clear all current comparisons and submissions from the database.
+		The submissions will be gradually reloaded from the provider and then tokenized and matched.
+		This will take considerable amount of time and will stress the provider API.</p>
+	</div>
+	{% csrf_token %}
+	<button type="submit" name="provider_reload" class="btn btn-warning">Clear and reload</button>
+</form>
+{% endif %}
 
 {% endblock %}

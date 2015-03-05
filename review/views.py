@@ -10,6 +10,7 @@ from data.files import get_text, get_submission_text
 from data.models import Course, Comparison
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTokenizerForm
+from radar.config import provider_config, configured_function
 
 
 logger = logging.getLogger("radar.review")
@@ -74,37 +75,41 @@ def exercise_json(request, course_key=None, exercise_key=None, student_key=None,
 
 @access_resource
 def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck=None, course=None, exercise=None):
-    comparison = get_object_or_404(Comparison, submission_a__exercise=exercise, pk=ck)
-    a = comparison.submission_a
-    b = comparison.submission_b
-    if a.student.key != ak or b.student.key != bk:
-        raise Http404()
-
+    comparison = get_object_or_404(Comparison, submission_a__exercise=exercise, pk=ck,
+                                   submission_a__student__key=ak, submission_b__student__key=bk)
     if request.method == "POST":
         result = "review" in request.POST and comparison.update_review(request.POST["review"])
         if request.is_ajax():
             return JsonResponse({ "success": result })
 
-    reverse_flag = "reverse" in request.GET
+    reverse_flag = False
+    a = comparison.submission_a
+    b = comparison.submission_b
+    if "reverse" in request.GET:
+        reverse_flag = True
+        a = comparison.submission_b
+        b = comparison.submission_a
 
     return render(request, "review/comparison.html", {
         "hierarchy": (("Radar", reverse("index")),
                       (course.name, reverse("review.views.course", kwargs={ "course_key": course.key })),
                       (exercise.name, reverse("review.views.exercise",
                                               kwargs={ "course_key": course.key, "exercise_key": exercise.key })),
-                      ("%s vs %s" % (ak, bk), None)),
+                      ("%s vs %s" % (a.student.key, b.student.key), None)),
         "course": course,
         "exercise": exercise,
         "comparison": comparison,
+        "reverse": reverse_flag,
+        "a": a,
+        "b": b,
         "source_a": get_submission_text(a),
-        "source_b": get_submission_text(b),
-        "compared": b if reverse_flag else a,
-        "reverse": reverse_flag
+        "source_b": get_submission_text(b)
     })
 
 
 @access_resource
 def exercise_settings(request, course_key=None, exercise_key=None, course=None, exercise=None):
+    p_config = provider_config(course.provider)
     if request.method == "POST":
         if "save" in request.POST:
             form = ExerciseForm(request.POST)
@@ -116,6 +121,9 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
             if form_tokenizer.is_valid():
                 form_tokenizer.save(exercise)
                 return redirect("review.views.course", course_key=course.key)
+        if "provider_reload" in request.POST:
+            configured_function(p_config, "reload")(exercise, p_config)
+            return redirect("review.views.course", course_key=course.key)
     else:
         form = ExerciseForm({"name": exercise.name })
         form_tokenizer = ExerciseTokenizerForm({
@@ -130,5 +138,6 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
         "course": course,
         "exercise": exercise,
         "form": form,
-        "form_tokenizer": form_tokenizer
+        "form_tokenizer": form_tokenizer,
+        "provider_reload": "reload" in p_config
     })

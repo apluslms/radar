@@ -36,3 +36,4 @@ class ExerciseTokenizerForm(forms.Form):
         exercise.save()
 
         exercise.clear_tokens_and_matches()
+    
