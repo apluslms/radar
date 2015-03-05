@@ -62,7 +62,7 @@ def match(a):
         
         logger.debug("Match %s and %s", a.student.key, b.student.key)
         ms = f(a.tokens, marks_a, b.tokens, b.template_marks(), a.exercise.minimum_match_tokens)
-        s = safe_div(ms.token_count(), min(count_a, b.authored_token_count))
+        s = safe_div(ms.token_count(), (count_a + b.authored_token_count) / 2)
         if s > settings.MATCH_STORE_MIN_SIMILARITY:
             c = Comparison(submission_a=a, submission_b=b, similarity=s, matches_json=ms.json())
             c.save()
