@@ -88,7 +88,7 @@ JS.prototype.codeviewFindExact = function() {
 	var right = this.codeviewElements.filter(".code-b");
 	this.codeviewElements.filter(".code-a").find("a.match").each(function() {
 		var l = $(this);
-		var r = right.find('a.match[data-i="' + l.attr("data-id") + '"]');
+		var r = right.find('a.match[data-i="' + l.attr("data-i") + '"]');
 		if (r.size() > 0 && l.text() == r.eq(0).text()) {
 			l.addClass("exact");
 			r.addClass("exact");
