@@ -51,7 +51,10 @@ def cron(course, config):
             student = course.get_student("_".join(_decode_students(data["student_ids"])))
             url = config["host"] + VIEW_URL % { "sid": queued.data }
             submission = Submission(exercise=exercise, student=student, provider_url=url)
-            submission.grade = float(data["service_points"]) / float(data["service_max_points"])
+            if data["service_max_points"] > 0:
+                submission.grade = float(data["service_points"]) / float(data["service_max_points"])
+            else:
+                submission.grade = 0
             submission.save()
             text = files.join_files(_decode_files(data["files"]), tokenizer_config(exercise.tokenizer))
             files.put_submission_text(submission, text)
