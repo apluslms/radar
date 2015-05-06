@@ -29,6 +29,8 @@ TEMPLATE_DEBUG = True
 
 ALLOWED_HOSTS = []
 
+LTI_ACCEPTED_ROLES = ('Instructor', 'TeachingAssistant', 'TA')
+
 
 # Application definition
 
@@ -42,6 +44,7 @@ INSTALLED_APPS = (
     'bootstrapform',
     'data',
     'review',
+    'ltilogin',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -113,6 +116,11 @@ ROOT_URLCONF = 'radar.urls'
 
 WSGI_APPLICATION = 'radar.wsgi.application'
 
+AUTHENTICATION_BACKENDS = [
+    'ltilogin.auth_backend.LTIAuthBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 LOGIN_REDIRECT_URL = 'index'
 
 
@@ -180,6 +188,7 @@ LOGGING = {
     },
   },
 }
+
 
 try:
     from local_settings import *

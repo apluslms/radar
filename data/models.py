@@ -1,13 +1,13 @@
-import json
-import logging
-import re
-
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError, FieldError
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
-from radar.config import choice_name, provider_config, configured_function
+import json
+import logging
+import re
+
+from radar.config import choice_name
 
 
 logger = logging.getLogger("radar.model")
