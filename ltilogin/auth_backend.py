@@ -19,13 +19,13 @@ class LTIAuthBackend(ModelBackend):
             logger.warning('LTI login attempt without a user id.')
             return None
         
-        username = oauth_request.user_id
+        username = oauth_request.user_id[:30]
         email = oauth_request.lis_person_contact_email_primary \
-            if oauth_request.lis_person_contact_email_primary else ''
+            if oauth_request.lis_person_contact_email_primary[:254] else ''
         first_name = oauth_request.lis_person_name_given \
-            if oauth_request.lis_person_name_given else ''
+            if oauth_request.lis_person_name_given[:30] else ''
         last_name = oauth_request.lis_person_name_family \
-            if oauth_request.lis_person_name_family else ''
+            if oauth_request.lis_person_name_family[:30] else ''
         roles = set(oauth_request.roles.split(',') if oauth_request.roles else ())
 
         if hasattr(settings, 'LTI_ACCEPTED_ROLES') and roles.isdisjoint(settings.LTI_ACCEPTED_ROLES):
