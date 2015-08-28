@@ -22,7 +22,7 @@ logger = logging.getLogger("radar.provider")
 def hook(request, course, config):
     """
     Stores the submission id from A+ for further provider work.
-    
+
     """
     sid = _detect_submission_id(request)
     if sid is not None:
@@ -34,7 +34,7 @@ def cron(course, config):
     """
     Creates a complete submission using the A+ API.
     System guarantees the cron calls are never parallel.
-    
+
     """
     count = 0
     for queued in ProviderQueue.objects.filter(course=course):
@@ -68,7 +68,7 @@ def cron(course, config):
 def reload(exercise, config):
     """
     Clears all submissions and fetches the current submission list from A+.
-    
+
     """
     if exercise.key.startswith("apiv1exercise"):
         eid = exercise.key[13:]
@@ -99,7 +99,7 @@ def _fetch_submission_data(sid, config):
     url = config["host"] + API_SUBMISSION_URL % { "sid": sid } + qs
     logger.info("Requesting A+ API: %s", url)
     resource = urlopen(url, timeout=6)
-    data = resource.read().decode(resource.headers.get_content_charset())
+    data = resource.read().decode(resource.headers.get_content_charset() or "utf-8")
     return json.loads(data)
 
 
@@ -108,7 +108,7 @@ def _fetch_exercise_data(url, config):
     url = config["host"] + url + qs
     logger.info("Requesting A+ API: %s", url)
     resource = urlopen(url, timeout=6)
-    data = resource.read().decode(resource.headers.get_content_charset())
+    data = resource.read().decode(resource.headers.get_content_charset() or "utf-8")
     return json.loads(data)
 
 
