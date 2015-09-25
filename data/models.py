@@ -38,7 +38,7 @@ class CourseManager(models.Manager):
 class Course(models.Model):
     """
     A course can receive submissions.
-    
+
     """
     created = models.DateTimeField(auto_now_add=True)
     key = URLKeyField(max_length=64, unique=True, help_text="Unique alphanumeric course instance id")
@@ -73,7 +73,10 @@ class Course(models.Model):
         return user.is_staff or self.reviewers.filter(pk=user.pk).exists()
 
     def get_exercise(self, key_str):
-        exercise, _ = self.exercises.get_or_create(key=URLKeyField.safe_version(key_str))
+        exercise, created = self.exercises.get_or_create(key=URLKeyField.safe_version(key_str))
+        if created:
+            exercise.name = exercise.key
+            exercise.save()
         return exercise
 
     def get_student(self, key_str):
@@ -88,7 +91,7 @@ class Course(models.Model):
 class Exercise(models.Model):
     """
     Each submission includes an exercise key and exercise objects are created as needed.
-    
+
     """
     created = models.DateTimeField(auto_now_add=True)
     course = models.ForeignKey(Course, related_name="exercises")
@@ -148,7 +151,7 @@ class Exercise(models.Model):
     def clear_tokens_and_matches(self):
         self.comparisons.delete()
         self.submissions.update(tokens=None, indexes_json=None, max_similarity=None)
-    
+
     def __str__(self):
         return "%s/%s (%s)" % (self.course.name, self.name, self.created)
 
@@ -157,7 +160,7 @@ class Exercise(models.Model):
 class Student(models.Model):
     """
     Each submission includes a student key and student objects are created as needed.
-    
+
     """
     created = models.DateTimeField(auto_now_add=True)
     course = models.ForeignKey(Course, related_name="students")
@@ -175,7 +178,7 @@ class Student(models.Model):
 class Submission(models.Model):
     """
     A submission for an exercise.
-    
+
     """
     created = models.DateTimeField(auto_now_add=True)
     exercise = models.ForeignKey(Exercise, related_name="submissions")
@@ -219,7 +222,7 @@ class Submission(models.Model):
 class Comparison(models.Model):
     """
     Compares two submissions.
-    
+
     """
     submission_a = models.ForeignKey(Submission, related_name="+")
     submission_b = models.ForeignKey(Submission, related_name="+", blank=True, null=True)
@@ -264,7 +267,7 @@ class ProviderQueue(models.Model):
     """
     Queues a submission for provider. Some providers can not create
     a submission object based on the hook alone.
-    
+
     """
     created = models.DateTimeField(auto_now_add=True)
     course = models.ForeignKey(Course, related_name="+")
@@ -272,4 +275,3 @@ class ProviderQueue(models.Model):
 
     def __str__(self):
         return "%s (%s)" % (self.course.name, self.created)
-
