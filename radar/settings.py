@@ -97,8 +97,9 @@ PROVIDERS = {
     },
 }
 
-REVIEW_CHOICES = ((-10, "False alert"), (0, "Unspecified match"), (5, "Suspicious match"), (10, "Plagiate"))
+REVIEW_CHOICES = ((-10, "False alert"), (0, "Unspecified match"), (5, "Suspicious match"), (10, "Plagiate"), (9, "Approved plagiate"))
 REVIEWS = (
+    { "value": REVIEW_CHOICES[4][0], "name": REVIEW_CHOICES[4][1], "class": "success" },
     { "value": REVIEW_CHOICES[0][0], "name": REVIEW_CHOICES[0][1], "class": "success" },
     { "value": REVIEW_CHOICES[1][0], "name": REVIEW_CHOICES[1][1], "class": "default" },
     { "value": REVIEW_CHOICES[2][0], "name": REVIEW_CHOICES[2][1], "class": "warning" },
