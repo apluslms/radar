@@ -27,5 +27,6 @@ def configured_function(config, key):
 def named_function(name):
     try:
         return import_by_path(name)
-    except ImproperlyConfigured:
-        raise ConfigError("Unknown function configured: %s" % name)
+    except ImproperlyConfigured as e:
+        raise e
+        #raise ConfigError("Unknown function configured: %s" % name)

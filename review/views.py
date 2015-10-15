@@ -110,13 +110,13 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
 def exercise_settings(request, course_key=None, exercise_key=None, course=None, exercise=None):
     p_config = provider_config(course.provider)
     if request.method == "POST":
+        form = ExerciseForm(request.POST)
+        form_tokenizer = ExerciseTokenizerForm(request.POST)
         if "save" in request.POST:
-            form = ExerciseForm(request.POST)
             if form.is_valid():
                 form.save(exercise)
                 return redirect("review.views.course", course_key=course.key)
         if "save_and_clear" in request.POST:
-            form_tokenizer = ExerciseTokenizerForm(request.POST)
             if form_tokenizer.is_valid():
                 form_tokenizer.save(exercise)
                 return redirect("review.views.course", course_key=course.key)
@@ -124,7 +124,10 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
             configured_function(p_config, "reload")(exercise, p_config)
             return redirect("review.views.course", course_key=course.key)
     else:
-        form = ExerciseForm({"name": exercise.name })
+        form = ExerciseForm({
+            "name": exercise.name,
+            "paused": exercise.paused
+        })
         form_tokenizer = ExerciseTokenizerForm({
             "tokenizer": exercise.tokenizer,
             "minimum_match_tokens": exercise.minimum_match_tokens,

@@ -100,6 +100,7 @@ class Exercise(models.Model):
     override_tokenizer = models.CharField(max_length=8, choices=settings.TOKENIZER_CHOICES, blank=True, null=True)
     override_minimum_match_tokens = models.IntegerField(blank=True, null=True)
     template_tokens = models.TextField(blank=True, default="")
+    paused = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ("course", "key")

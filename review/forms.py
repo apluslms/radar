@@ -8,9 +8,11 @@ from tokenizer.tokenizer import tokenize_source
 
 class ExerciseForm(forms.Form):
     name = forms.CharField(label="Name", max_length=128)
+    paused = forms.BooleanField(label="Pause matching submissions", required=False)
 
     def save(self, exercise):
         exercise.name = self.cleaned_data["name"]
+        exercise.paused = self.cleaned_data["paused"]
         exercise.save()
 
 
@@ -36,4 +38,3 @@ class ExerciseTokenizerForm(forms.Form):
         exercise.save()
 
         exercise.clear_tokens_and_matches()
-    

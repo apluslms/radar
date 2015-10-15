@@ -68,7 +68,7 @@ TOKENIZERS = {
         "separator": "/****** %s ******/"
     },
     "python": {
-        "tokenize": "tokenizer.python.tokenize", 
+        "tokenize": "tokenizer.python.tokenize",
         "separator": "###### %s ######"
     },
     "text": {
@@ -82,7 +82,7 @@ TOKENIZERS = {
 }
 
 PROVIDER_CHOICES = (("a+", "A+"), ("filesystem", "File system"))
-PROVIDERS = {   
+PROVIDERS = {
     "a+": {
         "hook": "provider.aplus.hook",
         "cron": "provider.aplus.cron",
@@ -109,8 +109,11 @@ MATCH_ALGORITHM = "matcher.jplag.match"
 MATCH_STORE_MIN_SIMILARITY = 0.2
 MATCH_STORE_MAX_COUNT = 20
 
-MAX_JSON_COMPARISONS = 300
+MAX_JSON_COMPARISONS = 100
 CRON_STOP_SECONDS = 120
+
+AUTO_PAUSE_SIMILARITY = 0.95
+AUTO_PAUSE_COUNT = 50
 
 ROOT_URLCONF = 'radar.urls'
 

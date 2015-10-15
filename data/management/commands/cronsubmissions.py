@@ -32,12 +32,16 @@ class Command(BaseCommand):
             f(course, p_config)
 
             # Tokenize and match new submissions.
-            for submission in Submission.objects.filter(exercise__course=course, tokens__isnull=True):
+            for submission in Submission.objects.filter(
+                    exercise__course=course, exercise__paused=False,
+                    tokens__isnull=True):
                 tokenize_submission(submission)
                 if not match(submission) or time.time() - start > settings.CRON_STOP_SECONDS:
                     return
 
             # Check again for yet unmatched submissions.
-            for submission in Submission.objects.filter(exercise__course=course, max_similarity__isnull=True):
+            for submission in Submission.objects.filter(
+                    exercise__course=course, exercise__paused=False,
+                    max_similarity__isnull=True):
                 if not match(submission) or time.time() - start > settings.CRON_STOP_SECONDS:
                     return

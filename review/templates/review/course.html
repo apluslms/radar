@@ -21,7 +21,7 @@
 		<td><a href="{% url 'review.views.exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }}</a></td>
 		<td>{{ exercise.created|date:"Y-m-d" }}</td>
 		<td>{{ exercise.student_count }}</td>
-		<td>{{ exercise.submissions.count }} ({{ exercise.matched_submissions.count }} matched)</td>
+		<td>{{ exercise.submissions.count }} ({{ exercise.matched_submissions.count }} matched{% if exercise.paused %}, paused{% endif %})</td>
 		<td>{{ exercise.template_length }} tokens</td>
 		<td>{{ exercise.minimum_match_tokens }} tokens</td>
 		<td>{{ exercise.tokenizer_name }}</td>
