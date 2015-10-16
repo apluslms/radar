@@ -6,8 +6,8 @@ from matcher.matcher import match
 from radar.config import named_function
 
 
-TOKENS1 = "abcdefghi"
-TOKENS2 = "abcxxxxxxxxxfgxab"
+TOKENS1 = "abcdefghi" # total 9, authored 4, longest 4
+TOKENS2 = "abcxxxxxxxxxfgxab" # total 17, authored 4, longest 4
 TEMPLATE = "abcdexxxx"
 
 class MatcherTestCase(TestCase):
@@ -29,6 +29,12 @@ class MatcherTestCase(TestCase):
         self._create_test_course()
         for submission in Submission.objects.filter(max_similarity__isnull=True).order_by("student__key"):
             match(submission)
+        s = Submission.objects.get(student__key="001")
+        self.assertEqual(s.authored_token_count, 9)
+        self.assertEqual(s.longest_authored_tile, 9)
+        s = Submission.objects.get(student__key="002")
+        self.assertEqual(s.authored_token_count, 17)
+        self.assertEqual(s.longest_authored_tile, 17)
         self.assertEqual(Comparison.objects.all().count(), 3)
         cts = Comparison.objects.filter(submission_b__isnull=True)
         self.assertEqual(len(cts), 2)
@@ -36,9 +42,9 @@ class MatcherTestCase(TestCase):
         self.assertAlmostEqual(cts[1].similarity, 0.0, 1)
         self.assertEqual(cts[0].matches_json, "[]")
         c = Comparison.objects.exclude(submission_b__isnull=True).first()
-        self.assertAlmostEqual(c.similarity, 5 / len(TOKENS1), 1)
+        self.assertAlmostEqual(c.similarity, 9 / 26, 1)
         self.assertEqual(c.matches_json, "[[0,0,3],[12,5,2]]")
-        
+
     def test_template(self):
         self._create_test_course()
         exercise = Exercise.objects.all().first()
@@ -46,18 +52,24 @@ class MatcherTestCase(TestCase):
         exercise.save()
         for submission in Submission.objects.filter(max_similarity__isnull=True).order_by("student__key"):
             match(submission)
+        s = Submission.objects.get(student__key="001")
+        self.assertEqual(s.authored_token_count, 4)
+        self.assertEqual(s.longest_authored_tile, 4)
+        s = Submission.objects.get(student__key="002")
+        self.assertEqual(s.authored_token_count, 10)
+        self.assertEqual(s.longest_authored_tile, 10)
         self.assertEqual(Comparison.objects.all().count(), 3)
         cts = Comparison.objects.filter(submission_b__isnull=True).order_by("submission_a")
         self.assertEqual(len(cts), 2)
         print(cts[1].matches_json)
-        self.assertAlmostEqual(cts[0].similarity, 5 / len(TOKENS1), 1)
-        self.assertAlmostEqual(cts[1].similarity, 7 / len(TOKENS2), 1)
+        self.assertAlmostEqual(cts[0].similarity, 5 / 9, 1)
+        self.assertAlmostEqual(cts[1].similarity, 7 / 17, 1)
         self.assertEqual(cts[0].matches_json, "[[0,0,5]]")
         self.assertEqual(cts[1].matches_json, "[[0,0,3],[3,5,4]]")
         c = Comparison.objects.exclude(submission_b__isnull=True).first()
-        self.assertAlmostEqual(c.similarity, 2 / (len(TOKENS1) - 5), 1)
+        self.assertAlmostEqual(c.similarity, 4 / 14, 1)
         self.assertEqual(c.matches_json, "[[12,5,2]]")
-        
+
     def _create_test_course(self):
         course = Course(key="test", name="Test", provider="filesystem", tokenizer="scala", minimum_match_tokens=2)
         course.save()

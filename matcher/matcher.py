@@ -53,26 +53,27 @@ def match(a):
     del ms
 
     # Match against previously matched submissions.
-    marks_a = a.template_marks()
-    count_a = a.calculate_authored_token_count()
-    if count_a > 0:
+    marks_a, count_a, longest_a = a.template_marks()
+    if longest_a >= a.exercise.minimum_match_tokens:
         for b in a.submissions_to_compare:
 
             # Force garbage collection.
             gc.collect()
 
             logger.debug("Match %s and %s", a.student.key, b.student.key)
-            ms = f(a.tokens, marks_a, b.tokens, b.template_marks(), a.exercise.minimum_match_tokens)
-            s = safe_div(ms.token_count(), (count_a + b.authored_token_count) / 2)
-            if s > settings.MATCH_STORE_MIN_SIMILARITY:
-                c = Comparison(submission_a=a, submission_b=b, similarity=s, matches_json=ms.json())
-                c.save()
-            if s > b.max_similarity:
-                b.max_similarity = s
-                b.save()
-            if a.max_similarity is None or s > a.max_similarity:
-                a.max_similarity = s
-                a.save()
+            marks_b, count_b, longest_b = b.template_marks()
+            if longest_b >= a.exercise.minimum_match_tokens:
+                ms = f(a.tokens, marks_a, b.tokens, marks_b, a.exercise.minimum_match_tokens)
+                s = safe_div(ms.token_count(), (count_a + count_b) / 2)
+                if s > settings.MATCH_STORE_MIN_SIMILARITY:
+                    c = Comparison(submission_a=a, submission_b=b, similarity=s, matches_json=ms.json())
+                    c.save()
+                if s > b.max_similarity:
+                    b.max_similarity = s
+                    b.save()
+                if a.max_similarity is None or s > a.max_similarity:
+                    a.max_similarity = s
+                    a.save()
 
         tail = Comparison.objects.filter(submission_a=a).exclude(submission_b__isnull=True)\
             .order_by("-similarity")[settings.MATCH_STORE_MAX_COUNT:].values_list("id", flat=True)
@@ -81,14 +82,16 @@ def match(a):
     if a.max_similarity is None:
         a.max_similarity = 0.0
     a.authored_token_count = count_a
+    a.longest_authored_tile = longest_a
     a.save()
 
-    # Automatically pause exercise on many identical submissions.
-    if a.max_similarity > settings.AUTO_PAUSE_SIMILARITY:
+    # Automatically pause exercise if too many identical submissions.
+    if a.max_similarity >= settings.AUTO_PAUSE_SIMILARITY:
         if Submission.objects.filter(exercise=a.exercise,
-                    max_similarity__gt=settings.AUTO_PAUSE_SIMILARITY)\
+                    max_similarity__gte=settings.AUTO_PAUSE_SIMILARITY)\
                 .count() >= settings.AUTO_PAUSE_COUNT:
-            Exercise.objects.filter(id=a.exercise).update(paused=True)
+            a.exercise.paused = True
+            a.exercise.save()
             return False
 
     return True

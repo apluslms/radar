@@ -189,11 +189,15 @@ class Submission(models.Model):
     tokens = models.TextField(blank=True, null=True, default=None)
     indexes_json = models.TextField(blank=True, null=True, default=None)
     authored_token_count = models.IntegerField(blank=True, null=True, default=None)
+    longest_authored_tile = models.IntegerField(blank=True, null=True, default=None)
     max_similarity = models.FloatField(db_index=True, blank=True, null=True, default=None)
 
     @property
     def submissions_to_compare(self):
-        return self.exercise.matched_submissions.exclude(student=self.student)
+        return self.exercise.matched_submissions.exclude(
+            student=self.student,
+            longest_authored_tile__lt=self.exercise.minimum_match_tokens
+        )
 
     @property
     def template_comparison(self):
@@ -206,14 +210,21 @@ class Submission(models.Model):
         return json.loads(ct.matches_json)
 
     def template_marks(self):
-        marks = [ False ] * len(self.tokens)
+        token_count = len(self.tokens)
+        marks = [ False ] * token_count
+        authored = token_count
+        longest_tile = 0
+        s = 0
         for m in self.template_matches():
             for i in range(0, m[2]):
                 marks[m[0] + i] = True
-        return marks
-
-    def calculate_authored_token_count(self):
-        return len(self.tokens) - sum(map(lambda m: m[2], self.template_matches()))
+            authored -= m[2]
+            if m[0] - s > longest_tile:
+                longest_tile = m[0] - s
+            s = m[0] + m[2]
+        if token_count - s > longest_tile:
+            longest_tile = token_count - s
+        return marks, authored, longest_tile
 
     def __str__(self):
         return "%s/%s: %s grade=%.1f (%s)" % (self.exercise.course.name, self.exercise.name, self.student.key, self.grade, self.created)
