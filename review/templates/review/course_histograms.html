@@ -3,7 +3,7 @@
 
 <ul>
 	{% for exercise in exercises %}
-	<li>
+	<li{% if exercise.paused %} class="paused"{% endif %}>
 		<p><a href="{% url 'review.views.exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }}:
 		Submissions {{ exercise.submissions.count }} ({{ exercise.matched_submissions.count }} matched)</a></p>
 		<div class="histogram">
@@ -22,7 +22,7 @@ $(function() {
 	$("div.histogram").each(function() {
 		var similarity = js.parseJSON($(this).find("pre.json"));
 		js.buildHeat(similarity);
-		js.histogram($(this), similarity, 600, 130);
+		js.histogram($(this), similarity, 400, 80);
 	});
 });
 </script>
