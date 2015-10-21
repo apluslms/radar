@@ -2,6 +2,7 @@ import json
 import logging
 
 from django.conf import settings
+from django.db.models import Avg
 
 from data.models import Comparison, Submission, Exercise
 from radar.config import named_function
@@ -85,14 +86,15 @@ def match(a):
     a.longest_authored_tile = longest_a
     a.save()
 
-    # Automatically pause exercise if too many identical submissions.
-    if a.max_similarity >= settings.AUTO_PAUSE_SIMILARITY:
-        if Submission.objects.filter(exercise=a.exercise,
-                    max_similarity__gte=settings.AUTO_PAUSE_SIMILARITY)\
-                .count() >= settings.AUTO_PAUSE_COUNT:
-            a.exercise.paused = True
-            a.exercise.save()
-            return False
+    # Automatically pause exercise if mean gets too high.
+    if a.max_similarity > settings.AUTO_PAUSE_MEAN:
+        subs = Submission.objects.filter(exercise=a.exercise)
+        if subs.count() > settings.AUTO_PAUSE_COUNT:
+            avg = subs.aggregate(m=Avg("max_similarity"))
+            if avg["m"] > settings.AUTO_PAUSE_MEAN:
+                a.exercise.paused = True
+                a.exercise.save()
+                return False
 
     return True
 

@@ -97,7 +97,7 @@ PROVIDERS = {
     },
 }
 
-REVIEW_CHOICES = ((-10, "False alert"), (0, "Unspecified match"), (5, "Suspicious match"), (10, "Plagiate"), (9, "Approved plagiate"))
+REVIEW_CHOICES = ((-10, "False alert"), (0, "Unspecified match"), (5, "Suspicious match"), (10, "Plagiate"), (1, "Approved plagiate"))
 REVIEWS = (
     { "value": REVIEW_CHOICES[4][0], "name": REVIEW_CHOICES[4][1], "class": "success" },
     { "value": REVIEW_CHOICES[0][0], "name": REVIEW_CHOICES[0][1], "class": "success" },
@@ -110,11 +110,12 @@ MATCH_ALGORITHM = "matcher.jplag.match"
 MATCH_STORE_MIN_SIMILARITY = 0.2
 MATCH_STORE_MAX_COUNT = 10
 
-MAX_JSON_COMPARISONS = 100
-CRON_STOP_SECONDS = 120
+SUBMISSION_VIEW_COUNT = 100
 
-AUTO_PAUSE_SIMILARITY = 0.95
+AUTO_PAUSE_MEAN = 0.9
 AUTO_PAUSE_COUNT = 50
+
+CRON_STOP_SECONDS = 120
 
 ROOT_URLCONF = 'radar.urls'
 

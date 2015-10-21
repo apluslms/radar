@@ -1,0 +1,15 @@
+{% load review %}
+<td>
+    <a href="{{ url }}">
+        {{ comparison.similarity|percent }}
+        <strong class="key">{{ student.key }}</strong>
+        {% if comparison.review != 0 %}
+        <span class="glyphicon glyphicon-flag text-{{ comparison.review_class }}"></span>
+        {% endif %}
+        <small>
+            {{ submission.created|date:"d.m. H:i" }}
+            grd: {{ submission.grade|percent }}
+            len: {{ submission.authored_token_count }}
+        </small>
+    </a>
+</td>

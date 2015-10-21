@@ -69,6 +69,10 @@ class Course(models.Model):
     def matched_submissions(self):
         return Submission.objects.filter(exercise__course=self).exclude(max_similarity__isnull=True)
 
+    @property
+    def marked_submissions(self):
+        return Submission.objects.filter(exercise__course=self, comparison__review__gte=5)
+
     def has_access(self, user):
         return user.is_staff or self.reviewers.filter(pk=user.pk).exists()
 
@@ -136,7 +140,11 @@ class Exercise(models.Model):
 
     @property
     def submissions_max_similarity(self):
-        return self.matched_submissions.order_by("max_similarity").values_list("max_similarity", flat=True)
+        return self.matched_submissions.values("student__id")\
+            .annotate(max_similarity=models.Max('max_similarity'))\
+            .order_by('max_similarity')\
+            .values_list('max_similarity', flat=True)
+        #return self.matched_submissions.order_by("max_similarity").values_list("max_similarity", flat=True)
 
     @property
     def submissions_max_similarity_json(self):

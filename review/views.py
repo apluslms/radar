@@ -56,7 +56,7 @@ def exercise(request, course_key=None, exercise_key=None, course=None, exercise=
 
 @access_resource
 def exercise_json(request, course_key=None, exercise_key=None, student_key=None, course=None, exercise=None, student=None):
-    limit = settings.MAX_JSON_COMPARISONS
+    limit = 100
     def submission_data(s):
         return { "student": s.student.key, "id": s.id,
             "created": s.created, "grade": s.grade, "length": s.authored_token_count }
@@ -103,6 +103,21 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
         "b": b,
         "source_a": get_submission_text(a),
         "source_b": get_submission_text(b)
+    })
+
+
+@access_resource
+def marked_submissions(request, course_key=None, course=None):
+    comparisons = Comparison.objects\
+        .filter(submission_a__exercise__course=course, review__gte=5)\
+        .order_by('submission_a__exercise', 'review', 'similarity')\
+        .select_related("submission_a", "submission_b","submission_a__exercise", "submission_a__student", "submission_b__student")
+    return render(request, "review/marked.html", {
+        "hierarchy": (("Radar", reverse("index")),
+                      (course.name, reverse("review.views.course", kwargs={ "course_key": course.key })),
+                      ("Marked submissions", None)),
+        "course": course,
+        "comparisons": comparisons,
     })
 
 

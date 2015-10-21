@@ -1,8 +1,15 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<p><a href="{% url 'review.views.course_histograms' course_key=course.key %}" class="btn btn-default btn-xs">
-	<span class="glyphicon glyphicon-stats"></span> Generate histograms</a></p>
+<p>
+	<a href="{% url 'review.views.course_histograms' course_key=course.key %}" class="btn btn-default btn-xs">
+		<span class="glyphicon glyphicon-stats"></span> Exercise histograms
+	</a>
+	<a href="{% url 'review.views.marked_submissions' course_key=course.key %}" class="btn btn-default btn-xs">
+		<span class="glyphicon glyphicon-flag"></span> Marked submissions
+	</a>
+</p>
+
 
 <table class="table">
 	<tr>
