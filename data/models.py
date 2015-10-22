@@ -152,9 +152,9 @@ class Exercise(models.Model):
     def top_comparisons(self):
         return self._comparisons_by_submission(
             self.matched_submissions\
-                .values("student__id")\
-                .annotate(max_similarity=models.Max('max_similarity'))\
                 .order_by('-max_similarity')\
+                .values("student__id")\
+                .annotate(max=models.Max('max_similarity'))\
                 .values_list('id', flat=True)\
                 [:settings.SUBMISSION_VIEW_HEIGHT]
         )
