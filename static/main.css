@@ -23,7 +23,7 @@ table.comparison td a:hover, table.comparison td.selected a { background-color:#
 table.comparison td .similarity { font-style:oblique; }
 table.comparison td small { display:block; font-size:x-small; white-space:nowrap; }
 table.comparison td.success { background-color:transparent !important; }
-
+table.comparison .glyphicon { text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white; }
 
 /* Histogram */
 .histogram { margin:0 0 1em 0; }

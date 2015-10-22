@@ -144,18 +144,44 @@ class Exercise(models.Model):
             .annotate(max_similarity=models.Max('max_similarity'))\
             .order_by('max_similarity')\
             .values_list('max_similarity', flat=True)
-        #return self.matched_submissions.order_by("max_similarity").values_list("max_similarity", flat=True)
 
     @property
     def submissions_max_similarity_json(self):
         return json.dumps(list(self.submissions_max_similarity))
 
-    @property
-    def comparisons(self):
-        return Comparison.objects.filter(submission_a__exercise=self).exclude(submission_b__isnull=True).order_by("-similarity")
+    def top_comparisons(self):
+        return self._comparisons_by_submission(
+            self.matched_submissions\
+                .values("student__id")\
+                .annotate(max_similarity=models.Max('max_similarity'))\
+                .order_by('-max_similarity')\
+                .values_list('id', flat=True)\
+                [:settings.SUBMISSION_VIEW_HEIGHT]
+        )
 
     def comparisons_for_student(self, student):
-        return self.comparisons.filter(models.Q(submission_a__student=student) | models.Q(submission_b__student=student))
+        return self._comparisons_by_submission(
+            self.matched_submissions\
+                .filter(student=student)\
+                .order_by("created")\
+                .values_list("id", flat=True)
+        )
+
+    def _comparisons_by_submission(self, submissions):
+        comparisons = []
+        for s in submissions:
+            comparisons.append({
+                "submission_id": s,
+                "matches": list(Comparison.objects\
+                    .exclude(submission_b__isnull=True)\
+                    .filter(models.Q(submission_a=s) | models.Q(submission_b=s))\
+                    .order_by("-similarity")\
+                    .select_related("submission_a", "submission_b",
+                        "submission_a__exercise", "submission_a__student",
+                        "submission_b__student")[:settings.SUBMISSION_VIEW_WIDTH]
+                )
+            })
+        return comparisons
 
     def clear_tokens_and_matches(self):
         self.comparisons.delete()
@@ -202,10 +228,9 @@ class Submission(models.Model):
 
     @property
     def submissions_to_compare(self):
-        return self.exercise.matched_submissions.exclude(
-            student=self.student,
-            longest_authored_tile__lt=self.exercise.minimum_match_tokens
-        )
+        return self.exercise.matched_submissions\
+            .exclude(student=self.student)\
+            .exclude(longest_authored_tile__lt=self.exercise.minimum_match_tokens)
 
     @property
     def template_comparison(self):

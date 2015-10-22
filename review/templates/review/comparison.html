@@ -14,10 +14,7 @@
 	</ul>
 </form>
 
-<table class="comparison"
-	data-url="{% url 'review.views.exercise_json' course_key=course.key exercise_key=exercise.key student_key=a.student.key %}"
-	data-selected="{{ comparison.submission_a.id }}-{{ comparison.submission_b.id }}">
-</table>
+{% include 'review/_comparisontable.html' %}
 
 <div class="code-comparison"{% if reverse %} data-reverse{% endif %}>
 	{% if a.provider_url %}<a href="{{ a.provider_url }}" target="_blank" class="provider">{{ a.provider_url }}</a>{% endif %}
@@ -41,11 +38,11 @@ Waiting for Javascript...
 <script>
 $(function() {
 	var js = new JS();
-	js.quickReview($("#review"));
-	js.codeview($("div.code-comparison"));
-	var similarity = js.parseJSON($("#similarity"));
+	js.quickReview($('#review'));
+	js.codeview($('div.code-comparison'));
+	var similarity = js.parseJSON($('#similarity'));
 	js.buildHeat(similarity);
-	js.tableSubmissions($("table.comparison"), 8, function(s) { return s.id; });
+	js.applyHeat($('table.comparison'))
 });
 </script>
 

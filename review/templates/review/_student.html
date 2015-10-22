@@ -1,5 +1,5 @@
 {% load review %}
-<td>
+<td data-similarity="{{ comparison.similarity }}">
     <a href="{{ url }}">
         {{ comparison.similarity|percent }}
         <strong class="key">{{ student.key }}</strong>

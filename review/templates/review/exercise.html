@@ -3,9 +3,9 @@
 
 <div class="histogram"></div>
 
-<table class="comparison" data-url="{% url 'review.views.exercise_json' course_key=course.key exercise_key=exercise.key %}"></table>
-
 <pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
+
+{% include 'review/_comparisontable.html' %}
 
 <pre id="js" class="well">
 Waiting for Javascript...
@@ -13,10 +13,10 @@ Waiting for Javascript...
 <script>
 $(function() {
 	var js = new JS();
-	var similarity = js.parseJSON($("#similarity"));
+	var similarity = js.parseJSON($('#similarity'));
 	js.buildHeat(similarity);
-	js.tableSubmissions($("table.comparison"), 8, function(s) { return s.student; });
-	js.histogram($("div.histogram"), similarity, 600, 80);
+	js.histogram($('div.histogram'), similarity, 600, 80);
+	js.applyHeat($('table.comparison'));
 });
 </script>
 

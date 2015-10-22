@@ -50,26 +50,9 @@ def exercise(request, course_key=None, exercise_key=None, course=None, exercise=
                       (course.name, reverse("review.views.course", kwargs={ "course_key": course.key })),
                       (exercise.name, None)),
         "course": course,
-        "exercise": exercise
+        "exercise": exercise,
+        "comparisons": exercise.top_comparisons(),
     })
-
-
-@access_resource
-def exercise_json(request, course_key=None, exercise_key=None, student_key=None, course=None, exercise=None, student=None):
-    limit = 100
-    def submission_data(s):
-        return { "student": s.student.key, "id": s.id,
-            "created": s.created, "grade": s.grade, "length": s.authored_token_count }
-    data = map(lambda c: {
-        "a": submission_data(c.submission_a),
-        "b": submission_data(c.submission_b),
-        "similarity": c.similarity,
-        "review": c.review_class,
-        "url": reverse("review.views.comparison",
-            kwargs={ "course_key": course.key, "exercise_key": exercise.key,
-                "ak": c.submission_a.student.key, "bk": c.submission_b.student.key, "ck": c.pk })
-    }, exercise.comparisons[:limit] if student is None else exercise.comparisons_for_student(student)[:limit])
-    return JsonResponse(list(data), safe=False)
 
 
 @access_resource
@@ -97,6 +80,7 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
                       ("%s vs %s" % (a.student.key, b.student.key), None)),
         "course": course,
         "exercise": exercise,
+        "comparisons": exercise.comparisons_for_student(a.student),
         "comparison": comparison,
         "reverse": reverse_flag,
         "a": a,
