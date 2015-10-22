@@ -151,15 +151,15 @@ class Exercise(models.Model):
 
     def top_comparisons(self):
         max_list = self.matched_submissions\
-            .values('student__id')\
+            .values('student_id')\
             .annotate(max=models.Max('max_similarity'))\
             .order_by()
         return self._comparisons_by_submission(
             [self.matched_submissions
-                    .filter(student_id=each['student__id'])\
+                    .filter(student_id=each['student_id'])\
                     .order_by('-max_similarity').first().id \
                 for each in sorted(max_list, reverse=True,
-                        key=lambda each: each["max"])\
+                        key=lambda k: k["max"])\
                     [:settings.SUBMISSION_VIEW_HEIGHT]]
         )
 
@@ -173,7 +173,6 @@ class Exercise(models.Model):
 
     def _comparisons_by_submission(self, submissions):
         comparisons = []
-        print(submissions)
         for s in submissions:
             comparisons.append({
                 "submission_id": s,
