@@ -88,7 +88,7 @@ def match(a):
 
     # Automatically pause exercise if mean gets too high.
     if a.max_similarity > settings.AUTO_PAUSE_MEAN:
-        subs = Submission.objects.filter(exercise=a.exercise)
+        subs = a.exercise.matched_submissions
         if subs.count() > settings.AUTO_PAUSE_COUNT:
             avg = subs.aggregate(m=Avg("max_similarity"))
             if avg["m"] > settings.AUTO_PAUSE_MEAN:
