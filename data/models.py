@@ -149,12 +149,16 @@ class Exercise(models.Model):
         return json.dumps(list(self.submissions_max_similarity))
 
     def top_comparisons(self):
-        return self._comparisons_by_submission(
-            self.matched_submissions.values("student__id")\
-                .annotate(m=models.Max('max_similarity')).order_by('-m')\
-                .values_list('id', flat=True)\
-                [:settings.SUBMISSION_VIEW_HEIGHT]
-        )
+        max_list = self.matched_submissions.values('student__id')\
+            .annotate(m=models.Max('max_similarity')).order_by('-m')\
+            .values_list('student__id', flat=True)\
+            [:settings.SUBMISSION_VIEW_HEIGHT]
+        return self._comparisons_by_submission([
+            self.matched_submissions\
+                .filter(student_id=each['student_id'])\
+                .order_by('-max_similarity').first().id\
+            for each in max_list
+        ])
 
     def comparisons_for_student(self, student):
         return self._comparisons_by_submission(
