@@ -1,10 +1,10 @@
 JS.prototype.codeview = function(element) {
 	this.log("Augmenting comparison view.");
-	
+
 	this.codeviewElements = element.find("pre.code-view");
 	var left_view = element.find("pre.code-a");
 	var right_view = element.find("pre.code-b");
-	
+
 	var reverse = element.attr("data-reverse") != undefined;
 	var a_code = left_view.text();
 	var b_code = right_view.text();
@@ -12,16 +12,16 @@ JS.prototype.codeview = function(element) {
 	var b_indexes = this.parseJSON(element.find("pre.indexes-b"));
 	var a_template = this.parseJSON(element.find("pre.template-a"));
 	var b_template = this.parseJSON(element.find("pre.template-b"));
-	
+
 	var matches = this.parseJSON(element.find("pre.matches"));
 	var matches02 = function(e) { return([ e[0], 0, e[2] ]); };
 	var matches12 = function(e) { return([ e[1], 0, e[2] ]); };
 	var a_matches = matches.map(reverse ? matches12 : matches02);
 	var b_matches = matches.map(reverse ? matches02 : matches12);
-	
+
 	this.codeviewAugment(left_view, a_code, a_indexes, a_template, a_matches);
 	this.codeviewAugment(right_view, b_code, b_indexes, b_template, b_matches);
-	
+
 	this.codeviewFindExact();
 	this.codeviewFocus("a.match");
 };
@@ -33,7 +33,7 @@ JS.prototype.codeviewAugment = function(element, code, indexes, template, matche
 	var as = element.find("a.match").bind("mouseenter", function(event) {
 		js.codeviewElements.find('a[data-i="' + $(this).attr("data-i") + '"]').addClass("current");
 	}).bind("mouseleave", function(event) {
-		js.codeviewElements.find('a[data-i="' + $(this).attr("data-i") + '"]').removeClass("current");			
+		js.codeviewElements.find('a[data-i="' + $(this).attr("data-i") + '"]').removeClass("current");
 	}).bind("click", function(event) {
 		event.preventDefault();
 		js.codeviewFocus('a.match[data-i="' + $(this).attr("data-i") + '"]');
@@ -58,16 +58,20 @@ JS.prototype.codeviewMatched = function(code, indexes, template, matches) {
 		b = indexes[ma[i].beg][0];
 		e = indexes[ma[i].end][1] + 1;
 		if (b > last) {
-			result += code.substring(last, b);
+			result += this.escape_tags(code.substring(last, b));
 		}
 		var anchor = ma[i].first ? '<a class="template">' : '<a class="match" data-i="' + ma[i].index + '" href="#">';
-		result += anchor + code.substring(b, e) + '</a>';
+		result += anchor + this.escape_tags(code.substring(b, e)) + '</a>';
 		last = e;
 	}
 	if (last < code.length) {
-		result += code.substring(last, code.length);
+		result += this.escape_tags(code.substring(last, code.length));
 	}
 	return "<span class=\"source\">" + result + "</span>";
+};
+
+JS.prototype.escape_tags = function(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 };
 
 JS.prototype.codeviewJoinMatches = function(ma1, ma2) {
