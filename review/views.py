@@ -94,6 +94,7 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
 def marked_submissions(request, course_key=None, course=None):
     comparisons = Comparison.objects\
         .filter(submission_a__exercise__course=course, review__gte=5)\
+        .order_by("submission_a__created")\
         .select_related("submission_a", "submission_b","submission_a__exercise", "submission_a__student", "submission_b__student")
     suspects = {}
     for c in comparisons:

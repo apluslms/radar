@@ -18,7 +18,11 @@
 				<small>{{ comparison.submission_a.exercise.created|date:"d.m." }}</small>
 			</a>
 		</td>
+    {% if comparison.submission_a.student.key == suspect.key %}
     {% student_td course comparison True %}
+    {% else %}
+    {% student_td course comparison %}
+    {% endif %}
     {% endfor %}
 	</tr>
 	{% endfor %}
