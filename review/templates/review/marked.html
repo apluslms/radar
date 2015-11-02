@@ -3,19 +3,23 @@
 {% block content %}
 
 <table class="comparison">
-	{% for comparison in comparisons %}
+  <tr>
+    <th>Suspect</th>
+    <th>Sum</th>
+  </tr>
+	{% for suspect in suspects %}
 	<tr>
-		<td>
-			{{ comparison.review_name }}
-		</td>
+		<td><h4>{{ suspect.key }}</h4></td>
+    <td>{{ suspect.sum }}</td>
+    {% for comparison in suspect.comparisons %}
 		<td>
 			<a href="{% url 'review.views.exercise' course_key=course.key exercise_key=comparison.submission_a.exercise.key %}">
 				<strong class="key">{{ comparison.submission_a.exercise.name }}</strong>
 				<small>{{ comparison.submission_a.exercise.created|date:"d.m." }}</small>
 			</a>
 		</td>
-		{% student_td course comparison %}
-		{% student_td course comparison True %}
+    {% student_td course comparison True %}
+    {% endfor %}
 	</tr>
 	{% endfor %}
 </table>

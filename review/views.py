@@ -94,14 +94,20 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
 def marked_submissions(request, course_key=None, course=None):
     comparisons = Comparison.objects\
         .filter(submission_a__exercise__course=course, review__gte=5)\
-        .order_by('submission_a__exercise', 'review', 'similarity')\
         .select_related("submission_a", "submission_b","submission_a__exercise", "submission_a__student", "submission_b__student")
+    suspects = {}
+    for c in comparisons:
+        for s in (c.submission_a.student, c.submission_b.student):
+            if s.id not in suspects:
+                suspects[s.id] = { 'key':s.key, 'sum':0, 'comparisons':[] }
+            suspects[s.id]['sum'] += c.review
+            suspects[s.id]['comparisons'].append(c)
     return render(request, "review/marked.html", {
         "hierarchy": (("Radar", reverse("index")),
                       (course.name, reverse("review.views.course", kwargs={ "course_key": course.key })),
                       ("Marked submissions", None)),
         "course": course,
-        "comparisons": comparisons,
+        "suspects": sorted(suspects.values(), reverse=True, key=lambda e: e['sum']),
     })
 
 
