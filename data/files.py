@@ -4,6 +4,7 @@ Storing submission source in file system.
 """
 import fcntl
 import os
+import codecs
 
 from django.conf import settings
 
@@ -20,7 +21,7 @@ def acquire_lock():
 def get_text(exercise, name):
     path = path_to_exercise(exercise, name)
     if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
+        with codecs.open(path, "r", "utf-8") as f:
             return f.read()
     return ""
 
@@ -30,7 +31,7 @@ def put_text(exercise, name, text):
     dirpath = os.path.dirname(path)
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
-    with open(path, "w", encoding="utf-8") as f:
+    with codecs.open(path, "w", "utf-8") as f:
         f.write(text)
 
 
