@@ -21,7 +21,7 @@ def acquire_lock():
 def get_text(exercise, name):
     path = path_to_exercise(exercise, name)
     if os.path.exists(path):
-        with codecs.open(path, "r", "utf-8", errors="replace") as f:
+        with codecs.open(path, "r", "utf-8", "replace") as f:
             return f.read()
     return ""
 
