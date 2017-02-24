@@ -13,7 +13,7 @@ def percent(value):
 def student_td(course, comparison, b=False):
     submission = comparison.submission_b if b else comparison.submission_a
     return {
-        "url": reverse("review.views.comparison", kwargs={
+        "url": reverse("comparison", kwargs={
             "course_key": course.key,
             "exercise_key": comparison.submission_a.exercise.key,
             "ak": comparison.submission_a.student.key,

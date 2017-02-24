@@ -46,7 +46,7 @@ class Course(models.Model):
     provider = models.CharField(max_length=16, choices=settings.PROVIDER_CHOICES, help_text="Provider for submission data", default=settings.PROVIDER_CHOICES[0][0])
     tokenizer = models.CharField(max_length=16, choices=settings.TOKENIZER_CHOICES, help_text="Tokenizer for the submission contents", default=settings.TOKENIZER_CHOICES[0][0])
     minimum_match_tokens = models.IntegerField(default=15, help_text="Minimum number of tokens to consider a match")
-    reviewers = models.ManyToManyField(User, blank=True, null=True, help_text="Reviewers for match analysis")
+    reviewers = models.ManyToManyField(User, blank=True, help_text="Reviewers for match analysis")
     archived = models.BooleanField(db_index=True, default=False)
     objects = CourseManager()
 

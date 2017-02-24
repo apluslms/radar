@@ -12,7 +12,7 @@
 	{% for course in courses %}
 	<tr>
 		<td>
-			<a href="{% url 'review.views.course' course_key=course.key %}">
+			<a href="{% url 'course' course_key=course.key %}">
 				{{ course.name }}
 			</a>
 		</td>

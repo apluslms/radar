@@ -5,7 +5,7 @@
 	{% for match in matches %}
 	<tr>
 		<td>
-			<a href="{% url 'review.views.submission' course_name=course.name exercise_name=exercise.name g_id=group.pk a_id=match.submission.pk %}">
+			<a href="{% url 'submission' course_name=course.name exercise_name=exercise.name g_id=group.pk a_id=match.submission.pk %}">
 				{{ match.submission.student.name }}
 			</a>
 		</td>

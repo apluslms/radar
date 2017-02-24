@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<form method="post" action="{% url 'django.contrib.auth.views.login' %}" class="well">
+<form method="post" action="{% url 'login' %}" class="well">
 	<h4>Radar</h4>
 	<input type="hidden" name="next" value="{{ next }}" />
 	{% csrf_token %}

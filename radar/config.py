@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.utils.module_loading import import_by_path
+from django.utils.module_loading import import_string
 
 
 class ConfigError(Exception):
@@ -26,7 +26,7 @@ def configured_function(config, key):
 
 def named_function(name):
     try:
-        return import_by_path(name)
+        return import_string(name)
     except ImproperlyConfigured as e:
         raise e
         #raise ConfigError("Unknown function configured: %s" % name)

@@ -13,7 +13,7 @@
     <td>{{ suspect.sum }}</td>
     {% for comparison in suspect.comparisons %}
 		<td>
-			<a href="{% url 'review.views.exercise' course_key=course.key exercise_key=comparison.submission_a.exercise.key %}">
+			<a href="{% url 'exercise' course_key=course.key exercise_key=comparison.submission_a.exercise.key %}">
 				<strong class="key">{{ comparison.submission_a.exercise.name }}</strong>
 				<small>{{ comparison.submission_a.exercise.created|date:"d.m." }}</small>
 			</a>

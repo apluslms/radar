@@ -36,7 +36,7 @@ def course(request, course_key=None, course=None):
 def course_histograms(request, course_key=None, course=None):
     return render(request, "review/course_histograms.html", {
         "hierarchy": (("Radar", reverse("index")),
-                      (course.name, reverse("review.views.course", kwargs={ "course_key": course.key })),
+                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("Histograms", None)),
         "course": course,
         "exercises": course.exercises.all()
@@ -47,7 +47,7 @@ def course_histograms(request, course_key=None, course=None):
 def exercise(request, course_key=None, exercise_key=None, course=None, exercise=None):
     return render(request, "review/exercise.html", {
         "hierarchy": (("Radar", reverse("index")),
-                      (course.name, reverse("review.views.course", kwargs={ "course_key": course.key })),
+                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       (exercise.name, None)),
         "course": course,
         "exercise": exercise,
@@ -74,8 +74,8 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
 
     return render(request, "review/comparison.html", {
         "hierarchy": (("Radar", reverse("index")),
-                      (course.name, reverse("review.views.course", kwargs={ "course_key": course.key })),
-                      (exercise.name, reverse("review.views.exercise",
+                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
+                      (exercise.name, reverse("exercise",
                                               kwargs={ "course_key": course.key, "exercise_key": exercise.key })),
                       ("%s vs %s" % (a.student.key, b.student.key), None)),
         "course": course,
@@ -105,7 +105,7 @@ def marked_submissions(request, course_key=None, course=None):
             suspects[s.id]['comparisons'].append(c)
     return render(request, "review/marked.html", {
         "hierarchy": (("Radar", reverse("index")),
-                      (course.name, reverse("review.views.course", kwargs={ "course_key": course.key })),
+                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("Marked submissions", None)),
         "course": course,
         "suspects": sorted(suspects.values(), reverse=True, key=lambda e: e['sum']),
@@ -121,14 +121,14 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
         if "save" in request.POST:
             if form.is_valid():
                 form.save(exercise)
-                return redirect("review.views.course", course_key=course.key)
+                return redirect("course", course_key=course.key)
         if "save_and_clear" in request.POST:
             if form_tokenizer.is_valid():
                 form_tokenizer.save(exercise)
-                return redirect("review.views.course", course_key=course.key)
+                return redirect("course", course_key=course.key)
         if "provider_reload" in request.POST:
             configured_function(p_config, "reload")(exercise, p_config)
-            return redirect("review.views.course", course_key=course.key)
+            return redirect("course", course_key=course.key)
     else:
         form = ExerciseForm({
             "name": exercise.name,
@@ -141,7 +141,7 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
         })
     return render(request, "review/exercise_settings.html", {
         "hierarchy": (("Radar", reverse("index")),
-                      (course.name, reverse("review.views.course", kwargs={ "course_key": course.key })),
+                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("%s settings" % (exercise.name), None)),
         "course": course,
         "exercise": exercise,
