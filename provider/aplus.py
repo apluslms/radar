@@ -107,7 +107,7 @@ def _fetch_submission_data(sid, config):
 
 def _decode_files(files, config):
     return {
-        file_map[data["filename"]: _get(data["url"], config).text
+        data["filename"]: _get(data["url"], config).text
         for data in files
     }
 
