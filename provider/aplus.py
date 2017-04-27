@@ -41,7 +41,7 @@ def cron(course, config):
             logger.info("Processing queued A+ entry for %s", course)
             data = _fetch_submission_data(queued.data, config)
 
-            exercise = course.get_exercise(data["exercise"]["id"])
+            exercise = course.get_exercise(str(data["exercise"]["id"]))
             if exercise.name == "unknown":
                 exercise.name = data["exercise"]["display_name"]
                 exercise.save()
