@@ -56,7 +56,7 @@ def cron(course, config):
             )
 
             text = files.join_files(
-                _decode_files(data["files"]),
+                _decode_files(data["files"], config),
                 tokenizer_config(exercise.tokenizer)
             )
             files.put_submission_text(submission, text)
