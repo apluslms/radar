@@ -2,6 +2,7 @@ from django import forms
 from django.conf import settings
 
 from data.files import put_text
+from data.models import Comparison
 from radar.config import tokenizer_config
 from tokenizer.tokenizer import tokenize_source
 
@@ -37,4 +38,5 @@ class ExerciseTokenizerForm(forms.Form):
             else self.cleaned_data["minimum_match_tokens"]
         exercise.save()
 
+        Comparison.objects.clean_for_exercise(exercise)
         exercise.clear_tokens_and_matches()

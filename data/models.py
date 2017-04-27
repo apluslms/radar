@@ -180,7 +180,6 @@ class Exercise(models.Model):
         return comparisons
 
     def clear_tokens_and_matches(self):
-        self.comparisons.delete()
         self.submissions.update(tokens=None, indexes_json=None, max_similarity=None)
 
     def __str__(self):
@@ -259,6 +258,12 @@ class Submission(models.Model):
         return "%s/%s: %s grade=%.1f (%s)" % (self.exercise.course.name, self.exercise.name, self.student.key, self.grade, self.created)
 
 
+class ComparisonManager(models.Manager):
+
+    def clean_for_exercise(self, exercise):
+        self.filter(submission_a__exercise=exercise).delete()
+
+
 @python_2_unicode_compatible
 class Comparison(models.Model):
     """
@@ -270,6 +275,7 @@ class Comparison(models.Model):
     similarity = models.FloatField(default=0.0)
     matches_json = models.TextField(blank=True, null=True, default=None)
     review = models.IntegerField(choices=settings.REVIEW_CHOICES, default=0)
+    objects = ComparisonManager()
 
     class Meta:
         unique_together = ("submission_a", "submission_b")
