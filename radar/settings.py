@@ -76,8 +76,7 @@ PROVIDERS = {
         "cron": "provider.aplus.cron",
         "reload": "provider.aplus.reload",
         "host": "http://localhost:8000",
-        "user": "root",
-        "key": "4511004ec512bbcccbed7aa31d479a93fa039a72",
+        "token": "a90b16c4ebbd3f996ca69e2ef8df3a2b1973e7b0",
     },
     "filesystem": {
         "hook": "provider.filesystem.hook",

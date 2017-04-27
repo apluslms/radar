@@ -77,10 +77,7 @@ class Course(models.Model):
         return user.is_staff or self.reviewers.filter(pk=user.pk).exists()
 
     def get_exercise(self, key_str):
-        exercise, created = self.exercises.get_or_create(key=URLKeyField.safe_version(key_str))
-        if created:
-            exercise.name = exercise.key
-            exercise.save()
+        exercise, _ = self.exercises.get_or_create(key=URLKeyField.safe_version(key_str))
         return exercise
 
     def get_student(self, key_str):
