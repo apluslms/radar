@@ -28,7 +28,7 @@ def tok_name_single_char(toktype):
 
 def token_generator_from_source(source):
     """
-    Return a generator of tokenize.TokenInfo namedtuples, tokenized from source.
+    Returns a generator of tokenize.TokenInfo namedtuples, tokenized from source.
     """
     readable_source = io.BytesIO(source.encode("utf-8")).readline
     return stdlib_tokenize.tokenize(readable_source)
@@ -59,8 +59,7 @@ def tokenize_no_indexes(source):
 def tokenize(source, config=None):
     """
     Tokenizes Python code by replacing all token strings with a single character.
-    Comments and non-terminating newlines (NL) are dropped.
-    Tokens with non-printable strings (DEDENT, ENDMARKER etc.) will not be included in the returned indexes.
+    Returns the tokenized string and index mappings (as a JSON string) of the tokens to the original string.
     """
     try:
         token_generator = token_generator_from_source(source)
@@ -88,12 +87,12 @@ def tokenize(source, config=None):
             # offset by the starting column of this token.
             elif srow > prevrow:
                 index_offset += scol
-                # If a line is continued by escaping the newline character,
-                # there might be whitespace beyond the previous column position.
+                # There might be whitespace to the right of the last column position
+                # if the line ends with an escaped newline character.
                 previous_row_whitespace = len(prevline) - prevcol
                 if previous_row_whitespace > 0:
                     index_offset += previous_row_whitespace
-            # This is probably redundant
+            # This is probably redundant.
             else:
                 raise Exception("Unexpected Python token positions, {}".format(source_token))
 
