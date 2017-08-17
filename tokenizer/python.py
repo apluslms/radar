@@ -99,8 +99,11 @@ def tokenize(source, config=None):
             start_index = index_offset
             end_index = start_index + len(string)
 
+            # Offset by the length of the token string,
+            # token string is on one line
             if srow == erow:
                 index_offset += ecol - scol
+            # token string spans several lines.
             else:
                 index_offset += len(string)
 
