@@ -111,7 +111,6 @@ def tokenize(source, config=None):
             prevrow, prevcol = erow, ecol
             prevline = source_token.line
 
-        logger.info("Returning tokenized Python: %s", repr(tokenized_source))
         return tokenized_source, json.dumps(indexes)
 
     except Exception as e:
