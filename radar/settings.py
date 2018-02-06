@@ -52,7 +52,10 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-TOKENIZER_CHOICES = (("skip", "Skip"), ("scala", "Scala"))
+TOKENIZER_CHOICES = (
+        ("skip", "Skip"),
+        ("scala", "Scala"),
+        ("python", "Python"))
 TOKENIZERS = {
     "skip": {
         "tokenize": "tokenizer.skip.tokenize",
