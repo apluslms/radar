@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError, FieldError
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
@@ -8,6 +7,7 @@ import logging
 import re
 
 from radar.config import choice_name
+from aplus_client.django.models import NamespacedApiObject
 
 
 logger = logging.getLogger("radar.model")
@@ -26,7 +26,7 @@ class URLKeyField(models.CharField):
         return "".join([c for c in text if re.match(r'[A-z0-9]', c)])
 
 
-class CourseManager(models.Manager):
+class CourseManager(NamespacedApiObject.Manager):
 
     def get_available_courses(self, user):
         if user.is_staff:
@@ -35,7 +35,7 @@ class CourseManager(models.Manager):
 
 
 @python_2_unicode_compatible
-class Course(models.Model):
+class Course(NamespacedApiObject):
     """
     A course can receive submissions.
 
@@ -46,7 +46,7 @@ class Course(models.Model):
     provider = models.CharField(max_length=16, choices=settings.PROVIDER_CHOICES, help_text="Provider for submission data", default=settings.PROVIDER_CHOICES[0][0])
     tokenizer = models.CharField(max_length=16, choices=settings.TOKENIZER_CHOICES, help_text="Tokenizer for the submission contents", default=settings.TOKENIZER_CHOICES[0][0])
     minimum_match_tokens = models.IntegerField(default=15, help_text="Minimum number of tokens to consider a match")
-    reviewers = models.ManyToManyField(User, blank=True, help_text="Reviewers for match analysis")
+    reviewers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="courses", blank=True, help_text="Reviewers for match analysis")
     archived = models.BooleanField(db_index=True, default=False)
     objects = CourseManager()
 
