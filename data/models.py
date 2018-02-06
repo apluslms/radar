@@ -1,13 +1,14 @@
-from django.conf import settings
-from django.core.exceptions import ValidationError, FieldError
-from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 import json
 import logging
 import re
 
-from radar.config import choice_name
+from django.conf import settings
+from django.core.exceptions import ValidationError, FieldError
+from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
+
 from aplus_client.django.models import NamespacedApiObject
+from radar.config import choice_name
 
 
 logger = logging.getLogger("radar.model")
