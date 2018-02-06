@@ -16,8 +16,12 @@ SECRET_KEY = 'r#=r)@i3iucw1tak*3(!h8une%=r7-rif63)7f(5(gm+-@^-)0'
 DEBUG = True
 
 ALLOWED_HOSTS = []
+AUTH_LTI_LOGIN = {
+    'ACCEPTED_ROLES': ['Instructor', 'TA'],
+    'STAFF_ROLES': ['Instructor', 'TA']
+}
 
-LTI_ACCEPTED_ROLES = ('Instructor', 'TeachingAssistant', 'TA')
+AUTH_USER_MODEL = "accounts.RadarUser"
 
 
 # Application definition
@@ -31,7 +35,10 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'bootstrapform',
     'data',
+    'accounts',
     'review',
+    'aplus_client',
+    'django_lti_login',
     'ltilogin',
 )
 
@@ -110,7 +117,7 @@ ROOT_URLCONF = 'radar.urls'
 WSGI_APPLICATION = 'radar.wsgi.application'
 
 AUTHENTICATION_BACKENDS = [
-    'ltilogin.auth_backend.LTIAuthBackend',
+    'django_lti_login.backends.LTIAuthBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 

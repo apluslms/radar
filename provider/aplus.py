@@ -10,7 +10,8 @@ from radar.config import tokenizer_config
 
 POST_KEY = "submission_id"
 API_SUBMISSION_URL = "/api/v2/submissions/%(sid)s/"
-API_SUBMISSION_LIST_URL = "/api/v2/exercises/%(eid)s/submissions/"
+API_EXERCISE_URL = "/api/v2/exercises/%(eid)s/"
+API_SUBMISSION_LIST_URL = API_EXERCISE_URL + "submissions/"
 
 
 logger = logging.getLogger("radar.provider")
