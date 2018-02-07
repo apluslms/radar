@@ -6,8 +6,6 @@ import logging
 from django.conf import settings
 from django.contrib.auth.signals import user_logged_in
 from django.core.exceptions import PermissionDenied
-from django.core.urlresolvers import reverse
-from django.dispatch import receiver
 
 from data.models import Course, URLKeyField
 from aplus_client.django.models import ApiNamespace as Site
@@ -30,7 +28,6 @@ def add_course_permissions(sender, **kwargs):
         course_api = getattr(oauth, 'custom_context_api', None)
         course_title = getattr(oauth, 'context_title', None)
         context_id = getattr(oauth, 'context_id', None)
-        logger.error(repr(vars(oauth)))
         if api_token is None or course_api_id is None or course_api is None or context_id is None:
             logger.error("LTI login request doesn't contain all required "
                          "fields (custom_user_api_token, custom_context_api_id, "
