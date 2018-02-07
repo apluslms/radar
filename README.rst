@@ -42,8 +42,8 @@ Built on open source
 
 Configuring with A+
 ...................
-Radar can be added to A+_ as an external service that uses LTI login for authentication.
-Enabling Radar on a course is then simply a matter of adding the Radar menu link from the A+_ user UI.
+Radar can be added to `A+`_ as an external service that uses LTI login for authentication.
+Enabling Radar on a course is then simply a matter of adding the Radar menu link from the `A+`_ user UI.
 
 Below is a brief checklist of the steps required.
 
