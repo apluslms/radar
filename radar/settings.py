@@ -205,17 +205,6 @@ LOGGING = {
   },
 }
 
+from r_django_essentials.conf import update_settings_from_module
 
-try:
-    from local_settings import *
-    def merge_dict(a, b):
-        for key in b:
-            if isinstance(b[key], dict) and key in a and isinstance(a[key], dict):
-                merge_dict(a[key], b[key])
-            else:
-                a[key] = b[key]
-    for var in ["PROVIDERS_MERGE",]:
-        if var in locals():
-            merge_dict(PROVIDERS, locals()[var])
-except ImportError:
-    pass
+update_settings_from_module(__name__, "local_settings")
