@@ -18,19 +18,19 @@ Requirements
 * Python 3
 * Django 1.7
 * Scala 2.11 (for Scala tokenizer)
-* Write access to `submission_files/`
+* Write access to ``submission_files/``
 
 Directory structure
 ...................
-* `radar/` Django main
-* `data/` Django app: models, commands and cron
-* `review/` Django app: reviewer interface
-* `bootstrapform/` Django app: formats Django forms for Bootstrap
-* `provider/` Data integrations for different sources
-* `tokenizer/` Tokenizers for supported data formats
-* `matcher/` Algorithms for matching token strings
-* `templates/` Django main level templates
-* `static/` Django static files
+* ``radar/`` Django main
+* ``data/`` Django app: models, commands and cron
+* ``review/`` Django app: reviewer interface
+* ``bootstrapform/`` Django app: formats Django forms for Bootstrap
+* ``provider/`` Data integrations for different sources
+* ``tokenizer/`` Tokenizers for supported data formats
+* ``matcher/`` Algorithms for matching token strings
+* ``templates/`` Django main level templates
+* ``static/`` Django static files
 
 Built on open source
 ....................
