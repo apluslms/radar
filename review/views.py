@@ -6,10 +6,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 import logging
 
 from data.files import get_text, get_submission_text
-from data.models import Course, Comparison
+from data.models import Course, Comparison, URLKeyField
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
-from review.forms import ExerciseForm, ExerciseTokenizerForm
+from review.forms import ExerciseForm, ExerciseTokenizerForm, ExerciseOneLineFormSet
 
 
 logger = logging.getLogger("radar.review")
@@ -110,6 +110,53 @@ def marked_submissions(request, course_key=None, course=None):
         "course": course,
         "suspects": sorted(suspects.values(), reverse=True, key=lambda e: e['sum']),
     })
+
+
+def load_all_leaf_exercises(exercises):
+    if not exercises:
+        return
+    for exercise in exercises:
+        child_exercises = exercise.get("exercises", [])
+        if child_exercises:
+            yield from load_all_leaf_exercises(exercise.get("exercises", []))
+        else:
+            yield {"name": exercise.get("display_name"),
+                   "exercise_key": URLKeyField.safe_version(str(exercise.get("id"))),
+                   "tokenizer": exercise.get("radar_tokenizer", "python"),
+                   "minimum_match_tokens": exercise.get("radar_minimum_match_tokens", 15),
+                   "url": exercise.get("html_url"),
+                   "template": exercise.get("templates", None)}
+
+
+@access_resource
+def configure_course(request, course_key=None, course=None):
+    context = {
+        "hierarchy": (("Radar", reverse("index")),
+                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
+                      ("Configure", None)),
+        "course": course,
+        "errors": []
+    }
+    if request.method == "POST":
+        if "import_configurations" in request.POST:
+            client = request.user.get_api_client(course.namespace)
+            response = client.load_data(course.url)
+            exercises = response.get("exercises", None)
+            if not exercises:
+                context["errors"].append("Failed to retrieve course exercises.")
+            else:
+                exercises = list(load_all_leaf_exercises(exercises))
+                context["formset"] = ExerciseOneLineFormSet(initial=exercises)
+                # TODO check if exercises in database
+        if "override_configurations" in request.POST:
+            formset = ExerciseOneLineFormSet(request.POST)
+            for form in formset:
+                if form.is_valid():
+                    exercise = course.get_exercise(str(form["exercise_key"]))
+                    form.save(exercise)
+            context["formset"] = formset
+            context["override_success"] = True
+    return render(request, "review/configure.html", context)
 
 
 @access_resource
