@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+{% load bootstrap %}
+
+{% for error in errors %}
+<div class='alert alert-danger'>{{ error }}</div>
+{% endfor %}
+
+<div class="well">
+  <form method="post" class="form-inline">
+    {% csrf_token %}
+    <div class="form-group">
+      <label class="control-label" for="apply-btn">Import Radar configurations from A+</label>
+    <button id="apply-btn" class="btn btn-default" type="submit" name="import_configurations">Import</button>
+    </div>
+  </form>
+</div>
+
+{% if formset %}
+<form method="post">
+  <div class="well">
+    <label class="control-label" for="apply-btn">Found exercises with Radar configurations, the current configuration in Radar can be overridden with the imported configurations.</label>
+    <button id="override" class="btn btn-primary" type="submit" name="override_configurations">Override</button>
+    {% if override_success %}
+    <div class="alert alert-success">
+      <p>Override successful</p>
+    </div>
+    {% endif %}
+  </div>
+  {% csrf_token %}
+  {{ formset.management_form }}
+  <table class="config-table">
+    <tr>
+      <th>Key</th>
+      <th>Name</th>
+      <th>Tokenizer</th>
+      <th>Min match tokens</th>
+      <th>Template</th>
+      <th>Paused</th>
+    </tr>
+    {% for form in formset %}
+    <tr>
+      <td>{{ form.exercise_key }}</td>
+      <td>{{ form.name }}</td>
+      <td>{{ form.tokenizer }}</td>
+      <td>{{ form.minimum_match_tokens }}</td>
+      <td>{% if form.template %} {{ form.template|length }} characters {% else %} none {% endif %}</td>
+      <td>{{ form.paused }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</form>
+
+{% endif %}
+
+{% endblock %}
