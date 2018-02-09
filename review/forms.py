@@ -50,7 +50,8 @@ class ExerciseOneLineForm(forms.Form):
     minimum_match_tokens = forms.IntegerField(label="Minimum match tokens",
         help_text="Minimum number of tokens to consider a match")
     template = forms.CharField(label="Template code", required=False,
-        help_text="Anything to be excluded from the submission comparison")
+        help_text="Anything to be excluded from the submission comparison",
+        widget=forms.Textarea(attrs={"cols": 20, "rows": 2}))
 
     def save(self, exercise):
         exercise.name = self.cleaned_data["name"]
@@ -74,4 +75,4 @@ class ExerciseOneLineForm(forms.Form):
         Comparison.objects.clean_for_exercise(exercise)
         exercise.clear_tokens_and_matches()
 
-ExerciseOneLineFormSet = forms.formset_factory(ExerciseOneLineForm)
+ExerciseOneLineFormSet = forms.formset_factory(ExerciseOneLineForm, extra=0)

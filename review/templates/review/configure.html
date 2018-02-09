@@ -19,7 +19,7 @@
 {% if formset %}
 <form method="post">
   <div class="well">
-    <label class="control-label" for="apply-btn">Found exercises with Radar configurations, the current configuration in Radar can be overridden with the imported configurations.</label>
+    <label class="control-label" for="apply-btn">Override configurations, clear comparisons and re-compare existing submissions.</label>
     <button id="override" class="btn btn-primary" type="submit" name="override_configurations">Override</button>
     {% if override_success %}
     <div class="alert alert-success">
@@ -44,7 +44,7 @@
       <td>{{ form.name }}</td>
       <td>{{ form.tokenizer }}</td>
       <td>{{ form.minimum_match_tokens }}</td>
-      <td>{% if form.template %} {{ form.template|length }} characters {% else %} none {% endif %}</td>
+      <td>{{ form.template }}</td>
       <td>{{ form.paused }}</td>
     </tr>
     {% endfor %}

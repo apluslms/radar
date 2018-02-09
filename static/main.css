@@ -25,6 +25,9 @@ table.comparison td small { display:block; font-size:x-small; white-space:nowrap
 table.comparison td.success { background-color:transparent !important; }
 table.comparison .glyphicon { text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white; }
 
+/* Batch config table */
+table.batch-config textarea { height: auto; }
+
 /* Histogram */
 .histogram { margin:0 0 1em 0; }
 .histogram .bar { fill:#ccc; shape-rendering:crispEdges; }
