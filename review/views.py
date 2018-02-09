@@ -117,16 +117,20 @@ def request_template_content(url):
     """
     Attempt to GET exercise template contents from url.
     """
-    headers = {"content_type": "text/plain",
-               "charset": "utf-8"}
     try:
-        response = requests.get(url, headers=headers, timeout=(4, 10))
+        response = requests.get(url, timeout=(4, 10))
+        response_content_type = response.headers.get("Content-Type")
+        if response_content_type != "text/plain":
+            raise requests.exceptions.InvalidHeader(
+                    "Expected response content of type text/plain but got {}".format(response_content_type),
+                    response=response)
         response.encoding = "utf-8"
         response.raise_for_status()
         return response.text
     except (requests.exceptions.ConnectionError,
             requests.exceptions.ReadTimeout,
-            requests.exceptions.HTTPError) as err:
+            requests.exceptions.HTTPError,
+            requests.exceptions.InvalidHeader) as err:
         logger.error(
             "%s when requesting template contents from %s: %s",
             err.__class__.__name__,
