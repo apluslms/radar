@@ -8,7 +8,9 @@ from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 
 from aplus_client.django.models import NamespacedApiObject
-from radar.config import choice_name
+from radar.config import choice_name, tokenizer_config
+from tokenizer.tokenizer import tokenize_source
+from data import files
 
 
 logger = logging.getLogger("radar.model")
@@ -182,6 +184,20 @@ class Exercise(models.Model):
                 )
             })
         return comparisons
+
+    def set_from_config(self, config):
+        self.name = config["name"]
+        self.key = config["exercise_key"]
+        tokens, _ = tokenize_source(
+            config["template"],
+            tokenizer_config(config["tokenizer"])
+        )
+        files.put_text(self, ".template", config["template"])
+        self.template_tokens = tokens
+        if config["tokenizer"] != self.course.tokenizer:
+            self.override_tokenizer = config["tokenizer"]
+        if config["minimum_match_tokens"] != self.course.minimum_match_tokens:
+            self.override_minimum_match_tokens = config["minimum_match_tokens"]
 
     def clear_tokens_and_matches(self):
         self.submissions.update(tokens=None, indexes_json=None, max_similarity=None)
