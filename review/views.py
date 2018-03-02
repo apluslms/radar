@@ -118,14 +118,15 @@ def request_template_content(url):
     Attempt to GET exercise template contents from url.
     """
     try:
+        logger.debug("Requesting exercise template content from '%s'.", url)
         response = requests.get(url, timeout=(4, 10))
+        response.raise_for_status()
         response_content_type = response.headers.get("Content-Type")
         if response_content_type != "text/plain":
             raise requests.exceptions.InvalidHeader(
                     "Expected response content of type text/plain but got {}".format(response_content_type),
                     response=response)
         response.encoding = "utf-8"
-        response.raise_for_status()
         return response.text
     except (requests.exceptions.ConnectionError,
             requests.exceptions.ReadTimeout,
@@ -148,10 +149,11 @@ def get_radar_config(exercise):
         return None
     data = {
        "name": exercise.get("display_name"),
-       "exercise_key": URLKeyField.safe_version(str(exercise.get("id"))),
+       "exercise_key": URLKeyField.safe_version(str(exercise["id"])),
        "url": exercise.get("html_url"),
        "tokenizer": radar_config.get("tokenizer", "skip"),
-       "minimum_match_tokens": radar_config.get("minimum_match_tokens", 15),
+       "minimum_match_tokens": radar_config.get("minimum_match_tokens") or 15,
+       "template": ""
     }
     # It is possible to define multiple templates from multiple urls for
     # a single exercise.
