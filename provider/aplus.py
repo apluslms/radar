@@ -1,11 +1,10 @@
-import base64
 import logging
 import time
-import requests
 
 from data import files
-from data.models import ProviderQueue, Submission, URLKeyField
+from data.models import ProviderQueue, Submission, Comparison
 from radar.config import tokenizer_config
+from review.views import get_radar_config
 
 
 POST_KEY = "submission_id"
@@ -39,13 +38,31 @@ def cron(course, config):
         try:
             if count > 0:
                 time.sleep(0.5)
-            logger.info("Processing queued A+ entry for %s", course)
-            data = _fetch_submission_data(queued.data, config)
+            logger.info("Processing queued A+ submission with id %s for %s", queued.data, course)
+            # We need someone with a token to the A+ API.
+            api_client = _get_api_client(course)
+            submission_url = config["host"] + API_SUBMISSION_URL % { "sid": queued.data }
+            logger.debug("Fetching submission data from %s", submission_url)
+            data = api_client.load_data(submission_url)
+            exercise_data = data["exercise"]
+            exercise_name = exercise_data["display_name"]
 
-            exercise = course.get_exercise(str(data["exercise"]["id"]))
+            # Check if exercise is configured for Radar, if not, skip to next.
+            radar_config = get_radar_config(exercise_data)
+            if radar_config is None:
+                logger.debug("Exercise '%s' has no Radar configuration, skipping.", exercise_name)
+                queued.delete()
+                continue
+            else:
+                logger.debug("Exercise '%s' has a Radar configuration with tokenizer '%s'.", exercise_name, radar_config["tokenizer"])
+
+            exercise = course.get_exercise(str(exercise_data["id"]))
             if exercise.name == "unknown":
-                exercise.name = data["exercise"]["display_name"]
+                logger.debug("Exercise '%s' with id %d does not yet exist in Radar, creating a new entry.", exercise_name, exercise_data["id"])
+                exercise.set_from_config(exercise_data)
                 exercise.save()
+                Comparison.objects.clean_for_exercise(exercise)
+                exercise.clear_tokens_and_matches()
 
             # TODO: save each student separately and mark as allowed duplicates
             student = course.get_student("_".join(_decode_students(data["submitters"])))
@@ -56,14 +73,17 @@ def cron(course, config):
                 grade=data["grade"],
             )
 
-            text = files.join_files(
-                _decode_files(data["files"], config),
-                tokenizer_config(exercise.tokenizer)
-            )
+            files_data = {
+                d["filename"]: api_client.do_get(d["url"]).text
+                for d in data["files"]
+            }
+
+            text = files.join_files(files_data, tokenizer_config(exercise.tokenizer))
             files.put_submission_text(submission, text)
 
             queued.delete()
             count += 1
+            logger.info("Processing queued A+ entry for %s", course)
         except Exception:
             logger.exception("Failed to handle queued A+ submission")
 
@@ -73,10 +93,27 @@ def reload(exercise, config):
     Clears all submissions and fetches the current submission list from A+.
 
     """
-    data = _fetch_submission_list_data(exercise.key, config)
+    api_client = _get_api_client(exercise.course)
+    submissions_url = config["host"] + API_SUBMISSION_LIST_URL % { "eid": exercise.key }
     exercise.submissions.all().delete()
-    for s in data:
-        ProviderQueue.objects.create(course=exercise.course, data=s["id"])
+    for submission in api_client.load_data(submissions_url):
+        ProviderQueue.objects.create(course=exercise.course, data=submission["id"])
+
+
+# TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself and not use someones LTI login tokens to fetch stuff from the API
+def _get_api_client(course):
+    """
+    Return the AplusTokenClient of the first user with staff status from list of course reviewers.
+    """
+    api_user = course.reviewers.filter(is_staff=True).first()
+    return api_user.get_api_client(course.namespace)
+
+
+def _decode_students(students):
+    return [
+        u["student_id"] if u["student_id"] else u["username"]
+        for u in students
+    ]
 
 
 def _detect_submission_id(request):
@@ -89,41 +126,3 @@ def _detect_submission_id(request):
         logger.exception("Received invalid A+ submission id \"%s\" from hook", request.POST[POST_KEY])
         return None
 
-
-def _fetch_submission_list_data(eid, config):
-    results = []
-    url = config["host"] + API_SUBMISSION_LIST_URL % { "eid": eid }
-    while url:
-        data = _get(url, config).json()
-        results.extend(data["results"])
-        url = data["next"]
-    return results
-
-
-def _fetch_submission_data(sid, config):
-    return _get(
-        config["host"] + API_SUBMISSION_URL % { "sid": sid }, config
-    ).json()
-
-
-def _decode_files(files, config):
-    return {
-        data["filename"]: _get(data["url"], config).text
-        for data in files
-    }
-
-
-def _decode_students(students):
-    return [
-        u["student_id"] if u["student_id"] else u["username"]
-        for u in students
-    ]
-
-
-def _get(url, config):
-    logger.info("Requesting A+ API: %s", url)
-    response = requests.get(url, timeout=6, headers={
-        "Authorization": "Token " + config['token'],
-    })
-    response.raise_for_status()
-    return response
