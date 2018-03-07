@@ -1,7 +1,7 @@
 from django import forms
 from django.conf import settings
 
-from data.files import put_text
+# from data.files import put_text
 from data.models import Comparison
 from radar.config import tokenizer_config
 from tokenizer.tokenizer import tokenize_source
@@ -27,7 +27,7 @@ class ExerciseTokenizerForm(forms.Form):
     def save(self, exercise):
 
         (tokens, _) = tokenize_source(self.cleaned_data["template"], tokenizer_config(self.cleaned_data["tokenizer"]))
-        put_text(exercise, ".template", self.cleaned_data["template"])
+        # put_text(exercise, ".template", self.cleaned_data["template"])
         exercise.template_tokens = tokens
 
         exercise.override_tokenizer = None\
@@ -58,7 +58,7 @@ class ExerciseOneLineForm(forms.Form):
         exercise.paused = self.cleaned_data["paused"]
 
         (tokens, _) = tokenize_source(self.cleaned_data["template"], tokenizer_config(self.cleaned_data["tokenizer"]))
-        put_text(exercise, ".template", self.cleaned_data["template"])
+        # put_text(exercise, ".template", self.cleaned_data["template"])
         exercise.template_tokens = tokens
 
         if self.cleaned_data["tokenizer"] == exercise.course.tokenizer:
