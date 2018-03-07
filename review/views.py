@@ -73,6 +73,8 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
         a = comparison.submission_b
         b = comparison.submission_a
 
+    p_config = provider_config(course.provider)
+    get_submission_text = configured_function(p_config, "get_submission_text")
     return render(request, "review/comparison.html", {
         "hierarchy": (("Radar", reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
@@ -86,8 +88,8 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
         "reverse": reverse_flag,
         "a": a,
         "b": b,
-        "source_a": get_submission_text(a),
-        "source_b": get_submission_text(b)
+        "source_a": get_submission_text(a, p_config),
+        "source_b": get_submission_text(b, p_config)
     })
 
 

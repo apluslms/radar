@@ -85,12 +85,14 @@ PROVIDERS = {
         "hook": "provider.aplus.hook",
         "cron": "provider.aplus.cron",
         "reload": "provider.aplus.reload",
+        "get_submission_text": "data.aplus.get_submission_text",
         "host": "http://localhost:8000",
-        "token": "a90b16c4ebbd3f996ca69e2ef8df3a2b1973e7b0",
+        "token": "asd123",
     },
     "filesystem": {
         "hook": "provider.filesystem.hook",
         "cron": "provider.filesystem.cron",
+        "get_submission_text": "data.files.get_submission_text",
     },
 }
 

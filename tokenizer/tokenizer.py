@@ -12,13 +12,14 @@ class RunError(Exception):
     pass
 
 
-def tokenize_submission(submission):
+def tokenize_submission(submission, p_config):
     """
     Tokenizes a submission.
-    
+
     """
     logger.info("Tokenizing submission %s", submission)
-    source = get_submission_text(submission)
+    get_submission_text = configured_function(p_config, "get_submission_text")
+    source = get_submission_text(submission, p_config)
     (tokens, indexes_json) = tokenize_source(source, tokenizer_config(submission.exercise.tokenizer))
     submission.tokens = tokens
     submission.indexes_json = indexes_json
