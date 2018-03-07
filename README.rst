@@ -18,7 +18,7 @@ Requirements
 * Python 3
 * Django 1.7
 * Scala 2.11 (for Scala tokenizer)
-* Write access to ``submission_files/``
+* (Optional) Write access to ``submission_files/``
 
 Directory structure
 ...................
@@ -42,17 +42,15 @@ Built on open source
 
 Configuring with A+
 ...................
-Radar can be added to `A+`_ as an external service that uses LTI login for authentication.
-Enabling Radar on a course is then simply a matter of adding the Radar menu link from the `A+`_ user UI.
+Radar can be added to `A+`_ as an external service that uses LTI login for authentication and API access.
 
 Below is a brief checklist of the steps required.
 
-* Generate LTI-login tokens with `Django LTI login`_
-  E.g. ``python manage.py add_lti_key --desc aplus``
-* Add Radar into A+ as an LTI service: append ``auth/lti_login`` to the Radar URL, check ``Enable api access`` and use the recently generated key and secret.
-  E.g. log into A+ admin and under EXTERNAL_SERVICES, choose Lti services.
-* Verify in your Django settings file  that ``PROVIDERS["a+"]["host"]`` matches the URL of your A+ service and ``PROVIDERS["a+"]["token"]`` matches an existing auth token in A+.
-  E.g. ``radar/local_settings.py`` or ``radar/settings.py``.
+* Log into the A+ admin page in your A+ service and under EXTERNAL_SERVICES, add a new LTI service.
+* Set URL to ``<Radar>/auth/lti_login``, where ``<Radar>`` is the URL where you host Radar.
+* Check ``Enable api access``.
+* Generate the consumer key and secret with `Django LTI login`_ (in the Radar repo): ``python manage.py add_lti_key --desc aplus``.
+* Verify in your Django settings file that ``PROVIDERS["a+"]["host"]`` matches the URL of your A+ service.
 
 .. _A+: https://github.com/Aalto-LeTech/a-plus
 .. _Django LTI login: https://github.com/Aalto-LeTech/django-lti-login
