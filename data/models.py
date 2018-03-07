@@ -230,6 +230,7 @@ class Submission(models.Model):
     A submission for an exercise.
 
     """
+    key = URLKeyField(max_length=64, unique=True, help_text="Alphanumeric unique submission id")
     created = models.DateTimeField(auto_now_add=True)
     exercise = models.ForeignKey(Exercise, related_name="submissions")
     student = models.ForeignKey(Student, related_name="submissions")
