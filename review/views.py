@@ -1,16 +1,18 @@
 import logging
+import datetime
+import json
 
-import requests
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
 from django.http.response import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
-from data.files import get_text, get_submission_text
-from data.models import Course, Comparison, URLKeyField
+# from data.files import get_text, get_submission_text
+from provider import aplus
+from data.models import Course, Comparison
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
-from review.forms import ExerciseForm, ExerciseTokenizerForm, ExerciseOneLineFormSet
+from review.forms import ExerciseForm, ExerciseTokenizerForm
 
 
 logger = logging.getLogger("radar.review")

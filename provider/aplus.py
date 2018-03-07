@@ -1,10 +1,8 @@
 import logging
 import time
+import requests
 
-from data import files
-from data.models import ProviderQueue, Submission, Comparison
-from radar.config import tokenizer_config
-from review.views import get_radar_config
+from data.models import ProviderQueue, Submission, URLKeyField
 
 
 POST_KEY = "submission_id"
@@ -197,4 +195,3 @@ def _detect_submission_id(request):
     except ValueError:
         logger.exception("Received invalid A+ submission id \"%s\" from hook", request.POST[POST_KEY])
         return None
-

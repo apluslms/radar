@@ -3,7 +3,6 @@ import logging
 import subprocess
 
 from radar.config import tokenizer_config, configured_function
-from data.files import get_submission_text
 
 
 logger = logging.getLogger("radar.tokenizer")
@@ -29,7 +28,7 @@ def tokenize_submission(submission, p_config):
 def tokenize_source(source, t_config):
     """
     Tokenizes source string for an exercise.
-    
+
     """
     f = configured_function(t_config, "tokenize")
     return f(source, t_config)
@@ -52,7 +51,7 @@ def run(cmd, stdin):
 def indexes_to_json(line):
     """
     Parses data from a line formatted: <b:Int>-<e:Int>,<b:Int>-<e:Int>,...
-    
+
     @param line an input line str
     @return json output str
     """

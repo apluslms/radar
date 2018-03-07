@@ -2,13 +2,13 @@ import logging
 import time
 
 from django.core.management.base import BaseCommand
+from django.conf import settings
 
 from data.files import acquire_lock
 from data.models import Course, Submission
 from matcher.matcher import match
 from radar.config import provider_config, configured_function
 from tokenizer.tokenizer import tokenize_submission
-from django.conf import settings
 
 
 logger = logging.getLogger("radar.cron")
