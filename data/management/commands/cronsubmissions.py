@@ -17,11 +17,19 @@ class Command(BaseCommand):
     args = ""
     help = "Cron work for new submissions: provide, tokenize, match"
 
+    def add_arguments(self, parser):
+        parser.add_argument("--no_file_lock",
+                action="store_true",
+                dest="no_file_lock",
+                default=False,
+                help="Do not create a file lock on disk.")
+
     def handle(self, *args, **options):
-        lock = acquire_lock()
-        if lock is None:
-            logger.info("Cannot get manage lock, another process running.")
-            return
+        if "no_file_lock" not in options:
+            lock = acquire_lock()
+            if lock is None:
+                logger.info("Cannot get manage lock, another process running.")
+                return
 
         start = time.time()
         for course in Course.objects.filter(archived=False):
@@ -35,7 +43,7 @@ class Command(BaseCommand):
             for submission in Submission.objects.filter(
                     exercise__course=course, exercise__paused=False,
                     tokens__isnull=True):
-                tokenize_submission(submission)
+                tokenize_submission(submission, p_config)
                 if not match(submission) or time.time() - start > settings.CRON_STOP_SECONDS:
                     return
 
