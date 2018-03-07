@@ -115,63 +115,6 @@ def marked_submissions(request, course_key=None, course=None):
     })
 
 
-def request_template_content(url):
-    """
-    Attempt to GET exercise template contents from url.
-    """
-    try:
-        logger.debug("Requesting exercise template content from '%s'.", url)
-        response = requests.get(url, timeout=(4, 10))
-        response.raise_for_status()
-        response_content_type = response.headers.get("Content-Type")
-        if response_content_type != "text/plain":
-            raise requests.exceptions.InvalidHeader(
-                    "Expected response content of type text/plain but got {}".format(response_content_type),
-                    response=response)
-        response.encoding = "utf-8"
-        return response.text
-    except (requests.exceptions.ConnectionError,
-            requests.exceptions.ReadTimeout,
-            requests.exceptions.HTTPError,
-            requests.exceptions.InvalidHeader) as err:
-        logger.error(
-            "%s when requesting template contents from %s: %s",
-            err.__class__.__name__,
-            url,
-            err)
-        return ''
-
-
-def get_radar_config(exercise):
-    """
-    Extract relevant Radar data from an AplusApiDict or None if there is no Radar data.
-    """
-    radar_config = exercise.get("exercise_info", {}).get("radar")
-    if not radar_config:
-        return None
-    data = {
-       "name": exercise.get("display_name"),
-       "exercise_key": URLKeyField.safe_version(str(exercise["id"])),
-       "url": exercise.get("html_url"),
-       "tokenizer": radar_config.get("tokenizer", "skip"),
-       "minimum_match_tokens": radar_config.get("minimum_match_tokens") or 15,
-       "template": ""
-    }
-    # It is possible to define multiple templates from multiple urls for
-    # a single exercise.
-    # However, in most cases 'templates' will hold just one url.
-    template_urls = exercise.get("templates", None)
-    if template_urls:
-        template_data = (request_template_content(url) for url in template_urls.split(" ") if url)
-        # Join all non-empty templates into a single string, separated by newlines.
-        # If there is only one non-empty template in template_data,
-        # this will simply evaluate to that template, with no extra newline.
-        template_string = '\n'.join(t for t in template_data if t)
-        if template_string:
-            data["template"] = template_string
-    return data
-
-
 def leafs_with_radar_config(exercises):
     """
     Return an iterator yielding dictionaries of leaf exercises that have Radar configurations.
@@ -183,7 +126,7 @@ def leafs_with_radar_config(exercises):
         if child_exercises:
             yield from leafs_with_radar_config(child_exercises)
         else:
-            radar_config = get_radar_config(exercise)
+            radar_config = aplus.get_radar_config(exercise)
             if radar_config:
                 yield radar_config
 
@@ -244,7 +187,7 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
         form_tokenizer = ExerciseTokenizerForm({
             "tokenizer": exercise.tokenizer,
             "minimum_match_tokens": exercise.minimum_match_tokens,
-            "template": get_text(exercise, ".template")
+            "template": aplus.load_exercise_template(exercise, p_config),
         })
     return render(request, "review/exercise_settings.html", {
         "hierarchy": (("Radar", reverse("index")),
