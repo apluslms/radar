@@ -142,25 +142,35 @@ def configure_course(request, course_key=None, course=None):
         "course": course,
         "errors": []
     }
-    if request.method == "POST":
-        if "import_configurations" in request.POST:
-            client = request.user.get_api_client(course.namespace)
-            response = client.load_data(course.url)
-            exercises = response.get("exercises", [])
-            if not exercises:
-                context["errors"].append("No courses found for course %s", repr(course))
+    if request.method != "POST":
+        client = request.user.get_api_client(course.namespace)
+        response = client.load_data(course.url)
+        context["fetched_at"] = datetime.datetime.now().isoformat()
+        exercises = response.get("exercises", [])
+        if not exercises:
+            context["errors"].append("No courses found for course %s", repr(course))
+        else:
+            exercises = list(leafs_with_radar_config(exercises))
+            for exercise in exercises:
+                exercise["new"] = not course.has_exercise(exercise["exercise_key"])
+            context["exercises"] = {
+                "iter": exercises,
+                "json": json.dumps(exercises)
+            }
+    elif "override_configurations" in request.POST:
+        exercises = json.loads(request.POST["exercises_json"])
+        for exercise_data in exercises:
+            key_str = str(exercise_data["exercise_key"])
+            if course.has_exercise(key_str):
+                exercise = course.get_exercise(key_str)
+                exercise.set_from_config(exercise_data)
+                exercise.save()
+                Comparison.objects.clean_for_exercise(exercise)
+                exercise.clear_tokens_and_matches()
             else:
-                exercises = list(leafs_with_radar_config(exercises))
-                context["formset"] = ExerciseOneLineFormSet(initial=exercises)
-                # TODO check if exercises in database
-        if "override_configurations" in request.POST:
-            formset = ExerciseOneLineFormSet(request.POST)
-            for form in formset:
-                if form.is_valid():
-                    exercise = course.get_exercise(str(form["exercise_key"]))
-                    form.save(exercise)
-            context["formset"] = formset
-            context["override_success"] = True
+                logger.error("Exercise '%s' unexpectedly does not exist, cannot configure exercise.", key_str)
+        context["exercises"] = { "iter": exercises }
+        context["override_success"] = True
     return render(request, "review/configure.html", context)
 
 

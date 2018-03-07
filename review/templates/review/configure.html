@@ -5,47 +5,44 @@
 {% for error in errors %}
 <div class='alert alert-danger'>{{ error }}</div>
 {% endfor %}
+<p>
+Here you can check that the configuration state in Radar matches that of the configurations in A+ for the current course.
+If some parameters are different, there has probably been configuration changes in A+ after the exercise was added into Radar (e.g. added an exercise template or changed the tokenizer).
+Also, if an exercise that has been configured for Radar has no submissions in A+, it will be shown here as a new exercise.
+Pressing Overwrite replaces the differing configurations with parameters from A+ and for updated exercises, all existing comparisons will be cleared and all submissions to that exercise rematched.
+</p>
 
-<div class="well">
-  <form method="post" class="form-inline">
-    {% csrf_token %}
-    <div class="form-group">
-      <label class="control-label" for="apply-btn">Import Radar configurations from A+</label>
-    <button id="apply-btn" class="btn btn-default" type="submit" name="import_configurations">Import</button>
-    </div>
-  </form>
-</div>
-
-{% if formset %}
+{% if exercises %}
 <form method="post">
-  <div class="well">
-    <label class="control-label" for="apply-btn">Override configurations, clear comparisons and re-compare existing submissions.</label>
-    <button id="override" class="btn btn-primary" type="submit" name="override_configurations">Override</button>
-    {% if override_success %}
-    <div class="alert alert-success">
-      <p>Override successful</p>
-    </div>
-    {% endif %}
-  </div>
   {% csrf_token %}
-  {{ formset.management_form }}
-  <table class="config-table">
+  {% if exercises.json %}
+  {# For posting back exactly the same data as being shown to the user #}
+  <input type="hidden" value="{{ exercises.json }}" name="exercises_json">
+  {% endif %}
+  <button id="override" class="btn btn-primary" type="submit" name="override_configurations">Overwrite</button>
+  {% if override_success %}
+  <div class="alert alert-success">
+    <p>Override successful</p>
+  </div>
+  {% endif %}
+  <h3>Exercise data from A+ as of {{ fetched_at }}</h3>
+  <table class="table config-table">
     <tr>
-      <th>Key</th>
+      <th>A+ exercise key</th>
       <th>Name</th>
-      <th>Tokenizer</th>
-      <th>Min match tokens</th>
+      <th>New</th>
       <th>Template</th>
-      <th>Paused</th>
+      <th>Tokenizer</th>
+      <th>Min. match tokens</th>
     </tr>
-    {% for form in formset %}
+    {% for exercise in exercises.iter %}
     <tr>
-      <td>{{ form.exercise_key }}</td>
-      <td>{{ form.name }}</td>
-      <td>{{ form.tokenizer }}</td>
-      <td>{{ form.minimum_match_tokens }}</td>
-      <td>{{ form.template }}</td>
-      <td>{{ form.paused }}</td>
+      <td>{{ exercise.exercise_key }}</td>
+      <td>{{ exercise.name }}</td>
+      <td>{{ exercise.new }}</td>
+      <td>{{ exercise.template_length }} tokens</td> {# this could be a link that opens a bootstrap modal with the template contents in a pre well #}
+      <td>{{ exercise.tokenizer_name }}</td>
+      <td>{{ exercise.minimum_match_tokens }}</td>
     </tr>
     {% endfor %}
   </table>
