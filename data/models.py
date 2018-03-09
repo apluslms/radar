@@ -5,7 +5,6 @@ import re
 from django.conf import settings
 from django.core.exceptions import ValidationError, FieldError
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 
 from aplus_client.django.models import NamespacedApiObject
 from radar.config import choice_name, tokenizer_config
@@ -36,7 +35,6 @@ class CourseManager(NamespacedApiObject.Manager):
         return self.filter(reviewers=user)
 
 
-@python_2_unicode_compatible
 class Course(NamespacedApiObject):
     """
     A course can receive submissions.
@@ -93,14 +91,13 @@ class Course(NamespacedApiObject):
         return "%s (%s)" % (self.name, self.created)
 
 
-@python_2_unicode_compatible
 class Exercise(models.Model):
     """
     Each submission includes an exercise key and exercise objects are created as needed.
 
     """
     created = models.DateTimeField(auto_now_add=True)
-    course = models.ForeignKey(Course, related_name="exercises")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="exercises")
     key = URLKeyField(max_length=64, help_text="Alphanumeric exercise id")
     name = models.CharField(max_length=128, default="unknown", help_text="Descriptive exercise name")
     override_tokenizer = models.CharField(max_length=8, choices=settings.TOKENIZER_CHOICES, blank=True, null=True)
@@ -205,14 +202,15 @@ class Exercise(models.Model):
         return "%s/%s (%s)" % (self.course.name, self.name, self.created)
 
 
-@python_2_unicode_compatible
+# What's with the ForeignKey and unique_together with Course?
+# Why not ManyToMany to Course?
 class Student(models.Model):
     """
     Each submission includes a student key and student objects are created as needed.
 
     """
     created = models.DateTimeField(auto_now_add=True)
-    course = models.ForeignKey(Course, related_name="students")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="students")
     key = URLKeyField(max_length=64, help_text="Alphanumeric student id")
 
     class Meta:
@@ -223,7 +221,6 @@ class Student(models.Model):
         return "%s: %s (%s)" % (self.course.name, self.key, self.created)
 
 
-@python_2_unicode_compatible
 class Submission(models.Model):
     """
     A submission for an exercise.
@@ -231,8 +228,8 @@ class Submission(models.Model):
     """
     key = URLKeyField(max_length=64, unique=True, help_text="Alphanumeric unique submission id")
     created = models.DateTimeField(auto_now_add=True)
-    exercise = models.ForeignKey(Exercise, related_name="submissions")
-    student = models.ForeignKey(Student, related_name="submissions")
+    exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE, related_name="submissions")
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="submissions")
     provider_url = models.CharField(max_length=256, blank=True, null=True, default=None)
     grade = models.FloatField(default=0.0)
     tokens = models.TextField(blank=True, null=True, default=None)
@@ -284,14 +281,13 @@ class ComparisonManager(models.Manager):
         self.filter(submission_a__exercise=exercise).delete()
 
 
-@python_2_unicode_compatible
 class Comparison(models.Model):
     """
     Compares two submissions.
 
     """
-    submission_a = models.ForeignKey(Submission, related_name="+")
-    submission_b = models.ForeignKey(Submission, related_name="+", blank=True, null=True)
+    submission_a = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="+")
+    submission_b = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="+", blank=True, null=True)
     similarity = models.FloatField(default=0.0)
     matches_json = models.TextField(blank=True, null=True, default=None)
     review = models.IntegerField(choices=settings.REVIEW_CHOICES, default=0)
@@ -329,7 +325,6 @@ class Comparison(models.Model):
         return "%s/%s: %s %s similarity %.2f" % (self.submission_a.exercise.course.name, self.submission_a.exercise.name, self.submission_a.student.key, c, self.similarity)
 
 
-@python_2_unicode_compatible
 class ProviderQueue(models.Model):
     """
     Queues a submission for provider. Some providers can not create
@@ -337,7 +332,7 @@ class ProviderQueue(models.Model):
 
     """
     created = models.DateTimeField(auto_now_add=True)
-    course = models.ForeignKey(Course, related_name="+")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="+")
     data = models.CharField(max_length=128)
 
     def __str__(self):

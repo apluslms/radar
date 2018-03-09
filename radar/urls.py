@@ -10,7 +10,7 @@ urlpatterns = [
     url(r'^accounts/login/$', login, {'template_name': 'login.html'}, name='login'),
     url(r'^accounts/logout/$', logout_then_login, name='logout'),
     url(r'^auth/', include('django_lti_login.urls')),
-    url(r'^admin/', include(admin.site.urls)),
+    url(r'^admin/', admin.site.urls),
 
     url(r'^', include(data.urls)),
     url(r'^', include(review.urls)),
