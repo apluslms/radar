@@ -1,5 +1,5 @@
 Radar
------
+=====
 
 Plagiate detector for source code and other tokenizable data.
 
@@ -14,14 +14,20 @@ cases. Views are provided to follow submitters over series of exercises.
 teemu.t.lehtinen@aalto.fi, 9.2.2015
 
 Requirements
-............
-* Python 3
-* Django 1.7
+------------
+* Python 3.5
+* Django 2.0
+
+Optional
+........
+
 * Scala 2.11 (for Scala tokenizer)
-* (Optional) Write access to ``submission_files/``
+* Node.js 4.2 (for JavaScript tokenizer)
+* Esprima 4.0 (for JavaScript tokenizer)
+* Write access to ``submission_files/`` (By default, submission files are downloaded when needed and stay only in main memory)
 
 Directory structure
-...................
+-------------------
 * ``radar/`` Django main
 * ``data/`` Django app: models, commands and cron
 * ``review/`` Django app: reviewer interface
@@ -33,7 +39,7 @@ Directory structure
 * ``static/`` Django static files
 
 Built on open source
-....................
+--------------------
 * https://www.djangoproject.com/
 * http://jquery.com/
 * http://getbootstrap.com/
@@ -41,7 +47,7 @@ Built on open source
 * https://highlightjs.org/
 
 Configuring with A+
-...................
+-------------------
 Radar can be added to `A+`_ as an external service that uses LTI login for authentication and API access.
 
 Below is a brief checklist of the steps required.

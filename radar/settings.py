@@ -52,9 +52,11 @@ MIDDLEWARE = (
 )
 
 TOKENIZER_CHOICES = (
-        ("skip", "Skip"),
-        ("scala", "Scala"),
-        ("python", "Python"))
+    ("skip", "Skip"),
+    ("scala", "Scala"),
+    ("python", "Python"),
+    ("javascript", "JavaScript"),
+)
 TOKENIZERS = {
     "skip": {
         "tokenize": "tokenizer.skip.tokenize",
@@ -74,6 +76,10 @@ TOKENIZERS = {
     },
     "java": {
         "tokenize": "tokenizer.java.tokenize",
+        "separator": "/****** %s ******/"
+    },
+    "javascript": {
+        "tokenize": "tokenizer.javascript.tokenize",
         "separator": "/****** %s ******/"
     },
 }
