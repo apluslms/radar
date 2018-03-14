@@ -53,10 +53,13 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
         self.in_style = False
         self.in_script = False
         self.tokens = []
+        self.errors = []
+        # Redundant if this function is called from __init__,
+        # but necessary if called explicitly.
+        super().reset()
 
-    # TODO ignores linebreaks
-    def _offset_column_position(self, offset):
-        return self.getpos()[0], self.getpos()[1] + offset
+    def error(self, message):
+        self.errors.append(message)
 
     def handle_starttag(self, tag, attrs):
         if tag == "style":
