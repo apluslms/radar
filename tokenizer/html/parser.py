@@ -1,6 +1,10 @@
 import os
 import html.parser
 import collections
+import functools
+import html.parser
+import os
+import re
 
 
 TOKEN_TYPES = frozenset()
@@ -8,10 +12,30 @@ if os.path.exists("token_types"):
     with open("token_types") as token_types:
         TOKEN_TYPES = frozenset(token_type.rstrip()
                                 for token_type in token_types.readlines()
-                                if token_type and not token_type.startswith("#"))
+                                if (not token_type.startswith("#") and
+                                    token_type.rstrip()))
 
 
-Token = collections.namedtuple("Token", ["type", "start", "end", "data"])
+Token = collections.namedtuple("Token", ["type", "range", "data"])
+
+
+# Add hook to HTMLParser.updatepos that captures the single dimensional source
+# mappings before they are converted two two dimensional, row-column mappings.
+def updatepos_hook(updatepos):
+    if hasattr(updatepos, "__wrapped__"):
+        # Already wrapped
+        return updatepos
+
+    @functools.wraps(updatepos)
+    def set_token_range_and_call_updatepos(parser, i, j, *args, **kwargs):
+        if parser.tokens and parser.tokens[-1].range is None:
+            # Replace the newest Token instance with an updated range
+            parser.tokens[-1] = parser.tokens[-1]._replace(range=(i, j))
+        return updatepos(parser, i, j, *args, **kwargs)
+
+    return set_token_range_and_call_updatepos
+
+html.parser.HTMLParser.updatepos = updatepos_hook(html.parser.HTMLParser.updatepos)
 
 
 class TokenizingHTMLParser(html.parser.HTMLParser):
@@ -41,8 +65,7 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             self.in_script = True
         self.tokens.append(Token(
             "start-{tagname:s}".format(tagname=tag),
-            self.getpos(),
-            self._offset_column_position(len(self.get_starttag_text())),
+            None,
             self.get_starttag_text()))
 
     def handle_endtag(self, tag):
@@ -60,24 +83,23 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             tag_type = "script-data"
         else:
             tag_type = "other-data"
-        self.tokens.append(Token(
-            tag_type,
-            self.getpos(),
-            self._offset_column_position(len(data)),
-            data))
+        # Do not tokenize newlines and whitespace between tokens.
+        if not re.fullmatch(r"^\s*$", data):
+            self.tokens.append(Token(
+                tag_type,
+                None,
+                data))
 
     def handle_decl(self, decl):
         self.tokens.append(Token(
             "declaration",
-            self.getpos(),
-            self._offset_column_position(len(decl)),
+            None,
             decl))
 
     def handle_pi(self, data):
         self.tokens.append(Token(
             "processing-instructions",
-            self.getpos(),
-            self._offset_column_position(len(data)),
+            None,
             data))
 
     # The following tokens could also be extracted but are skipped.
