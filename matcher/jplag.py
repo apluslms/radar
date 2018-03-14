@@ -90,4 +90,4 @@ def hash_for_range(tokens, index, length):
     Calculates a hash for a token range.
     
     """
-    return hashlib.md5(tokens[index:(index + length)].encode("ascii")).digest()
+    return hashlib.md5(tokens[index:(index + length)].encode("utf-8")).digest()
