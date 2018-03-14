@@ -1,5 +1,23 @@
-import os
-import html.parser
+"""
+This module implements an HTML parser that tokenizes HTML source code into tokens
+as defined in the token_types file.
+The parser uses HTMLParser from the standard library module html.parser,
+and attaches a hook to its updatepos method in order to extract single dimensional
+source mappings.
+After parsing, the parser instance contains a list of Token namedtuple instances,
+that contain the name of the token, a one dimensional source mapping,
+and the raw content of the token.
+
+Comments and whitespace are ignored.
+
+Usage:
+>>> source = "<!DOCTYPE html> ... "
+>>> parser = TokenizingHTMLParser()
+>>> # Start parsing
+>>> parser.feed(source)
+>>> # Get list of Token instances
+>>> parser.tokens
+"""
 import collections
 import functools
 import html.parser
@@ -40,18 +58,20 @@ html.parser.HTMLParser.updatepos = updatepos_hook(html.parser.HTMLParser.updatep
 
 class TokenizingHTMLParser(html.parser.HTMLParser):
     """
-    html.parser.HTMLParser subclass that accumulates custom HTML tokens (Token  namedtuple instances) into a self.tokens list.
-    The notion of a token in this module is expanded from the W3C recommendation of HTML tokens, that e.g. puts all elements under one token.
-    This implementation expands all, different, element start tags into own tokens.
+    html.parser.HTMLParser subclass that accumulates custom HTML tokens
+    (Token namedtuple instances) into a self.tokens list.
     Valid token types are listed in the module level TOKEN_TYPES set.
 
-    Data inside raw text elements <script> and <style> will be extracted and tokenized separately using the JavaScript and CSS tokenizer, respectively.
+    Data inside raw text elements <script> and <style> will be extracted and
+    tokenized separately using the JavaScript and CSS tokenizer, respectively.
     """
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.in_style = False
-        self.in_script = False
+        self.reset()
+
+    def reset(self):
+        self.in_style_element = False
+        self.in_script_element = False
         self.tokens = []
         self.errors = []
         # Redundant if this function is called from __init__,
@@ -63,9 +83,9 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         if tag == "style":
-            self.in_style = True
+            self.in_style_element = True
         elif tag == "script":
-            self.in_script = True
+            self.in_script_element = True
         self.tokens.append(Token(
             "start-{tagname:s}".format(tagname=tag),
             None,
@@ -73,16 +93,16 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
 
     def handle_endtag(self, tag):
         if tag == "style":
-            self.in_style = False
+            self.in_style_element = False
         elif tag == "script":
-            self.in_script = False
+            self.in_script_element = False
 
     def handle_data(self, data):
         starttag_text = self.get_starttag_text()
         tag_type = None
-        if self.in_style and not self.in_script and starttag_text.startswith("<style"):
+        if self.in_style_element and not self.in_script_element and starttag_text.startswith("<style"):
             tag_type = "style-data"
-        elif self.in_script and not self.in_style and starttag_text.startswith("<script"):
+        elif self.in_script_element and not self.in_style_element and starttag_text.startswith("<script"):
             tag_type = "script-data"
         else:
             tag_type = "other-data"
@@ -120,5 +140,4 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
     def handle_charref(self, name):
         # e.g. &#40; &#61; &#62; etc.
         pass
-
 
