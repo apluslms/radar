@@ -176,6 +176,10 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
         super().__init__(*args, **kwargs)
         self.reset()
 
+    def all_tokens_valid(self):
+        return all(t.type in TOKEN_TYPES and t.range is not None
+                   for t in self.tokens)
+
     def reset(self):
         self.in_style_element = False
         self.in_script_element = False
@@ -207,9 +211,13 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
     def handle_data(self, data):
         starttag_text = self.get_starttag_text()
         tag_type = None
-        if self.in_style_element and not self.in_script_element and starttag_text.startswith("<style"):
+        if (self.in_style_element and
+                not self.in_script_element and
+                starttag_text.startswith("<style")):
             tag_type = "style-data"
-        elif self.in_script_element and not self.in_style_element and starttag_text.startswith("<script"):
+        elif (self.in_script_element and
+                  not self.in_style_element and
+                  starttag_text.startswith("<script")):
             tag_type = "script-data"
         else:
             tag_type = "other-data"
@@ -238,7 +246,8 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
         # e.g. <!-- hello -->
         pass
 
-    # HTMLParser is run with convert_charrefs which converts entity and character references to Unicode characters (except in style/script contents).
+    # HTMLParser is run with convert_charrefs which converts entity and
+    # character references to Unicode characters (except in style/script contents).
     # Thus these can be viewed as data inside elements just like other text.
     def handle_entityref(self, name):
         # e.g. &lpar; &equals; &gt; etc.
