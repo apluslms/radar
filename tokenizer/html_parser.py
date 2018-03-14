@@ -1,6 +1,6 @@
 """
-This module implements an HTML parser that tokenizes HTML source code into tokens
-as defined in the token_types file.
+This module implements an HTML parser that tokenizes HTML source code into custom
+tokens, that are listed in TOKEN_TYPES.keys().
 The parser uses HTMLParser from the standard library module html.parser,
 and attaches a hook to its updatepos method in order to extract single dimensional
 source mappings.
@@ -17,6 +17,8 @@ Usage:
 >>> parser.feed(source)
 >>> # Get list of Token instances
 >>> parser.tokens
+>>> # Get a 2-tuple of single char tokens and JSON string index pairs (for Radar)
+>>> parser.export_tokens()
 """
 import collections
 import functools
