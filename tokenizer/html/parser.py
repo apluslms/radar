@@ -1,16 +1,14 @@
-import html
+import os
+import html.parser
 import collections
 
 
-TOKEN_TYPES = {
-    "declaration",
-    "start-{tagname:s}",
-    "end-{tagname:s}",
-    "style-data",
-    "script-data",
-    "other-data",
-    "processing-instructions"
-}
+TOKEN_TYPES = frozenset()
+if os.path.exists("token_types"):
+    with open("token_types") as token_types:
+        TOKEN_TYPES = frozenset(token_type.rstrip()
+                                for token_type in token_types.readlines()
+                                if token_type and not token_type.startswith("#"))
 
 
 Token = collections.namedtuple("Token", ["type", "start", "end", "data"])
@@ -18,6 +16,11 @@ Token = collections.namedtuple("Token", ["type", "start", "end", "data"])
 
 class TokenizingHTMLParser(html.parser.HTMLParser):
     """
+    html.parser.HTMLParser subclass that accumulates custom HTML tokens (Token  namedtuple instances) into a self.tokens list.
+    The notion of a token in this module is expanded from the W3C recommendation of HTML tokens, that e.g. puts all elements under one token.
+    This implementation expands all, different, element start tags into own tokens.
+    Valid token types are listed in the module level TOKEN_TYPES set.
+
     Data inside raw text elements <script> and <style> will be extracted and tokenized separately using the JavaScript and CSS tokenizer, respectively.
     """
 
@@ -32,7 +35,6 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
         return self.getpos()[0], self.getpos()[1] + offset
 
     def handle_starttag(self, tag, attrs):
-        # print("Start tag:", tag, " with text: ", self.get_starttag_text())
         if tag == "style":
             self.in_style = True
         elif tag == "script":
@@ -42,21 +44,12 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             self.getpos(),
             self._offset_column_position(len(self.get_starttag_text())),
             self.get_starttag_text()))
-        # print("start-%s" % tag, " from ", self.getpos(), " to ", self._offset_column_position(len(self.get_starttag_text())))
 
     def handle_endtag(self, tag):
         if tag == "style":
             self.in_style = False
         elif tag == "script":
             self.in_script = False
-        # tag characters + forward slash and a pair of angle brackets
-        endtag_text_length = len(tag) + 3
-        self.tokens.append(Token(
-            "end-{tagname:s}".format(tagname=tag),
-            self.getpos(),
-            self._offset_column_position(endtag_text_length),
-            tag))
-        # print("end-%s" % tag, " from ", self.getpos(), " to ", self._offset_column_position(endtag_text_length))
 
     def handle_data(self, data):
         starttag_text = self.get_starttag_text()
@@ -72,7 +65,6 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             self.getpos(),
             self._offset_column_position(len(data)),
             data))
-        # print(" from ", self.getpos(), " to ", end_pos)
 
     def handle_decl(self, decl):
         self.tokens.append(Token(
@@ -80,7 +72,6 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             self.getpos(),
             self._offset_column_position(len(decl)),
             decl))
-        # print("declaration from ", self.getpos(), " to ", self._offset_column_position(len(decl)))
 
     def handle_pi(self, data):
         self.tokens.append(Token(
@@ -88,15 +79,15 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             self.getpos(),
             self._offset_column_position(len(data)),
             data))
-        # print("processing-instructions from ", self.getpos(), " to ", self._offset_column_position(len(data)))
 
-    # The following could be tokenized but are skipped.
+    # The following tokens could also be extracted but are skipped.
 
     def handle_comment(self, data):
         # e.g. <!-- hello -->
         pass
 
     # HTMLParser is run with convert_charrefs which converts entity and character references to Unicode characters (except in style/script contents).
+    # Thus these can be viewed as data inside elements just like other text.
     def handle_entityref(self, name):
         # e.g. &lpar; &equals; &gt; etc.
         pass
