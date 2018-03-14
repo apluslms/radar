@@ -56,6 +56,7 @@ TOKENIZER_CHOICES = (
     ("scala", "Scala"),
     ("python", "Python"),
     ("javascript", "JavaScript"),
+    ("html", "HTML")
 )
 TOKENIZERS = {
     "skip": {
@@ -81,6 +82,10 @@ TOKENIZERS = {
     "javascript": {
         "tokenize": "tokenizer.javascript.tokenize",
         "separator": "/****** %s ******/"
+    },
+    "html": {
+        "tokenize": "tokenizer.html.tokenize",
+        "separator": "<!-- %s -->"
     },
 }
 

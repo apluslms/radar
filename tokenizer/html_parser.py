@@ -155,7 +155,7 @@ def updatepos_hook(updatepos):
     def set_token_range_and_call_updatepos(parser, i, j, *args, **kwargs):
         if parser.tokens and parser.tokens[-1].range is None:
             # Replace the newest Token instance with an updated range
-            parser.tokens[-1] = parser.tokens[-1]._replace(range=(i, j))
+            parser.tokens[-1] = parser.tokens[-1]._replace(range=[i, j])
         return updatepos(parser, i, j, *args, **kwargs)
 
     return set_token_range_and_call_updatepos
@@ -179,6 +179,10 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
     def all_tokens_valid(self):
         return all(t.type in TOKEN_TYPES and t.range is not None
                    for t in self.tokens)
+
+    def export_tokens(self):
+        return (''.join(TOKEN_TYPES[t.type] for t in self.tokens),
+                [t.range for t in self.tokens])
 
     def reset(self):
         self.in_style_element = False
