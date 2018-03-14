@@ -25,6 +25,10 @@ import functools
 import html.parser
 import re
 
+# TODO: there's alot of tokens now, maybe reduce the granularity by grouping? e.g.:
+# https://www.w3.org/TR/2017/REC-html52-20171214/fullindex.html#element-content-categories
+# https://www.w3.org/TR/2017/REC-html52-20171214/fullindex.html#element-interfaces
+
 # Element tag names extracted from https://www.w3.org/TR/2017/REC-html52-20171214/fullindex.html#index-elements at 13.3.2018
 TOKEN_TYPES = collections.OrderedDict([
     # Raw data element contents
@@ -70,6 +74,11 @@ TOKEN_TYPES = collections.OrderedDict([
     ('start-footer', 'G'),
     ('start-form', 'H'),
     ('start-h1', 'I'),
+    ('start-h2', 'I'),
+    ('start-h3', 'I'),
+    ('start-h4', 'I'),
+    ('start-h5', 'I'),
+    ('start-h6', 'I'),
     ('start-head', 'J'),
     ('start-header', 'K'),
     ('start-hr', 'L'),
@@ -146,8 +155,8 @@ TOKEN_TYPES = collections.OrderedDict([
 Token = collections.namedtuple("Token", ["type", "range", "data"])
 
 
-# Add hook to HTMLParser.updatepos that captures the single dimensional source
-# mappings before they are converted two two dimensional, row-column mappings.
+# Add a hook to HTMLParser.updatepos that captures the single dimensional source
+# mappings before they are converted to two dimensional, row-column mappings.
 def updatepos_hook(updatepos):
     if hasattr(updatepos, "__wrapped__"):
         # Already wrapped
@@ -169,10 +178,6 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
     """
     html.parser.HTMLParser subclass that accumulates custom HTML tokens
     (Token namedtuple instances) into a self.tokens list.
-    Valid token types are listed in the module level TOKEN_TYPES set.
-
-    Data inside raw text elements <script> and <style> will be extracted and
-    tokenized separately using the JavaScript and CSS tokenizer, respectively.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
