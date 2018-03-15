@@ -213,10 +213,14 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             self.in_style_element = True
         elif tag == "script":
             self.in_script_element = True
-        self.tokens.append(Token(
-            "start-{tagname:s}".format(tagname=tag),
-            None,
-            self.get_starttag_text()))
+        token_type = "start-{:s}".format(tag)
+        if token_type not in TOKEN_TYPES:
+            self.error("Found a starting tag '{:s}', with exact content '{:s}', that does not have a token specified".format(tag, self.get_starttag_text()))
+        else:
+            self.tokens.append(Token(
+                token_type,
+                None,
+                self.get_starttag_text()))
 
     def handle_endtag(self, tag):
         if tag == "style":
