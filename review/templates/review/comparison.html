@@ -28,7 +28,18 @@
 	<pre class="indexes-b json">{{ b.indexes_json }}</pre>
 </div>
 
-<pre class="sample-highlight hljs"><span class="source"><a class="template">Unlike template, </a><a>unique parts</a><a class="template"> can </a><a class="match">match</a><a class="template"> or </a><a class="match exact">match by every character</a></span></pre>
+<div class="highlighting-legend">
+	<dl class="dl-horizontal">
+		<dt><pre class="sample-highlight hljs"><span class="source"><a class="template">No highlighting</a></span></pre></dt>
+		<dd>matches exercise template</dd>
+		<dt><pre class="sample-highlight hljs"><span class="source"><a>White/Gray</a></span></pre></dt>
+		<dd>unique content</dd>
+		<dt><pre class="sample-highlight hljs"><span class="source"><a class="match">Yellow</a></span></pre></dt>
+		<dd>consecutive, matching syntax tokens</dd>
+		<dt><pre class="sample-highlight hljs"><span class="source"><a class="match exact">Orange</a></span></pre></dt>
+		<dd>exact character match</dd>
+	</dl>
+</div>
 
 <pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
 
