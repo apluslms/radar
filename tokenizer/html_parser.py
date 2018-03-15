@@ -11,14 +11,19 @@ and the raw content of the token.
 Comments and whitespace are ignored.
 
 Usage:
->>> source = "<!DOCTYPE html> ... "
+>>> source = "<!DOCTYPE html><html><head> ... "
 >>> parser = TokenizingHTMLParser()
 >>> # Start parsing
 >>> parser.feed(source)
->>> # Get list of Token instances
->>> parser.tokens
->>> # Get a 2-tuple of single char tokens and JSON string index pairs (for Radar)
+>>> # Generate a 2-tuple containing a string of single char tokens
+>>> # and a JSON string of index pairs
 >>> parser.export_tokens()
+('¯MJ§°/', [[0, 15], [15, 21], [21, 27], [27, 34], [34, 36], [51, 57]])
+>>> # The list of collected Token instances can also be accessed directly
+>>> parser.tokens
+[Token(type='declaration', range=[0, 15], data='DOCTYPE html'),
+ Token(type='start-html', range=...),
+ ...]
 """
 import collections
 import functools
