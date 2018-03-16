@@ -10,22 +10,25 @@
 ## Radar tokenizer
 
 A Radar tokenizer produces a compact string representation of all syntax tokens of some source code (e.g. exercise submission) and source mappings of the tokens back to the source code.
-The source mappings are needed when highlighting matches during comparison of two source codes and therefore are not strictly required for the matcher algorithm to work.
+The matcher algorithm does not need the source mappings when doing comparisons, because the source mappings are needed only when highlighting matches.
 It is still recommended that a tokenizer implements the source mappings in order to make inspecting matches easier.
 
 A tokenizer should implement a function that
-  * accepts one string as a parameter, which is the source code of some programming language, that should be tokenized.
-  * returns a 2-tuple, that contains the tokenized string and source code mappings of the tokenized string back to the source code.
+  * accepts one UTF-8 encoded string as a parameter, which is the source code that should be tokenized.
+  * returns a 2-tuple, that contains one UTF-8 encoded, tokenized string, and single-dimensional source code mappings of the tokenized string back to the source code.
   The source code mappings are returned as a JSON-serialized string of arrays containing the starting and ending indexes of tokens.
+
+Check out the Python tokenizer example below for more details.
 
 ### Tokenized source string
 
-A tokenized source string is a sequence of characters, without whitespace, where each (single) character uniquely identifies a syntax token in some language.
-It is recommended that the tokenizer starts with ASCII characters to make debugging easier, but if the amount of tokens is large, any Unicode character should work, as long as it is unique.
-The tokenized string is consumed by the matching algorithm and is not intended to be human readable.
-The characters chosen to represent some syntax token should be unique and consistent for each tokenization of some tokenizer in order to make comparisons possible.
+The tokenizer should implement an injective function that maps from the space of syntax tokens to the space of Unicode characters.
+Applying this injective function over all syntax tokens, produces the tokenized source string.
+In other words, a tokenized source string is a sequence of characters, without whitespace, where each character uniquely identifies a syntax token in some language.
 
-See the Python tokenizer example below for a more detailed example.
+The tokenized string is consumed by the matching algorithm and is not intended to be human readable, but it is important that the characters are unique and consistent for each tokenization of some tokenizer in order to make comparisons possible.
+The matcher algorithm encodes tokenized strings using UTF-8, so any Unicode character should work.
+However, for optimal space usage and easier debugging, it is probably a good idea to first use all printable ASCII characters (except space), before using code points beyond ASCII.
 
 ### Source mappings
 
@@ -51,7 +54,7 @@ def f(x):
     return x
 ```
 
-The standard library tokenizer produces:
+The standard library tokenizer produces the following syntax tokens:
 ```
 Token type   string                start    end
 ---------------------------------------------------
@@ -94,13 +97,13 @@ DEDENT       ''                    (9, 0)   (9, 0)
 ENDMARKER    ''                    (9, 0)   (9, 0)
 ```
 
-The Radar tokenizer `tokenizer.python.tokenize` produces:
+The Radar tokenizer `tokenizer.python.tokenize` maps these into:
 ```
 ('11411718;453411E2;4511G1718411',
 '[[0, 6], [7, 11], [11, 12], [28, 31], [32, 33], [33, 34], [34, 35], [35, 36], [36, 37], [37, 38], [38, 42], [42, 63], [63, 64], [68, 70], [71, 72], [73, 74], [75, 76], [76, 77], [77, 78], [78, 86], [86, 92], [93, 97], [97, 98], [98, 101], [101, 102], [102, 103], [103, 104], [104, 105], [109, 115], [116, 117]]')
 ```
 Notice that `tokenizer.python.tokenize` drops tokens that are irrelevant when comparing two exercise submissions.
-For example `DEDENT` and `ENDMARKER`, which are added implicitly, or `NL` and `COMMENT`, which do not affect the semantics of the code when executed.
+For example `DEDENT` and `ENDMARKER`, which are non-printable and added implicitly, or `NL` and `COMMENT`, which do not change the semantics of the code.
 Skipped tokens can be seen in `tokenizer.python.SKIP_TOKENS`.
 
 ## Checklist for adding a new tokenizer
@@ -108,6 +111,6 @@ Skipped tokens can be seen in `tokenizer.python.SKIP_TOKENS`.
 Adding a tokenizer for some language `lang` requires at least these steps:
 * Implement a module `lang.py`, containing a function `tokenize` conforming to the above specifications.
 * Append a pair `("lang", "Display name for language")` to `radar.settings.TOKENIZER_CHOICES`.
-* Add the key `"lang"` to `radar.settings.TOKENIZERS`, define the tokenizer function, and a separator string.
+* Add the key `"lang"` to `radar.settings.TOKENIZERS`, define the tokenizer function, e.g. `tokenizer.lang.tokenize`, and a separator string.
 The separator string is prepended to each source code and `%s` is replaced with the filename, from where the tokenized source code originated from (e.g. an exercise submission).
 
