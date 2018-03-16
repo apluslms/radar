@@ -5,6 +5,7 @@
 * Scala, using scalariform
 * JavaScript, using tokens from [Esprima 4](https://github.com/jquery/esprima/tree/4.0/)
 * HTML, using custom tokens parsed with the Python stdlib [html.parser](https://github.com/python/cpython/blob/3.5/Lib/html/parser.py) module
+* CSS, using custom tokens parsed with CSSLint's [parser-lib](https://github.com/CSSLint/parser-lib/tree/v1.1.1).
 
 
 ## Radar tokenizer
