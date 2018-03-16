@@ -230,6 +230,9 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             self.in_script_element = False
 
     def handle_data(self, data):
+        # Do not tokenize newlines and whitespace between tokens.
+        if re.fullmatch(r"^\s*$", data):
+            return
         starttag_text = self.get_starttag_text()
         tag_type = None
         if (self.in_style_element and
@@ -242,12 +245,10 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             tag_type = "script-data"
         else:
             tag_type = "other-data"
-        # Do not tokenize newlines and whitespace between tokens.
-        if not re.fullmatch(r"^\s*$", data):
-            self.tokens.append(Token(
-                tag_type,
-                None,
-                data))
+        self.tokens.append(Token(
+            tag_type,
+            None,
+            data))
 
     def handle_decl(self, decl):
         self.tokens.append(Token(
