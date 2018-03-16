@@ -169,6 +169,7 @@ def updatepos_hook(updatepos):
 
     @functools.wraps(updatepos)
     def set_token_range_and_call_updatepos(parser, i, j, *args, **kwargs):
+        assert isinstance(parser, TokenizingHTMLParser), "Expected parser to be an instance of TokenizingHTMLParser but it was not"
         if parser.tokens and parser.tokens[-1].range is None:
             # Replace the newest Token instance with an updated range
             parser.tokens[-1] = parser.tokens[-1]._replace(range=[i, j])
