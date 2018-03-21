@@ -1,0 +1,131 @@
+{
+  "edits-elements": [
+    "ins",
+    "del"
+  ],
+  "scripting-elements": [
+    "script",
+    "noscript"
+  ],
+  "interactive-elements": [
+    "details",
+    "summary",
+    "command",
+    "menu"
+  ],
+  "sections-elements": [
+    "body",
+    "section",
+    "nav",
+    "article",
+    "aside",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hgroup",
+    "header",
+    "footer",
+    "address"
+  ],
+  "embedded-content-elements": [
+    "img",
+    "iframe",
+    "embed",
+    "object",
+    "param",
+    "video",
+    "audio",
+    "source",
+    "track",
+    "canvas",
+    "map",
+    "area"
+  ],
+  "document-metadata-elements": [
+    "head",
+    "title",
+    "base",
+    "link",
+    "meta",
+    "style"
+  ],
+  "grouping-content-elements": [
+    "p",
+    "hr",
+    "br",
+    "pre",
+    "blockquote",
+    "ol",
+    "ul",
+    "li",
+    "dl",
+    "dt",
+    "dd",
+    "figure",
+    "figcaption",
+    "div"
+  ],
+  "the-root-element": [
+    "html"
+  ],
+  "forms-elements": [
+    "form",
+    "fieldset",
+    "legend",
+    "label",
+    "input",
+    "button",
+    "select",
+    "datalist",
+    "optgroup",
+    "option",
+    "textarea",
+    "keygen",
+    "output",
+    "progress",
+    "meter"
+  ],
+  "tables-elements": [
+    "table",
+    "caption",
+    "colgroup",
+    "col",
+    "tbody",
+    "thead",
+    "tfoot",
+    "tr",
+    "td",
+    "th"
+  ],
+  "text-level-semantics-elements": [
+    "a",
+    "em",
+    "strong",
+    "small",
+    "s",
+    "cite",
+    "q",
+    "dfn",
+    "abbr",
+    "time",
+    "code",
+    "var",
+    "samp",
+    "kbd",
+    "sub",
+    "sup",
+    "i",
+    "b",
+    "u",
+    "mark",
+    "ruby",
+    "rt",
+    "rp",
+    "bdi",
+    "bdo",
+    "span"
+  ]
+}
