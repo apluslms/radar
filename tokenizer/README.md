@@ -18,7 +18,7 @@ It is still recommended that a tokenizer implements the source mappings in order
 A tokenizer should implement a function that
   * accepts one UTF-8 encoded string as a parameter, which is the source code that should be tokenized.
   * returns a 2-tuple, that contains one UTF-8 encoded, tokenized string, and single-dimensional source code mappings of the tokenized string back to the source code.
-  The source code mappings are returned as a JSON-serialized string of arrays containing the starting and ending indexes of tokens.
+  The source code mappings are returned as a JSON-serializable list of lists containing the starting and ending indexes of tokens.
 
 Check out the Python tokenizer example below for more details.
 
