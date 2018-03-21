@@ -4,10 +4,9 @@
 * Python 3, using tokens from the stdlib [tokenize](https://github.com/python/cpython/blob/3.5/Lib/tokenize.py) module
 * Scala, using scalariform
 * JavaScript, using tokens from [Esprima 4](https://github.com/jquery/esprima/tree/4.0/)
-* HTML, using custom tokens parsed with the Python stdlib [html.parser](https://github.com/python/cpython/blob/3.5/Lib/html/parser.py) module.
-  Note: The HTML tokenizer does not yet support separate tokenization of data inside style and script elements.
-  Embedded script and style data is parsed as a single token `other-data`.
 * (source mappings not working properly) CSS, using custom tokens parsed with CSSLint's [parser-lib](https://github.com/CSSLint/parser-lib/tree/v1.1.1).
+* HTML, using custom tokens parsed with the Python stdlib [html.parser](https://github.com/python/cpython/blob/3.5/Lib/html/parser.py) module.
+  Data inside embedded script and style elements is tokenized with the JavaScript and CSS tokenizers.
 
 
 ## Radar tokenizer

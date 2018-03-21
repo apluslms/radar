@@ -1,29 +1,27 @@
 """
-This module implements an HTML parser that tokenizes HTML source code into custom
-tokens, that are listed in TOKEN_TYPES.keys().
-The parser uses HTMLParser from the standard library module html.parser,
-and attaches a hook to its updatepos method in order to extract single dimensional
-source mappings.
+This module extends the HTMLParser from the html.parser to implement an HTML parser that tokenizes HTML source code into custom tokens.
 After parsing, the parser instance contains a list of Token namedtuple instances,
 that contain the name of the token, a one dimensional source mapping,
 and the raw content of the token.
+
+Token definitions can be found from the JSON files in the same directory as this module.
+Definitions can be generated and updated with _generate_token_map_json.py and scripts in the tools directory.
 
 Comments and whitespace are ignored.
 
 Usage:
 >>> source = "<!DOCTYPE html><html><head> ... "
 >>> parser = TokenizingHTMLParser()
->>> # Start parsing
->>> parser.feed(source)
->>> # Generate a 2-tuple containing a string of single char tokens
->>> # and a JSON string of index pairs
->>> parser.export_tokens()
-('¯MJ§°/', [[0, 15], [15, 21], [21, 27], [27, 34], [34, 36], [51, 57]])
->>> # The list of collected Token instances can also be accessed directly
+>>> # Parse the source and get the token string and index mappings:
+>>> parser.tokenize(source)
+('09ggg2gggggtrrd72cckjnmnkjnnnn', [[0, 15], [16, 22], [24, 30], ... ])
+>>> # Parsed but 'uncompressed' tokens are still available:
 >>> parser.tokens
 [Token(type='declaration', range=[0, 15], data='DOCTYPE html'),
- Token(type='start-html', range=...),
+ Token(type='html-the-root-element', range=[16, 22], data='<html>'),
+ Token(type='html-documet-metadata-elements', range=[24, 30], data='<meta charset="utf-8">'),
  ...]
+>>> # Tokens can be compressed single characters with export_tokens
 """
 import collections
 import functools
@@ -51,7 +49,6 @@ TOKEN_TYPE_TO_CHAR = util.parse_from_json("tokenizer/HTML_token_map.json")
 
 Token = collections.namedtuple("Token", ["type", "range", "data"])
 
-
 # Add a hook to HTMLParser.updatepos that captures the single dimensional source
 # mappings before they are converted to two dimensional, row-column mappings.
 def updatepos_hook(updatepos):
@@ -72,6 +69,17 @@ def updatepos_hook(updatepos):
 html.parser.HTMLParser.updatepos = updatepos_hook(html.parser.HTMLParser.updatepos)
 
 
+def tokenize_data_token(data_token, tokenizer):
+    """
+    Return an iterator over tokens resulting from tokenizing data_token.data with tokenizer.
+    """
+    for token_name, t_range in zip(*tokenizer(data_token.data)):
+        range_in_data = [data_token.range[0] + t_range[0],
+                         data_token.range[0] + t_range[1]]
+        token_data = data_token.data[t_range[0]:t_range[1]]
+        yield Token(token_name, range_in_data, token_data)
+
+
 class TokenizingHTMLParser(html.parser.HTMLParser):
     """
     html.parser.HTMLParser subclass that accumulates custom HTML tokens
@@ -80,14 +88,6 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.reset()
-
-    def all_tokens_valid(self):
-        return all(t.type in TOKEN_TYPES and t.range is not None
-                   for t in self.tokens)
-
-    def export_tokens(self):
-        return (''.join(TOKEN_TYPES[t.type] for t in self.tokens),
-                [t.range for t in self.tokens])
 
     def reset(self):
         self.in_style_element = False
@@ -98,6 +98,27 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
         # but necessary if called explicitly.
         super().reset()
 
+    def export_tokens(self):
+        return (''.join(TOKEN_TYPE_TO_CHAR[t.type] for t in self.tokens),
+                [t.range for t in self.tokens])
+
+    def tokenize_js_and_css(self):
+        new_tokens = []
+        for token in self.tokens:
+            if token.type == "html-style-data":
+                new_tokens.extend(list(tokenize_data_token(token, tokenize_css)))
+            elif token.type == "html-script-data":
+                new_tokens.extend(list(tokenize_data_token(token, tokenize_js)))
+            else:
+                new_tokens.append(token)
+        self.tokens = new_tokens
+
+    def tokenize(self, source):
+        self.reset()
+        self.feed(source)
+        self.tokenize_js_and_css()
+        return self.export_tokens()
+
     def error(self, message):
         self.errors.append(message)
 
@@ -106,14 +127,14 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             self.in_style_element = True
         elif tag == "script":
             self.in_script_element = True
-        token_type = "start-{:s}".format(tag)
-        if token_type not in TOKEN_TYPES:
-            self.error("Found a starting tag '{:s}', with exact content '{:s}', that does not have a token specified".format(tag, self.get_starttag_text()))
+        if tag not in HTML_ELEMENT_TO_GROUP:
+            token_type = 'html-other-elements'
         else:
-            self.tokens.append(Token(
-                token_type,
-                None,
-                self.get_starttag_text()))
+            token_type = 'html-' + HTML_ELEMENT_TO_GROUP[tag]
+        self.tokens.append(Token(
+            token_type,
+            None,
+            self.get_starttag_text()))
 
     def handle_endtag(self, tag):
         if tag == "style":
@@ -127,32 +148,21 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             return
         starttag_text = self.get_starttag_text()
         tag_type = None
-        if (self.in_style_element and
-                not self.in_script_element and
-                starttag_text.startswith("<style")):
-            tag_type = "style-data"
-        elif (self.in_script_element and
-                  not self.in_style_element and
-                  starttag_text.startswith("<script")):
-            tag_type = "script-data"
+        if self.in_style_element and not self.in_script_element:
+            assert starttag_text.startswith("<style"), "Inconsistent parsing state, parser was expected to be inside a style element, but the opening tag for this element does not start with '<style'"
+            tag_type = "html-style-data"
+        elif self.in_script_element and not self.in_style_element:
+            assert starttag_text.startswith("<script"), "Inconsistent parsing state, parser was expected to be inside a script element, but the opening tag for this element does not start with '<script'"
+            tag_type = "html-script-data"
         else:
-            tag_type = "other-data"
-        self.tokens.append(Token(
-            tag_type,
-            None,
-            data))
+            tag_type = "html-other-data"
+        self.tokens.append(Token(tag_type, None, data))
 
     def handle_decl(self, decl):
-        self.tokens.append(Token(
-            "declaration",
-            None,
-            decl))
+        self.tokens.append(Token("html-declaration", None, decl))
 
     def handle_pi(self, data):
-        self.tokens.append(Token(
-            "processing-instructions",
-            None,
-            data))
+        self.tokens.append(Token("html-processing-instructions", None, data))
 
     # The following tokens could also be extracted but are skipped.
 
@@ -161,7 +171,7 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
         pass
 
     # HTMLParser is run with convert_charrefs which converts entity and
-    # character references to Unicode characters (except in style/script contents).
+    # character references to corresponding Unicode characters (except in style/script contents).
     # Thus these can be viewed as data inside elements just like other text.
     def handle_entityref(self, name):
         # e.g. &lpar; &equals; &gt; etc.
