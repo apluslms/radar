@@ -114,7 +114,7 @@ def tokenize(source, config=None):
             prevrow, prevcol = erow, ecol
             prevline = source_token.line
 
-        return tokenized_source, json.dumps(indexes)
+        return tokenized_source, indexes
 
     except Exception as e:
         logger.info("Failed to tokenize Python source, %s", e)

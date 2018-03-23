@@ -10,7 +10,7 @@ TOKEN_TYPE_TO_CHAR = util.parse_from_json("tokenizer/HTML_token_map.json")
 
 def tokenize_no_string(source):
     """
-    tokenize but return a list of tokens in place of the token string.
+    javascript.tokenize but return a list of tokens in place of the token string.
     """
     parsed = util.run(("node", "tokenizer/node_scripts/jsTokenizer.js"), source)
     data = json.loads(parsed.decode("utf-8"))

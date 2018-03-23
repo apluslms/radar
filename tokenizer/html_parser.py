@@ -73,9 +73,10 @@ def tokenize_data_token(data_token, tokenizer):
     """
     Return an iterator over tokens resulting from tokenizing data_token.data with tokenizer.
     """
+    index_offset = data_token.range[0]
     for token_name, t_range in zip(*tokenizer(data_token.data)):
-        range_in_data = [data_token.range[0] + t_range[0],
-                         data_token.range[0] + t_range[1]]
+        range_in_data = [index_offset + t_range[0],
+                         index_offset + t_range[1]]
         token_data = data_token.data[t_range[0]:t_range[1]]
         yield Token(token_name, range_in_data, token_data)
 
