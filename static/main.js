@@ -90,3 +90,37 @@ JS.prototype.quickReviewShow = function(element, a) {
   element.find('button').removeClass('btn-default btn-primary btn-success btn-info btn-warning btn-danger')
   .addClass('btn-' + a.attr('data-class')).val(a.attr('data-review')).find('.text').text(a.text());
 };
+
+JS.prototype.drawGraph = function(graphData) {
+  const s = new sigma({
+    container: "graph-container",
+    settings: {
+      // drawEdges: false
+    }
+  });
+  graphData.nodes.forEach(node => {
+    s.graph.addNode({
+      id: node,
+      label: node,
+      x: Math.random() - 0.5,
+      y: Math.random() - 0.5,
+      size: 1
+    });
+  });
+  graphData.edges.forEach(edge => {
+    s.graph.addEdge({
+      id: [edge.source, edge.target].join("-"),
+      source: edge.source,
+      target: edge.target,
+    });
+  });
+  s.refresh();
+  s.startForceAtlas2({worker: true});
+  let timeoutID = window.setTimeout(_ => {
+    s.stopForceAtlas2();
+    window.clearTimeout(timeoutID);
+  }, 1000);
+  // todo expose function to randomize node positions and rerun forceatlas,
+  // i.e. refresh random layout
+};
+

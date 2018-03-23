@@ -73,6 +73,9 @@ class Course(models.Model):
     def marked_submissions(self):
         return Submission.objects.filter(exercise__course=self, comparison__review__gte=5)
 
+    def all_comparisons(self):
+        return Comparison.objects.filter(submission_a__exercise__course=self)
+
     def has_access(self, user):
         return user.is_staff or self.reviewers.filter(pk=user.pk).exists()
 

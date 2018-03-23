@@ -53,3 +53,15 @@ pre.code-view {
 .source a.match.exact.current { background-color:#ff6600; }
 pre.sample-highlight { display:inline-block; }
 #review button { width:13em; }
+
+/* Align description detail content with pre-tag content in description terms */
+.highlighting-legend dl.dl-horizontal dd {
+	padding-top: 6.5px;
+}
+
+#graph-container {
+  min-width: 300px;
+  min-height: 600px;
+  width: 100%;
+  height: 100%;
+}

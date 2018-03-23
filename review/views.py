@@ -7,6 +7,7 @@ import logging
 
 from data.files import get_text, get_submission_text
 from data.models import Course, Comparison
+from data.graph import get_graph_json
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTokenizerForm
@@ -110,6 +111,16 @@ def marked_submissions(request, course_key=None, course=None):
         "course": course,
         "suspects": sorted(suspects.values(), reverse=True, key=lambda e: e['sum']),
     })
+
+
+@access_resource
+def graph(request, course, course_key):
+    context = {"hierarchy": (("Radar", reverse("index")),
+                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
+                      ("Graph", None)),
+               "course": course,
+               "graph_json": get_graph_json(course)}
+    return render(request, "review/graph.html", context)
 
 
 @access_resource
