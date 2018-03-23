@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+<pre hidden id="graph-json">{{ graph_json }}</pre>
+<pre>
+  <div id="graph-container"></div>
+</pre>
+
+<script>
+$(function() {
+  const js = new JS();
+  js.drawGraph(js.parseJSON($("#graph-json")));
+});
+</script>
+
+<div class="graph-description">
+  <dl>
+    <dt>Nodes</dt>
+    <dd>Students, unique by student number</dd>
+    <dt>Edges</dt>
+    <dd>Amount of matching submissions for connected nodes (students) above the currently chosen similarity threshold.</dd>
+  </dl>
+</div>
+
+{% endblock %}
