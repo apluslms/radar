@@ -10,6 +10,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 # from data.files import get_text, get_submission_text
 from provider import aplus
 from data.models import Course, Comparison
+from data.graph import get_graph_json
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTokenizerForm
@@ -172,6 +173,16 @@ def configure_course(request, course_key=None, course=None):
         context["exercises"] = { "iter": exercises }
         context["override_success"] = True
     return render(request, "review/configure.html", context)
+
+
+@access_resource
+def graph(request, course, course_key):
+    context = {"hierarchy": (("Radar", reverse("index")),
+                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
+                      ("Graph", None)),
+               "course": course,
+               "graph_json": get_graph_json(course)}
+    return render(request, "review/graph.html", context)
 
 
 @access_resource
