@@ -18,6 +18,8 @@
 		<script src="{% static 'codeview.js' %}"></script>
 		<script src="{% static 'graph/sigma.min.js' %}"></script>
 		<script src="{% static 'graph/sigma.layout.forceAtlas2.min.js' %}"></script>
+		<script src="{% static 'graph/sigma.plugins.filter.min.js' %}"></script>
+		<script src="{% static 'graph/sigma.renderers.edgeLabels.min.js' %}"></script>
 	</head>
 	<body>
 		{% if user.is_authenticated %}

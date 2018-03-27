@@ -91,36 +91,99 @@ JS.prototype.quickReviewShow = function(element, a) {
   .addClass('btn-' + a.attr('data-class')).val(a.attr('data-review')).find('.text').text(a.text());
 };
 
+var sigmaObject;
+var sigmaFilter;
+var similarity = 0.5;
+
 JS.prototype.drawGraph = function(graphData) {
-  const s = new sigma({
-    container: "graph-container",
+  sigmaObject = new sigma({
+    renderer: {
+      container: "graph-container",
+      type: 'canvas'
+    },
     settings: {
-      // drawEdges: false
+      minEdgeSize: 1,
+      maxEdgeSize: 10,
+      enableEdgeHovering: true,
+      defaultEdgeHoverColor: '#222',
+      edgeHoverExtremities: true,
+      edgeLabelSize: 'proportional',
+      edgeLabelSizePowRatio: 1.5,
     }
   });
+  sigmaFilter = new sigma.plugins.filter(sigmaObject);
+
   graphData.nodes.forEach(node => {
-    s.graph.addNode({
+    sigmaObject.graph.addNode({
       id: node,
       label: node,
-      x: Math.random() - 0.5,
-      y: Math.random() - 0.5,
-      size: 1
+      size: 1,
+      color: '#444',
     });
   });
   graphData.edges.forEach(edge => {
-    s.graph.addEdge({
+    sigmaObject.graph.addEdge({
       id: [edge.source, edge.target].join("-"),
       source: edge.source,
       target: edge.target,
+      size: edge.data[5][1],
+      label: '' + edge.data[5][1],
+      color: '#ccc',
+      hover_color: '#222',
+      userData: edge.data
     });
   });
-  s.refresh();
+
+  $("#similarity-input").change(event => {
+    similarity = event.target.value;
+    $("#similarity-value").text(similarity);
+    updateGraph();
+  });
+
+  shuffleGraphLayout(sigmaObject);
+
+  // TODO highlight edge label on edge hover requires custom renderer?
+  /*
+  sigmaObject.bind('overEdge', event => {
+    console.log("overEdge:", event.data.edge);
+    sigmaObject.refresh();
+  });
+  sigmaObject.bind('outEdge', event => {
+    console.log("outEdge:", event.data.edge);
+    sigmaObject.refresh();
+  });
+  */
+
+  return sigmaObject;
+};
+
+function shuffleGraphLayout(s) {
+  s.graph.nodes().forEach(n => {
+    n.x = Math.random() - 0.5;
+    n.y = Math.random() - 0.5;
+  });
   s.startForceAtlas2({worker: true});
   let timeoutID = window.setTimeout(_ => {
     s.stopForceAtlas2();
+    s.refresh();
     window.clearTimeout(timeoutID);
   }, 1000);
-  // todo expose function to randomize node positions and rerun forceatlas,
-  // i.e. refresh random layout
 };
 
+function updateGraph() {
+  console.log("updating graph, ", similarity);
+  function firstDropwhile(xs, pred) {
+    for (let x of xs)
+      if (pred(x[0]))
+        return x[1];
+  };
+  sigmaObject.graph.edges().forEach(e => {
+    e.size = firstDropwhile(e.userData, x => { return x >= similarity; }) || 0;
+    e.label = '' + e.size;
+  });
+  sigmaFilter
+    .undo('edge-size-nonzero')
+    .edgesBy(e => { return e.size > 0; }, 'edge-size-nonzero')
+    .apply();
+  sigmaObject.refresh();
+};
