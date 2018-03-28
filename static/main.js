@@ -92,6 +92,16 @@ JS.prototype.quickReviewShow = function(element, a) {
 };
 
 var sigmaObject;
+const forceAtlasConfig = {
+  // compute algorithm using a web worker
+  worker: true,
+  // running time optimization for large graphs
+  barnesHutOptimize: true,
+  // seems to increase the repulsion between nodes
+  outboundAttractionDistribution: true
+};
+// var sigmaFilter;
+// var similarity = 0.5;
 
 JS.prototype.drawGraph = function(graphData) {
   sigmaObject = new sigma({
@@ -109,7 +119,6 @@ JS.prototype.drawGraph = function(graphData) {
       edgeLabelSizePowRatio: 1.5,
     }
   });
-  sigmaFilter = new sigma.plugins.filter(sigmaObject);
 
   graphData.nodes.forEach(node => {
     sigmaObject.graph.addNode({
@@ -119,7 +128,7 @@ JS.prototype.drawGraph = function(graphData) {
       color: '#444',
     });
   });
-  graphData.edges.forEach((i, edge) => {
+  graphData.edges.forEach((edge, i) => {
     sigmaObject.graph.addEdge({
       id: 'e' + i,
       source: edge.source,
@@ -130,12 +139,6 @@ JS.prototype.drawGraph = function(graphData) {
       hover_color: '#222'
     });
   });
-
-  // $("#similarity-input").change(event => {
-  //   similarity = event.target.value;
-  //   $("#similarity-value").text(similarity);
-  //   updateGraph();
-  // });
 
   shuffleGraphLayout(sigmaObject);
 
@@ -155,14 +158,11 @@ JS.prototype.drawGraph = function(graphData) {
 };
 
 function shuffleGraphLayout(s) {
+  s.killForceAtlas2();
   s.graph.nodes().forEach(n => {
     n.x = Math.random() - 0.5;
     n.y = Math.random() - 0.5;
   });
-  s.startForceAtlas2({worker: true});
-  let timeoutID = window.setTimeout(_ => {
-    s.stopForceAtlas2();
-    s.refresh();
-    window.clearTimeout(timeoutID);
-  }, 1000);
+  s.refresh();
 };
+

@@ -1,26 +1,55 @@
 {% extends 'base.html' %}
 {% block content %}
-<pre hidden id="graph-json">{{ graph_json }}</pre>
+
+<div class="alert alert-danger" role="alert">
+<b>This feature is still under development.</b>
+</div>
+
+<pre hidden id="graph-json">{{ graph.graph_json }}</pre>
 <div class="graph-ui">
   <dl>
     <dt>Nodes</dt>
     <dd>Students, unique by student number</dd>
     <dt>Edges</dt>
-    <dd>Amount of matching submissions for connected nodes (students) above the currently chosen similarity threshold. Note that edge widths are proportional to each other only within one similarity setting.</dd>
-    <dt>Similarity</dt>
-    <dd>Minimum similarity of two submissions to be counted as a match.
-      <input id="similarity-input" type="range" min="0" max="1" step="0.1">
-      <span id="similarity-value">0.5</span>
-    </dd>
+    <dd>An edge between two nodes represents the existence of at least one pair of submissions, by 2 different students, that have a similarity of at least {{ graph.min_similarity }}. Weights represent the amount of such pairs.</dd>
   </dl>
+  <button id="shuffle-layout-button" type="button" class="btn btn-outline-primary"
+          autocomplete="off" disabled>
+    Shuffle graph layout
+  </button>
+  <button id="toggle-forceatlas-button" type="button" class="btn btn-outline-primary"
+          data-toggle="button" aria-pressed="false" autocomplete="off" disabled>
+    Toggle Force Atlas 2 algorithm
+  </button>
 </div>
 
 <div id="graph-container"></div>
 
 <script>
 $(function() {
+  const shuffleLayoutButton = $("#shuffle-layout-button");
+  const forceAtlasButton = $("#toggle-forceatlas-button");
+
   const js = new JS();
-  js.drawGraph(js.parseJSON($("#graph-json")));
+  const s = js.drawGraph(js.parseJSON($("#graph-json")));
+
+  shuffleLayoutButton.on("click", _ => { shuffleGraphLayout(s) });
+  forceAtlasButton.on("click", _ => {
+    if (forceAtlasButton.hasClass("active"))
+      s.stopForceAtlas2();
+    else if (!s.isForceAtlas2Running())
+      s.startForceAtlas2(forceAtlasConfig);
+  });
+
+  s.startForceAtlas2(forceAtlasConfig);
+  let timeoutID = window.setTimeout(_ => {
+    sigmaObject.stopForceAtlas2();
+    window.clearTimeout(timeoutID);
+    [shuffleLayoutButton, forceAtlasButton].forEach(button => {
+      button.attr("disabled", false);
+    });
+  }, 2000);
+
 });
 </script>
 
