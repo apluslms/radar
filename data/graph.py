@@ -1,5 +1,6 @@
 import json
 import collections
+import functools
 
 
 class Graph:
@@ -26,6 +27,7 @@ class Graph:
         })
 
 
+@functools.lru_cache(maxsize=4)
 def get_graph_json(course, min_similarity):
     graph = Graph()
     for comparison in course.all_comparisons(min_similarity):
