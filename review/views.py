@@ -177,21 +177,14 @@ def configure_course(request, course_key=None, course=None):
 
 @access_resource
 def graph(request, course, course_key):
+    min_similarity = 0.95 # TODO parametrize in UI
     context = {"hierarchy": (("Radar", reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("Graph", None)),
                "course": course,
-               "graph_json": get_graph_json(course)}
-    return render(request, "review/graph.html", context)
-
-
-@access_resource
-def graph(request, course, course_key):
-    context = {"hierarchy": (("Radar", reverse("index")),
-                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
-                      ("Graph", None)),
-               "course": course,
-               "graph_json": get_graph_json(course)}
+               "graph": {
+                   "min_similarity": min_similarity,
+                   "graph_json": get_graph_json(course, min_similarity)}}
     return render(request, "review/graph.html", context)
 
 
