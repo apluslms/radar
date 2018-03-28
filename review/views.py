@@ -186,6 +186,16 @@ def graph(request, course, course_key):
 
 
 @access_resource
+def graph(request, course, course_key):
+    context = {"hierarchy": (("Radar", reverse("index")),
+                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
+                      ("Graph", None)),
+               "course": course,
+               "graph_json": get_graph_json(course)}
+    return render(request, "review/graph.html", context)
+
+
+@access_resource
 def exercise_settings(request, course_key=None, exercise_key=None, course=None, exercise=None):
     p_config = provider_config(course.provider)
     if request.method == "POST":

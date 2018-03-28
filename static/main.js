@@ -92,8 +92,6 @@ JS.prototype.quickReviewShow = function(element, a) {
 };
 
 var sigmaObject;
-var sigmaFilter;
-var similarity = 0.5;
 
 JS.prototype.drawGraph = function(graphData) {
   sigmaObject = new sigma({
@@ -121,24 +119,23 @@ JS.prototype.drawGraph = function(graphData) {
       color: '#444',
     });
   });
-  graphData.edges.forEach(edge => {
+  graphData.edges.forEach((i, edge) => {
     sigmaObject.graph.addEdge({
-      id: [edge.source, edge.target].join("-"),
+      id: 'e' + i,
       source: edge.source,
       target: edge.target,
-      size: edge.data[5][1],
-      label: '' + edge.data[5][1],
+      size: edge.count,
+      label: '' + edge.count,
       color: '#ccc',
-      hover_color: '#222',
-      userData: edge.data
+      hover_color: '#222'
     });
   });
 
-  $("#similarity-input").change(event => {
-    similarity = event.target.value;
-    $("#similarity-value").text(similarity);
-    updateGraph();
-  });
+  // $("#similarity-input").change(event => {
+  //   similarity = event.target.value;
+  //   $("#similarity-value").text(similarity);
+  //   updateGraph();
+  // });
 
   shuffleGraphLayout(sigmaObject);
 
@@ -168,22 +165,4 @@ function shuffleGraphLayout(s) {
     s.refresh();
     window.clearTimeout(timeoutID);
   }, 1000);
-};
-
-function updateGraph() {
-  console.log("updating graph, ", similarity);
-  function firstDropwhile(xs, pred) {
-    for (let x of xs)
-      if (pred(x[0]))
-        return x[1];
-  };
-  sigmaObject.graph.edges().forEach(e => {
-    e.size = firstDropwhile(e.userData, x => { return x >= similarity; }) || 0;
-    e.label = '' + e.size;
-  });
-  sigmaFilter
-    .undo('edge-size-nonzero')
-    .edgesBy(e => { return e.size > 0; }, 'edge-size-nonzero')
-    .apply();
-  sigmaObject.refresh();
 };
