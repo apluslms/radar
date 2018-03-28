@@ -1,44 +1,34 @@
 import json
-
-
-def updated_edge_weights(weights, similarity):
-    return [(threshold, count + int(threshold <= similarity))
-            for threshold, count in weights]
-
-
-def empty_weights():
-    return [(s/10, 0) for s in range(0, 11)]
+import collections
 
 
 class Graph:
     def __init__(self):
         self.nodes = set()
-        self.edges = dict()
+        self.edges = collections.Counter()
 
-    def add_edge(self, a, b, similarity):
+    def add_edge(self, a, b):
         if a not in self.nodes:
             self.nodes.add(a)
         if b not in self.nodes:
             self.nodes.add(b)
         edge_key = (b, a) if (b, a) in self.edges else (a, b)
-        if edge_key not in self.edges:
-            self.edges[edge_key] = empty_weights()
-        self.edges[edge_key] = updated_edge_weights(self.edges[edge_key], similarity)
+        self.edges[edge_key] += 1
         return self.edges[edge_key]
 
     def to_json(self):
         return json.dumps({
             "nodes": list(self.nodes),
-            "edges": [{"source": key[0],
-                       "target": key[1],
-                       "data": weights}
-                      for key, weights in self.edges.items()]
+            "edges": [{"source": from_to[0],
+                       "target": from_to[1],
+                       "count": count}
+                      for from_to, count in self.edges.items()]
         })
 
 
-def get_graph_json(course):
+def get_graph_json(course, min_similarity):
     graph = Graph()
-    for comparison in course.all_comparisons():
+    for comparison in course.all_comparisons(min_similarity):
         if comparison.submission_a is None or comparison.submission_b is None:
             # Skip template comparisons
             continue
@@ -46,8 +36,7 @@ def get_graph_json(course):
         assert comparison.submission_a.exercise.key == comparison.submission_b.exercise.key, "Comparison object with submissions to different exercises {} {}".format(comparison.submission_a.exercise.key, comparison.submission_b.exercise.key)
         graph.add_edge(
             comparison.submission_a.student.key,
-            comparison.submission_b.student.key,
-            comparison.similarity
+            comparison.submission_b.student.key
         )
     return graph.to_json()
 
