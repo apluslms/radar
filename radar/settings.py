@@ -23,6 +23,7 @@ AUTH_LTI_LOGIN = {
 
 AUTH_USER_MODEL = "accounts.RadarUser"
 
+APP_NAME = "Radar"
 
 # Application definition
 

@@ -2,6 +2,7 @@ import logging
 import datetime
 import json
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.http.response import JsonResponse
@@ -22,7 +23,7 @@ logger = logging.getLogger("radar.review")
 @login_required
 def index(request):
     return render(request, "review/index.html", {
-        "hierarchy": (("Radar", None),),
+        "hierarchy": ((settings.APP_NAME, None),),
         "courses": Course.objects.get_available_courses(request.user)
     })
 
@@ -30,7 +31,7 @@ def index(request):
 @access_resource
 def course(request, course_key=None, course=None):
     return render(request, "review/course.html", {
-        "hierarchy": (("Radar", reverse("index")), (course.name, None)),
+        "hierarchy": ((settings.APP_NAME, reverse("index")), (course.name, None)),
         "course": course,
         "exercises": course.exercises.all()
     })
@@ -39,7 +40,7 @@ def course(request, course_key=None, course=None):
 @access_resource
 def course_histograms(request, course_key=None, course=None):
     return render(request, "review/course_histograms.html", {
-        "hierarchy": (("Radar", reverse("index")),
+        "hierarchy": ((settings.APP_NAME, reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("Histograms", None)),
         "course": course,
@@ -50,7 +51,7 @@ def course_histograms(request, course_key=None, course=None):
 @access_resource
 def exercise(request, course_key=None, exercise_key=None, course=None, exercise=None):
     return render(request, "review/exercise.html", {
-        "hierarchy": (("Radar", reverse("index")),
+        "hierarchy": ((settings.APP_NAME, reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       (exercise.name, None)),
         "course": course,
@@ -79,7 +80,7 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
     p_config = provider_config(course.provider)
     get_submission_text = configured_function(p_config, "get_submission_text")
     return render(request, "review/comparison.html", {
-        "hierarchy": (("Radar", reverse("index")),
+        "hierarchy": ((settings.APP_NAME, reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       (exercise.name, reverse("exercise",
                                               kwargs={ "course_key": course.key, "exercise_key": exercise.key })),
@@ -110,7 +111,7 @@ def marked_submissions(request, course_key=None, course=None):
             suspects[s.id]['sum'] += c.review
             suspects[s.id]['comparisons'].append(c)
     return render(request, "review/marked.html", {
-        "hierarchy": (("Radar", reverse("index")),
+        "hierarchy": ((settings.APP_NAME, reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("Marked submissions", None)),
         "course": course,
@@ -137,7 +138,7 @@ def leafs_with_radar_config(exercises):
 @access_resource
 def configure_course(request, course_key=None, course=None):
     context = {
-        "hierarchy": (("Radar", reverse("index")),
+        "hierarchy": ((settings.APP_NAME, reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("Configure", None)),
         "course": course,
@@ -178,7 +179,7 @@ def configure_course(request, course_key=None, course=None):
 @access_resource
 def graph(request, course, course_key):
     min_similarity = 0.95 # TODO parametrize in UI
-    context = {"hierarchy": (("Radar", reverse("index")),
+    context = {"hierarchy": ((settings.APP_NAME, reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("Graph", None)),
                "course": course,
@@ -216,7 +217,7 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
             "template": aplus.load_exercise_template(exercise, p_config),
         })
     return render(request, "review/exercise_settings.html", {
-        "hierarchy": (("Radar", reverse("index")),
+        "hierarchy": ((settings.APP_NAME, reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("%s settings" % (exercise.name), None)),
         "course": course,
