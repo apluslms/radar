@@ -165,7 +165,10 @@ def get_radar_config(exercise_data):
     """
     Extract relevant Radar data from an AplusApiDict or None if there is no Radar data.
     """
-    radar_config = exercise_data.get("exercise_info", {}).get("radar")
+    exercise_info = exercise_data.get("exercise_info")
+    if not exercise_info:
+        return None
+    radar_config = exercise_info.get("radar")
     if not radar_config:
         return None
     data = {
