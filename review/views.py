@@ -144,35 +144,32 @@ def configure_course(request, course_key=None, course=None):
         "course": course,
         "errors": []
     }
-    if request.method != "POST":
+    if "retrieve_exercise_data" in request.POST:
         client = request.user.get_api_client(course.namespace)
         response = client.load_data(course.url)
-        context["fetched_at"] = datetime.datetime.now().isoformat()
+        context["fetched_at"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") + " (UTC)"
         exercises = response.get("exercises", [])
         if not exercises:
             context["errors"].append("No courses found for course %s", repr(course))
         else:
-            exercises = list(leafs_with_radar_config(exercises))
-            for exercise in exercises:
-                exercise["new"] = not course.has_exercise(exercise["exercise_key"])
+            new_exercises = [e for e in leafs_with_radar_config(exercises)
+                             if not course.has_exercise(e["exercise_key"])]
             context["exercises"] = {
-                "iter": exercises,
-                "json": json.dumps(exercises)
+                "iter": new_exercises,
+                "json": json.dumps(new_exercises)
             }
-    elif "override_configurations" in request.POST:
+    elif "create_exercises" in request.POST:
         exercises = json.loads(request.POST["exercises_json"])
         for exercise_data in exercises:
+            # Create an exercise instance into the database
             key_str = str(exercise_data["exercise_key"])
-            if course.has_exercise(key_str):
-                exercise = course.get_exercise(key_str)
-                exercise.set_from_config(exercise_data)
-                exercise.save()
-                Comparison.objects.clean_for_exercise(exercise)
-                exercise.clear_tokens_and_matches()
-            else:
-                logger.error("Exercise '%s' unexpectedly does not exist, cannot configure exercise.", key_str)
+            exercise = course.get_exercise(key_str)
+            exercise.set_from_config(exercise_data)
+            exercise.save()
+            # Fetch all submissions for this exercise and queue them for comparison
+            aplus.reload(exercise, provider_config(course.provider))
         context["exercises"] = { "iter": exercises }
-        context["override_success"] = True
+        context["create_exercises_success"] = True
     return render(request, "review/configure.html", context)
 
 

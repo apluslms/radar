@@ -5,47 +5,51 @@
 {% for error in errors %}
 <div class='alert alert-danger'>{{ error }}</div>
 {% endfor %}
-<p>
-Here you can check that the configuration state in Radar matches that of the configurations in A+ for the current course.
-If some parameters are different, there has probably been configuration changes in A+ after the exercise was added into Radar (e.g. added an exercise template or changed the tokenizer).
-Also, if an exercise that has been configured for Radar has no submissions in A+, it will be shown here as a new exercise.
-Pressing Overwrite replaces the differing configurations with parameters from A+ and for updated exercises, all existing comparisons will be cleared and all submissions to that exercise rematched.
-</p>
 
-{% if exercises %}
 <form method="post">
   {% csrf_token %}
-  {% if exercises.json %}
-  {# For posting back exactly the same data as being shown to the user #}
-  <input type="hidden" value="{{ exercises.json }}" name="exercises_json">
-  {% endif %}
-  <button id="override" class="btn btn-primary" type="submit" name="override_configurations">Overwrite</button>
-  {% if override_success %}
-  <div class="alert alert-success">
-    <p>Override successful</p>
+  <div class="well">
+    <button class="btn btn-primary" type="submit" name="retrieve_exercise_data">Retrieve exercise data</button>
+    Retrieve all exercises from A+ that contain Radar configurations
   </div>
+  {% if exercises %}
+    {% if exercises.json %}
+    {# For posting back exactly the same data as being shown to the user #}
+    <input type="hidden" value="{{ exercises.json }}" name="exercises_json">
+    {% endif %}
+  <h4>Exercise data from A+ as of {{ fetched_at }}</h4>
+  {% if not exercises.iter %}
+    <p><b>No new exercises found</b></p>
+  {% else %}
+    <table class="table config-table">
+      <tr>
+        <th>A+ exercise key</th>
+        <th>Name</th>
+        <th>Template</th>
+        <th>Tokenizer</th>
+        <th>Min. match tokens</th>
+      </tr>
+      {% for exercise in exercises.iter %}
+      <tr>
+        <td>{{ exercise.exercise_key }}</td>
+        <td>{{ exercise.name }}</td>
+        <td>{{ exercise.template_source|length }} characters</td> {# this could be a link that opens a bootstrap modal with the template contents in a pre well #}
+        <td>{{ exercise.tokenizer }}</td>
+        <td>{{ exercise.minimum_match_tokens }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <div class="well">
+      <button class="btn btn-warning" type="submit" name="create_exercises">Create and compare all</button>
+      Queue all submissions to all exercises listed above for tokenization and comparison.
+      Please note that this may require a significant amount of time.
+    </div>
+    {% if create_exercises_success %}
+    <div class="alert alert-success">
+      <p>All exercises added to Radar and their submissions queued for comparison.</p>
+    </div>
+    {% endif %}
   {% endif %}
-  <h3>Exercise data from A+ as of {{ fetched_at }}</h3>
-  <table class="table config-table">
-    <tr>
-      <th>A+ exercise key</th>
-      <th>Name</th>
-      <th>New</th>
-      <th>Template</th>
-      <th>Tokenizer</th>
-      <th>Min. match tokens</th>
-    </tr>
-    {% for exercise in exercises.iter %}
-    <tr>
-      <td>{{ exercise.exercise_key }}</td>
-      <td>{{ exercise.name }}</td>
-      <td>{{ exercise.new }}</td>
-      <td>{{ exercise.template_length }} tokens</td> {# this could be a link that opens a bootstrap modal with the template contents in a pre well #}
-      <td>{{ exercise.tokenizer_name }}</td>
-      <td>{{ exercise.minimum_match_tokens }}</td>
-    </tr>
-    {% endfor %}
-  </table>
 </form>
 
 {% endif %}
