@@ -3,6 +3,7 @@
 {% load bootstrap %}
 
 {% for error in errors %}
+<h4>It seems that there were some errors:</h4>
 <div class='alert alert-danger'>{{ error }}</div>
 {% endfor %}
 
@@ -19,7 +20,7 @@
     {% endif %}
   <h4>Exercise data from A+ as of {{ fetched_at }}</h4>
   {% if not exercises.iter %}
-    <p><b>No new exercises found</b></p>
+    <p><b>No new exercises found. Either all A+ exercises that contain Radar configuration parameters have already been included into Radar, or, A+ does not contain exercises with valid Radar configuration parameters.</b></p>
   {% else %}
     <table class="table config-table">
       <tr>
