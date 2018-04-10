@@ -90,8 +90,12 @@ def reload(exercise, config):
     """
     api_client = get_api_client(exercise.course)
     submissions_url = config["host"] + API_SUBMISSION_LIST_URL % { "eid": exercise.key }
+    submissions_data = api_client.load_data(submissions_url)
+    if submissions_data is None:
+        logger.error("Invalid submissions data returned from %s, expected an iterable but got None", submissions_url)
+        return
     exercise.submissions.all().delete()
-    for submission in api_client.load_data(submissions_url):
+    for submission in submissions_data:
         ProviderQueue.objects.create(course=exercise.course, data=submission["id"])
 
 
