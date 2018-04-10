@@ -44,12 +44,16 @@ class Command(BaseCommand):
                     exercise__course=course, exercise__paused=False,
                     tokens__isnull=True):
                 tokenize_submission(submission, p_config)
-                if not match(submission) or time.time() - start > settings.CRON_STOP_SECONDS:
+                if (not match(submission)
+                    or (settings.CRON_STOP_SECONDS is not None
+                        and time.time() - start > settings.CRON_STOP_SECONDS)):
                     return
 
             # Check again for yet unmatched submissions.
             for submission in Submission.objects.filter(
                     exercise__course=course, exercise__paused=False,
                     max_similarity__isnull=True):
-                if not match(submission) or time.time() - start > settings.CRON_STOP_SECONDS:
+                if (not match(submission)
+                    or (settings.CRON_STOP_SECONDS is not None
+                        and time.time() - start > settings.CRON_STOP_SECONDS)):
                     return
