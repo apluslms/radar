@@ -1,6 +1,6 @@
 import json
 import collections
-import functools
+# import functools
 
 
 class Graph:
@@ -27,7 +27,7 @@ class Graph:
         })
 
 
-@functools.lru_cache(maxsize=4)
+# @functools.lru_cache(maxsize=4)
 def get_graph_json(course, min_similarity):
     graph = Graph()
     for comparison in course.all_comparisons(min_similarity):
@@ -41,4 +41,8 @@ def get_graph_json(course, min_similarity):
             comparison.submission_b.student.key
         )
     return graph.to_json()
+
+
+# def invalidate_lru_cache():
+#     get_graph_json.cache_clear()
 
