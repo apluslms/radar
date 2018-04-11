@@ -32,7 +32,7 @@ def cron(course, config):
 
     """
     count = 0
-    for queued in ProviderQueue.objects.filter(course=course):
+    for queued in ProviderQueue.objects.filter(course=course).filter(failed=False):
         try:
             if count > 0:
                 time.sleep(0.5)
@@ -81,6 +81,11 @@ def cron(course, config):
             logger.debug("Successfully processed queued A+ submission with id %s for %s", queued.data, course)
         except Exception:
             logger.exception("Failed to handle queued A+ submission")
+            try:
+                queued.failed = True
+                queued.save()
+            except Exception:
+                logger.exception("Failed to set queued task to failed state")
 
 
 def reload(exercise, config):
