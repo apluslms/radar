@@ -339,6 +339,7 @@ class ProviderQueue(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="+")
     data = models.CharField(max_length=128)
+    failed = models.BooleanField(default=False, help_text="True if the task failed to be processed and should be handled manually.")
 
     def __str__(self):
         return "%s (%s)" % (self.course.name, self.created)
