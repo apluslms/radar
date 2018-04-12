@@ -38,7 +38,7 @@ def cron(course, config):
                 time.sleep(0.5)
             logger.info("Processing queued A+ submission with id %s for %s", queued.data, course)
             if Submission.objects.filter(key=queued.data).exists():
-                raise Exception("A+ submission with key %s already exists" % queued.data)
+                raise Exception("A+ submission with key %s already exists, will not attempt to process it again" % queued.data)
             # We need someone with a token to the A+ API.
             api_client = get_api_client(course)
             submission_url = config["host"] + API_SUBMISSION_URL % { "sid": queued.data }
@@ -81,8 +81,8 @@ def cron(course, config):
             queued.delete()
             count += 1
             logger.debug("Successfully processed queued A+ submission with id %s for %s", queued.data, course)
-        except Exception as e:
-            logger.exception("Failed to handle queued A+ submission" + (": " + str(e)) if e.args else '')
+        except Exception:
+            logger.exception("Failed to handle queued A+ submission")
             try:
                 queued.failed = True
                 queued.save()
@@ -103,7 +103,13 @@ def reload(exercise, config):
         return
     exercise.submissions.all().delete()
     for submission in submissions_data:
-        ProviderQueue.objects.create(course=exercise.course, data=submission["id"])
+        if not Submission.objects.filter(key=submission["id"]).exists():
+            ProviderQueue.objects.create(
+                course=exercise.course,
+                data=submission["id"]
+            )
+        else:
+            logger.error("Got a duplicate submission with id %s from %s", submission ["id"], submissions_url)
 
 
 # TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself and not use someones LTI login tokens to fetch stuff from the API
