@@ -147,19 +147,25 @@ def configure_course(request, course_key=None, course=None):
     if "retrieve_exercise_data" in request.POST:
         client = request.user.get_api_client(course.namespace)
         response = client.load_data(course.url)
-        context["fetched_at"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") + " (UTC)"
         exercises = response.get("exercises", [])
         if not exercises:
             context["errors"].append("No courses found for course %s", repr(course))
         else:
-            new_exercises = [e for e in leafs_with_radar_config(exercises)
-                             if not course.has_exercise(e["exercise_key"])]
+            # Partition all radar configs into unseen and existing as an exercise
+            new_exercises, old_exercises = [], []
+            for radar_config in leafs_with_radar_config(exercises):
+                if course.has_exercise(radar_config["exercise_key"]):
+                    old_exercises.append(radar_config)
+                else:
+                    new_exercises.append(radar_config)
             context["exercises"] = {
-                "iter": new_exercises,
-                "json": json.dumps(new_exercises)
+                "old": old_exercises,
+                "new": new_exercises,
+                "new_json": json.dumps(new_exercises),
             }
     elif "create_exercises" in request.POST:
         exercises = json.loads(request.POST["exercises_json"])
+        # TODO gather list of invalid exercise data and render as errors
         for exercise_data in exercises:
             # Create an exercise instance into the database
             key_str = str(exercise_data["exercise_key"])
@@ -168,7 +174,6 @@ def configure_course(request, course_key=None, course=None):
             exercise.save()
             # Fetch all submissions for this exercise and queue them for comparison
             aplus.reload(exercise, provider_config(course.provider))
-        context["exercises"] = { "iter": exercises }
         context["create_exercises_success"] = True
     return render(request, "review/configure.html", context)
 
@@ -228,6 +233,7 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
             "name": exercise.name,
             "paused": exercise.paused
         })
+        # TODO: Show warning if tokenized(template_source) != exercise.template_tokens
         template_source = aplus.load_exercise_template(exercise, p_config)
         if exercise.template_tokens and not template_source:
             context["template_source_error"] = True
