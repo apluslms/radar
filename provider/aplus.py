@@ -1,8 +1,10 @@
+import json
 import logging
 import time
 import requests
 
 from data.models import ProviderQueue, Submission, URLKeyField
+from radar.config import provider_config
 
 
 POST_KEY = "submission_id"
@@ -21,7 +23,9 @@ def hook(request, course, config):
     """
     sid = _detect_submission_id(request)
     if sid is not None:
-        queue = ProviderQueue(course=course, data=str(sid))
+        data = {"sid": str(sid)}
+        # len(json.dumps(data)) > 128 is very unlikely
+        queue = ProviderQueue(course=course, data=json.dumps(data))
         queue.save()
 
 
@@ -36,12 +40,27 @@ def cron(course, config):
         try:
             if count > 0:
                 time.sleep(0.5)
-            logger.info("Processing queued A+ submission with id %s for %s", queued.data, course)
-            if Submission.objects.filter(key=queued.data).exists():
-                raise Exception("A+ submission with key %s already exists, will not attempt to process it again" % queued.data)
+            queued_data = json.loads(queued.data)
+            if "eid" in queued_data:
+                logger.info("Processing queued A+ exercise with id %s for %s", queued_data["eid"], course)
+
+                if not course.has_exercise(queued_data["eid"]):
+                    raise Exception("Invalid queued task: queued.data['eid'] exercise key %s does not match any exercise in the database" % queued_data["eid"])
+                exercise = course.get_exercise(queued_data["eid"])
+                # Fetch all submissions for this exercise and queue them for comparison
+                reload(exercise, provider_config(course.provider))
+                continue
+
+            if "sid" not in queued_data:
+                raise Exception("Invalid queued task: missing submission id key 'sid'. Keys were: %s" % list(queued_data.keys()))
+
+            logger.info("Processing queued A+ submission with id %s for %s", queued_data["sid"], course)
+
+            if Submission.objects.filter(key=queued_data["sid"]).exists():
+                raise Exception("A+ submission with key %s already exists, will not attempt to process it again" % queued_data["sid"])
             # We need someone with a token to the A+ API.
             api_client = get_api_client(course)
-            submission_url = config["host"] + API_SUBMISSION_URL % { "sid": queued.data }
+            submission_url = config["host"] + API_SUBMISSION_URL % { "sid": queued_data["sid"] }
             logger.debug("Fetching submission data from %s", submission_url)
             data = api_client.load_data(submission_url)
             exercise_data = data["exercise"]
@@ -71,7 +90,7 @@ def cron(course, config):
             submitter_id = "_".join(_decode_students(data["submitters"]))
             student = course.get_student(str(submitter_id))
             Submission.objects.create(
-                key=queued.data,
+                key=queued_data["sid"],
                 exercise=exercise,
                 student=student,
                 provider_url=data["html_url"],
@@ -80,7 +99,7 @@ def cron(course, config):
 
             queued.delete()
             count += 1
-            logger.debug("Successfully processed queued A+ submission with id %s for %s", queued.data, course)
+            logger.debug("Successfully processed queued A+ submission with id %s for %s", queued_data["sid"], course)
         except Exception:
             logger.exception("Failed to handle queued A+ submission")
             try:
@@ -104,12 +123,21 @@ def reload(exercise, config):
     exercise.submissions.all().delete()
     for submission in submissions_data:
         if not Submission.objects.filter(key=submission["id"]).exists():
+            data = {"sid": str(submission["id"])}
             ProviderQueue.objects.create(
                 course=exercise.course,
-                data=submission["id"]
+                data=json.dumps(data)
             )
         else:
             logger.error("Got a duplicate submission with id %s from %s", submission ["id"], submissions_url)
+
+
+def queued_reload(exercise):
+    data = {"eid": exercise.key}
+    ProviderQueue.objects.create(
+        course=exercise.course,
+        data=json.dumps(data)
+    )
 
 
 # TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself and not use someones LTI login tokens to fetch stuff from the API

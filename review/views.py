@@ -146,10 +146,14 @@ def configure_course(request, course_key=None, course=None):
     }
     if "retrieve_exercise_data" in request.POST:
         client = request.user.get_api_client(course.namespace)
-        response = client.load_data(course.url)
-        exercises = response.get("exercises", [])
+        if client is None:
+            exercises = []
+            context["errors"].append("This user does not have correct credentials to use the API of %s" % repr(course))
+        else:
+            response = client.load_data(course.url)
+            exercises = response.get("exercises", [])
         if not exercises:
-            context["errors"].append("No courses found for course %s", repr(course))
+            context["errors"].append("No exercises found for %s" % repr(course))
         else:
             # Partition all radar configs into unseen and existing as an exercise
             new_exercises, old_exercises = [], []
@@ -172,8 +176,8 @@ def configure_course(request, course_key=None, course=None):
             exercise = course.get_exercise(key_str)
             exercise.set_from_config(exercise_data)
             exercise.save()
-            # Fetch all submissions for this exercise and queue them for comparison
-            aplus.reload(exercise, provider_config(course.provider))
+            # Queue fetching all submissions for this exercise
+            aplus.queued_reload(exercise)
         context["create_exercises_success"] = True
     return render(request, "review/configure.html", context)
 
