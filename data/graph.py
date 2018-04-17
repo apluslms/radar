@@ -18,6 +18,7 @@ class Graph:
         return self.edges[edge_key]
 
     def as_dict(self):
+        heaviest_edges = self.edges.most_common(1)
         return {
             "nodes": list(self.nodes),
             "edges": [{"source": from_to[0],
@@ -26,7 +27,7 @@ class Graph:
                       for from_to, count in self.edges.items()],
             # here, we could also export all N pairs of students with the most matches,
             # by e.g. list(map(list(self.edges.most_common(N))))
-            "max_edge_weight": self.edges.most_common(1)[0][1]
+            "max_edge_weight": heaviest_edges[0][1] if heaviest_edges else 0
         }
 
 

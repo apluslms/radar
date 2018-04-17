@@ -3,6 +3,11 @@
 
 <pre hidden id="graph-json">{{ graph.graph_json }}</pre>
 
+{% if graph.is_empty %}
+<div class="alert alert-warning">
+  <p>No matching pairs with a similarity of at least {{ graph.min_similarity }} found.</p>
+</div>
+{% else %}
 <div class="graph-ui">
   <dl>
     <dt>Nodes</dt>
@@ -12,9 +17,9 @@
   </dl>
   <div class="slidecontainer">
     <b>Minimum matching pairs</b>
-    <input type="range" min="1" max="{{ edge_size_choices_max }}" class="slider" id="min-matches-range" list="tickmarks">
+    <input type="range" min="1" max="{{ graph.edge_size_choices_max }}" class="slider" id="min-matches-range" list="tickmarks">
     <datalist id="tickmarks">
-      {% for tick in edge_size_choices %}
+      {% for tick in graph.edge_size_choices %}
       <option value="{{ tick }}" label="{{ tick }}">
       {% endfor %}
     </datalist>
@@ -29,6 +34,7 @@
     Toggle Force Atlas 2 algorithm
   </button>
 </div>
+{% endif %}
 
 <div id="graph-container"></div>
 
