@@ -11,7 +11,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 # from data.files import get_text, get_submission_text
 from provider import aplus
 from data.models import Course, Comparison
-from data.graph import get_graph_json
+from data.graph import generate_match_graph
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTokenizerForm
@@ -175,14 +175,24 @@ def configure_course(request, course_key=None, course=None):
 
 @access_resource
 def graph(request, course, course_key):
-    min_similarity = 0.95 # TODO parametrize in UI
-    context = {"hierarchy": ((settings.APP_NAME, reverse("index")),
-                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
-                      ("Graph", None)),
-               "course": course,
-               "graph": {
-                   "min_similarity": min_similarity,
-                   "graph_json": get_graph_json(course, min_similarity)}}
+    min_similarity = 0.05 # TODO parametrize in UI
+    graph_data = generate_match_graph(course, min_similarity)
+    max_edge_weight = graph_data["max_edge_weight"]
+    del graph_data["max_edge_weight"]
+    context = {
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={ "course_key": course.key })),
+            ("Graph", None)
+        ),
+        "course": course,
+        "edge_size_choices": range(1, max_edge_weight + 1),
+        "edge_size_choices_max": max_edge_weight,
+        "graph": {
+            "min_similarity": min_similarity,
+            "graph_json": json.dumps(graph_data)
+        },
+    }
     return render(request, "review/graph.html", context)
 
 

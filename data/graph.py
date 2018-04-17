@@ -17,18 +17,21 @@ class Graph:
         self.edges[edge_key] += 1
         return self.edges[edge_key]
 
-    def to_json(self):
-        return json.dumps({
+    def as_dict(self):
+        return {
             "nodes": list(self.nodes),
             "edges": [{"source": from_to[0],
                        "target": from_to[1],
                        "count": count}
-                      for from_to, count in self.edges.items()]
-        })
+                      for from_to, count in self.edges.items()],
+            # here, we could also export all N pairs of students with the most matches,
+            # by e.g. list(map(list(self.edges.most_common(N))))
+            "max_edge_weight": self.edges.most_common(1)[0][1]
+        }
 
 
-# @functools.lru_cache(maxsize=4)
-def get_graph_json(course, min_similarity):
+# @functools.lru_cache(maxsize=1)
+def generate_match_graph(course, min_similarity):
     graph = Graph()
     for comparison in course.all_comparisons(min_similarity):
         if comparison.submission_a is None or comparison.submission_b is None:
@@ -40,7 +43,7 @@ def get_graph_json(course, min_similarity):
             comparison.submission_a.student.key,
             comparison.submission_b.student.key
         )
-    return graph.to_json()
+    return graph.as_dict()
 
 
 # def invalidate_lru_cache():
