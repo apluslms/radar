@@ -2,11 +2,13 @@
 {% block content %}
 {% load bootstrap %}
 
+{% if errors %}
+<div class="container">
 {% for error in errors %}
-<h4>It seems that there were some errors:</h4>
 <div class='alert alert-danger'>{{ error }}</div>
 {% endfor %}
-
+</div>
+{% else %}
 <form method="post">
   {% csrf_token %}
 
@@ -91,5 +93,6 @@
     </div>
   {% endif %}
 </form>
+{% endif %}
 
 {% endblock %}
