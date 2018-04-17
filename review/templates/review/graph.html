@@ -8,6 +8,7 @@
   <p>No matching pairs with a similarity of at least {{ graph.min_similarity }} found.</p>
 </div>
 {% else %}
+
 <div class="graph-ui">
   <dl>
     <dt>Nodes</dt>
@@ -15,14 +16,13 @@
     <dt>Edges</dt>
     <dd>An edge between two nodes represents the existence of at least one pair of submissions that have a similarity of at least {{ graph.min_similarity }}. Edge weights represent the amount of such pairs.</dd>
   </dl>
+{% comment %}
+TODO align buttons and the input into one nice toolbar
+{% endcomment %}
   <div class="slidecontainer">
     <b>Minimum matching pairs</b>
-    <input type="range" min="1" max="{{ graph.edge_size_choices_max }}" class="slider" id="min-matches-range" list="tickmarks">
-    <datalist id="tickmarks">
-      {% for tick in graph.edge_size_choices %}
-      <option value="{{ tick }}" label="{{ tick }}">
-      {% endfor %}
-    </datalist>
+    <input type="range" class="slider" id="min-matches-range"
+           value="1" min="1" max="{{ graph.edge_size_choices_max }}">
     <p id="min-matches-range-value">1</p>
   </div>
   <button id="shuffle-layout-button" type="button" class="btn btn-outline-primary"
@@ -50,12 +50,17 @@ $(function() {
 
   shuffleLayoutButton.on("click", _ => {
     shuffleGraphLayout(s);
+    if (forceAtlasButton.hasClass("active")) {
+      // shuffleGraphLayout kills force atlas, fix inconsistent visual state
+      forceAtlasButton.button("toggle");
+    }
   });
   forceAtlasButton.on("click", _ => {
-    if (!s.isForceAtlas2Running())
+    if (!s.isForceAtlas2Running()) {
       s.startForceAtlas2(forceAtlasConfig);
-    else
+    } else {
       s.stopForceAtlas2();
+    }
   });
   minMatchesSlider.on("change", _ => {
     minMatchesSliderValue.text(minMatchesSlider.val());

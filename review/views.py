@@ -187,7 +187,6 @@ def graph(request, course, course_key):
         ),
         "course": course,
         "graph": {
-            "edge_size_choices": range(1, max_edge_weight + 1),
             "edge_size_choices_max": max_edge_weight,
             "min_similarity": min_similarity,
             "graph_json": json.dumps(graph_data),
