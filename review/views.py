@@ -199,6 +199,16 @@ def graph(request, course, course_key):
 @access_resource
 def exercise_settings(request, course_key=None, exercise_key=None, course=None, exercise=None):
     p_config = provider_config(course.provider)
+    context = {
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={ "course_key": course.key })),
+            ("%s settings" % (exercise.name), None)
+        ),
+        "course": course,
+        "exercise": exercise,
+        "provider_reload": "reload" in p_config
+    }
     if request.method == "POST":
         form = ExerciseForm(request.POST)
         form_tokenizer = ExerciseTokenizerForm(request.POST)
@@ -214,22 +224,17 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
             configured_function(p_config, "reload")(exercise, p_config)
             return redirect("course", course_key=course.key)
     else:
-        form = ExerciseForm({
+        context["form"] = ExerciseForm({
             "name": exercise.name,
             "paused": exercise.paused
         })
-        form_tokenizer = ExerciseTokenizerForm({
+        template_source = aplus.load_exercise_template(exercise, p_config)
+        if exercise.template_tokens and not template_source:
+            context["template_source_error"] = True
+            context["template_tokens"] = exercise.template_tokens
+        context["form_tokenizer"] = ExerciseTokenizerForm({
             "tokenizer": exercise.tokenizer,
             "minimum_match_tokens": exercise.minimum_match_tokens,
-            "template": aplus.load_exercise_template(exercise, p_config),
+            "template": template_source,
         })
-    return render(request, "review/exercise_settings.html", {
-        "hierarchy": ((settings.APP_NAME, reverse("index")),
-                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
-                      ("%s settings" % (exercise.name), None)),
-        "course": course,
-        "exercise": exercise,
-        "form": form,
-        "form_tokenizer": form_tokenizer,
-        "provider_reload": "reload" in p_config
-    })
+    return render(request, "review/exercise_settings.html", context)

@@ -17,6 +17,11 @@
 	</div>
 	{% csrf_token %}
 	{{ form_tokenizer|bootstrap }}
+	{% if template_source_error %}
+		<div class="alert alert-danger">
+			<p>The exercise has a tokenized template: <code>{{ template_tokens }}</code>, but the exercise template source could not be retrieved from the provider service.</p>
+		</div>
+	{% endif %}
 	<button type="submit" name="save_and_clear" class="btn btn-warning">Clear and re-compare</button>
 </form>
 
