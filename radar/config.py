@@ -11,12 +11,12 @@ def choice_name(choices, name):
 
 def provider_config(key):
     if key not in settings.PROVIDERS:
-        raise ConfigError("Unknown provider settings.")
+        raise ConfigError("Unknown provider settings with key {}.".format(key))
     return settings.PROVIDERS[key]
 
 def tokenizer_config(key):
     if key not in settings.TOKENIZERS:
-        raise ConfigError("Unknown tokenizer settings.")
+        raise ConfigError("Unknown tokenizer settings with key {}.".format(key))
     return settings.TOKENIZERS[key]
 
 def configured_function(config, key):
