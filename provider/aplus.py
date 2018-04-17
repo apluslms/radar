@@ -130,9 +130,9 @@ def request_template_content(url):
         response = requests.get(url, timeout=(4, 10))
         response.raise_for_status()
         response_content_type = response.headers.get("Content-Type")
-        if response_content_type != "text/plain":
+        if response_content_type.find("text/plain") < 0:
             raise requests.exceptions.InvalidHeader(
-                    "Expected response content of type text/plain but got {}".format(response_content_type),
+                    "Expected response content with MIME type text/plain but got content type {}".format(response_content_type),
                     response=response)
         response.encoding = "utf-8"
         return response.text
