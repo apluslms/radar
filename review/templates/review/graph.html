@@ -2,16 +2,27 @@
 {% block content %}
 
 <pre hidden id="graph-json">{{ graph.graph_json }}</pre>
+
 <div class="graph-ui">
   <dl>
     <dt>Nodes</dt>
     <dd>Students, unique by student number</dd>
     <dt>Edges</dt>
-    <dd>An edge between two nodes represents the existence of at least one pair of submissions, by 2 different students, that have a similarity of at least {{ graph.min_similarity }}. Weights represent the amount of such pairs.</dd>
+    <dd>An edge between two nodes represents the existence of at least one pair of submissions that have a similarity of at least {{ graph.min_similarity }}. Edge weights represent the amount of such pairs.</dd>
   </dl>
+  <div class="slidecontainer">
+    <b>Minimum matching pairs</b>
+    <input type="range" min="1" max="{{ edge_size_choices_max }}" class="slider" id="min-matches-range" list="tickmarks">
+    <datalist id="tickmarks">
+      {% for tick in edge_size_choices %}
+      <option value="{{ tick }}" label="{{ tick }}">
+      {% endfor %}
+    </datalist>
+    <p id="min-matches-range-value">1</p>
+  </div>
   <button id="shuffle-layout-button" type="button" class="btn btn-outline-primary"
           autocomplete="off" disabled>
-    Shuffle graph layout
+    Refresh and shuffle graph layout
   </button>
   <button id="toggle-forceatlas-button" type="button" class="btn btn-outline-primary"
           data-toggle="button" aria-pressed="false" autocomplete="off" disabled>
@@ -25,16 +36,30 @@
 $(function() {
   const shuffleLayoutButton = $("#shuffle-layout-button");
   const forceAtlasButton = $("#toggle-forceatlas-button");
+  const minMatchesSlider = $("#min-matches-range");
+  const minMatchesSliderValue = $("#min-matches-range-value");
 
   const js = new JS();
   const s = js.drawGraph(js.parseJSON($("#graph-json")));
 
-  shuffleLayoutButton.on("click", _ => { shuffleGraphLayout(s) });
+  shuffleLayoutButton.on("click", _ => {
+    shuffleGraphLayout(s);
+  });
   forceAtlasButton.on("click", _ => {
-    if (forceAtlasButton.hasClass("active"))
-      s.stopForceAtlas2();
-    else if (!s.isForceAtlas2Running())
+    if (!s.isForceAtlas2Running())
       s.startForceAtlas2(forceAtlasConfig);
+    else
+      s.stopForceAtlas2();
+  });
+  minMatchesSlider.on("change", _ => {
+    minMatchesSliderValue.text(minMatchesSlider.val());
+    const newMinSize = parseInt(minMatchesSlider.val());
+    if (isNaN(newMinSize)) {
+      console.error("Failed to parse new minimum match value from slider input: got " + newMinSize + " but expected a number.");
+    } else {
+      applyMinEdgeSizeFilter(newMinSize);
+      applyDisconnectedNodesFilter();
+    }
   });
 
   s.startForceAtlas2(forceAtlasConfig);

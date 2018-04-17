@@ -100,7 +100,7 @@ const forceAtlasConfig = {
   // seems to increase the repulsion between nodes
   outboundAttractionDistribution: true
 };
-// var sigmaFilter;
+var sigmaFilter;
 // var similarity = 0.5;
 
 JS.prototype.drawGraph = function(graphData) {
@@ -140,6 +140,8 @@ JS.prototype.drawGraph = function(graphData) {
     });
   });
 
+  sigmaFilter = new sigma.plugins.filter(sigmaObject);
+
   shuffleGraphLayout(sigmaObject);
 
   // TODO highlight edge label on edge hover requires custom renderer?
@@ -156,6 +158,20 @@ JS.prototype.drawGraph = function(graphData) {
 
   return sigmaObject;
 };
+
+function applyMinEdgeSizeFilter(newMinEdgeSize) {
+  sigmaFilter
+    .undo('min-edge-size')
+    .edgesBy(e => e.size >= newMinEdgeSize, 'min-edge-size')
+    .apply();
+}
+
+function applyDisconnectedNodesFilter() {
+  sigmaFilter
+    .undo('disconnected-nodes')
+    .nodesBy(n => !sigmaObject.graph.adjacentEdges(n.id).every(e => e.hidden), 'disconnected-nodes')
+    .apply();
+}
 
 function shuffleGraphLayout(s) {
   s.killForceAtlas2();
