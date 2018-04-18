@@ -31,15 +31,21 @@ class Command(BaseCommand):
             f = configured_function(p_config, "cron")
             f(course, p_config)
 
-            # Tokenize and match new submissions.
+            invalid_submissions = []
+            # Tokenize and match new and valid submissions.
             for submission in Submission.objects.filter(
                     exercise__course=course, exercise__paused=False,
                     tokens__isnull=True):
-                tokenize_submission(submission, p_config)
+                if not tokenize_submission(submission, p_config):
+                    invalid_submissions.append(submission)
                 if (not match(submission)
                     or (settings.CRON_STOP_SECONDS is not None
                         and time.time() - start > settings.CRON_STOP_SECONDS)):
                     return
+
+            # Delete all new submissions that could not be tokenized.
+            for submission in invalid_submissions:
+                submission.delete()
 
             # Check again for yet unmatched submissions.
             for submission in Submission.objects.filter(
