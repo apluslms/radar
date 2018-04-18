@@ -38,6 +38,7 @@ class Command(BaseCommand):
                     tokens__isnull=True):
                 if not tokenize_submission(submission, p_config):
                     invalid_submissions.append(submission)
+                    continue
                 if (not match(submission)
                     or (settings.CRON_STOP_SECONDS is not None
                         and time.time() - start > settings.CRON_STOP_SECONDS)):
