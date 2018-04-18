@@ -13,7 +13,7 @@ def acquire_lock():
     f = open(os.path.join(settings.SUBMISSION_DIRECTORY, "manage.lock"), "w")
     try:
         fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except IOError:
+    except OSError:
         return None
     return f
 
