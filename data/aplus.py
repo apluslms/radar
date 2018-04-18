@@ -3,6 +3,9 @@ Retrieving submission data from the A+ API, without storing the content on disk.
 
 """
 import logging
+
+from django.conf import settings
+
 from provider.aplus import get_api_client, API_SUBMISSION_URL
 from data import files
 from radar.config import tokenizer_config
@@ -21,10 +24,21 @@ def get_submission_text(submission, config):
         logger.error("Invalid API data returned from %s", submission_api_url)
         return None
     logger.debug("Doing GET for each submission file URL for submission %s", submission)
-    files_data = {
-        d["filename"]: api_client.do_get(d["url"]).text
-        for d in data["files"]
-    }
+    files_data = {}
+    for d in data["files"]:
+        response = api_client.do_get(d["url"])
+        if len(response.content) > settings.SUBMISSION_BYTES_LIMIT:
+            logger.error(
+                "Failed GET from %s: response content size %d bytes exceeds limit %d",
+                d["url"],
+                len(response.content),
+                settings.SUBMISSION_BYTES_LIMIT
+            )
+            continue
+        response.encoding = "utf-8"
+        files_data[d["filename"]] = response.text
+    if not files_data:
+        return None
     return files.join_files(files_data, tokenizer_config(submission.exercise.tokenizer))
 
 

@@ -128,6 +128,10 @@ MATCH_STORE_MAX_COUNT = 10
 SUBMISSION_VIEW_HEIGHT = 30
 SUBMISSION_VIEW_WIDTH = 5
 
+# Maximum size of the HTTP response content in bytes when
+# requesting submission file contents from the provider.
+SUBMISSION_BYTES_LIMIT = 10**6
+
 AUTO_PAUSE_MEAN = 0.9
 AUTO_PAUSE_COUNT = 50
 
