@@ -17,19 +17,11 @@ class Command(BaseCommand):
     args = ""
     help = "Cron work for new submissions: provide, tokenize, match"
 
-    def add_arguments(self, parser):
-        parser.add_argument("--no_file_lock",
-                action="store_true",
-                dest="no_file_lock",
-                default=False,
-                help="Do not create a file lock on disk.")
-
     def handle(self, *args, **options):
-        if "no_file_lock" not in options:
-            lock = acquire_lock()
-            if lock is None:
-                logger.info("Cannot get manage lock, another process running.")
-                return
+        lock = acquire_lock()
+        if lock is None:
+            logger.info("Cannot get manage lock, another process running.")
+            return
 
         start = time.time()
         for course in Course.objects.filter(archived=False):
