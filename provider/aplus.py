@@ -49,6 +49,7 @@ def cron(course, config):
                 exercise = course.get_exercise(queued_data["eid"])
                 # Fetch all submissions for this exercise and queue them for comparison
                 reload(exercise, provider_config(course.provider))
+                queued.delete()
                 continue
 
             if "sid" not in queued_data:
