@@ -95,6 +95,7 @@ def cron(course, config):
                 exercise=exercise,
                 student=student,
                 provider_url=data["html_url"],
+                provider_submission_time=data["submission_time"],
                 grade=data["grade"],
             )
 

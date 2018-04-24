@@ -236,6 +236,7 @@ class Submission(models.Model):
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE, related_name="submissions")
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="submissions")
     provider_url = models.CharField(max_length=256, blank=True, null=True, default=None)
+    provider_submission_time = models.DateTimeField(blank=True, null=True, default=None)
     grade = models.FloatField(default=0.0)
     tokens = models.TextField(blank=True, null=True, default=None)
     indexes_json = models.TextField(blank=True, null=True, default=None)
@@ -277,8 +278,14 @@ class Submission(models.Model):
         return marks, authored, longest_tile
 
     def __str__(self):
-        return "%s/%s: %s grade=%.1f (%s)" % (self.exercise.course.name, self.exercise.name, self.student.key, self.grade, self.created)
-
+        return ("%s/%s: %s grade=%.1f (created: %s)"
+                % (self.exercise.course.name,
+                   self.exercise.name,
+                   self.student.key,
+                   self.grade,
+                   self.created)
+                + (" (submitted: %s)" % self.provider_submission_time)
+                  if self.provider_submission_time else "")
 
 class ComparisonManager(models.Manager):
 
