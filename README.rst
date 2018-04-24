@@ -57,6 +57,14 @@ Below is a brief checklist of the steps required.
 * Check ``Enable api access``.
 * Generate the consumer key and secret with `Django LTI login`_ (in the Radar repo): ``python manage.py add_lti_key --desc aplus``.
 * Verify in your Django settings file that ``PROVIDERS["a+"]["host"]`` matches the URL of your A+ service.
+* Radar can now be added into an A+ course instance menu as an external service.
+
+If you want Radar to fetch new submissions automatically as they are submitted into A+, you can add a course hook into A+.
+
+* After adding Radar into an A+ course instance as a menu item, navigate to the Radar service using the URL, which automatically configures a new Radar course instance to match the instance in A+.
+* Choose the course you want to add a hook for.
+* Using the current URL, ``<Radar>/<course-instance-key>``, append ``/hook-submission`` to produce something like ``<Radar>/<course-instance-key>/hook-submission``. This is the submission hook url that A+ sends a POST to each time a new submission is created.
+* Log into the A+ admin page in your A+ service and under COURSE, add a new entry into Course hooks.
 
 .. _A+: https://github.com/Aalto-LeTech/a-plus
 .. _Django LTI login: https://github.com/Aalto-LeTech/django-lti-login
