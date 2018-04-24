@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<ul>
+<ul class="course-histograms">
 	{% for exercise in exercises %}
-	<li{% if exercise.paused %} class="paused"{% endif %}>
+	<li class="well well-sm{% if exercise.paused %} paused{% endif %}">
 		<p><a href="{% url 'exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }}:
 		Submissions {{ exercise.submissions.count }} ({{ exercise.matched_submissions.count }} matched)</a></p>
 		<div class="histogram">
