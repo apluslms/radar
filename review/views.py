@@ -1,5 +1,4 @@
 import logging
-import datetime
 import json
 
 from django.conf import settings
@@ -8,7 +7,6 @@ from django.urls import reverse
 from django.http.response import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
-# from data.files import get_text, get_submission_text
 from provider import aplus
 from data.models import Course, Comparison
 from data.graph import generate_match_graph

@@ -1,10 +1,7 @@
-import json
 import logging
-import time
 import requests
 
-from data.models import ProviderQueue, Submission, URLKeyField
-from radar.config import provider_config
+from data.models import URLKeyField
 import provider.tasks as tasks
 
 
@@ -17,7 +14,7 @@ API_SUBMISSION_LIST_URL = API_EXERCISE_URL + "submissions/"
 logger = logging.getLogger("radar.provider")
 
 
-class ProviderError(Exception):
+class AplusProviderError(Exception):
     pass
 
 
@@ -28,7 +25,7 @@ def hook(request, course, config):
     """
     sid = _detect_submission_id(request)
     if sid is None:
-        raise Exception("Received invalid request to A+ submission hook: invalid submission id.")
+        raise AplusProviderError("Received invalid request to A+ submission hook: invalid submission id.")
     # Queue submission for handling
     submission_url = config["host"] + API_SUBMISSION_URL % { "sid": sid }
     tasks.create_submission.delay(sid, course.key, submission_url)

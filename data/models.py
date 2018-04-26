@@ -337,16 +337,3 @@ class Comparison(models.Model):
         return "%s/%s: %s %s similarity %.2f" % (self.submission_a.exercise.course.name, self.submission_a.exercise.name, self.submission_a.student.key, c, self.similarity)
 
 
-class ProviderQueue(models.Model):
-    """
-    Queues a submission for provider. Some providers can not create
-    a submission object based on the hook alone.
-
-    """
-    created = models.DateTimeField(auto_now_add=True)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="+")
-    data = models.CharField(max_length=128)
-    failed = models.BooleanField(default=False, help_text="True if the task failed to be processed and should be handled manually.")
-
-    def __str__(self):
-        return "%s (%s)" % (self.course.name, self.created)
