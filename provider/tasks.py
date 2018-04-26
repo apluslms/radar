@@ -98,7 +98,7 @@ def match_all_unmatched_submissions(course_key=None):
     elif not Course.objects.filter(key=course_key).exists():
         raise ProviderTaskError("Cannot match submissions for course that does not exist, key was %s" % course_key)
     else:
-        courses.append(Course.objects.get(course_key))
+        courses.append(Course.objects.get(key=course_key))
     for course in courses:
         submissions = Submission.objects.filter(
             exercise__course=course,
