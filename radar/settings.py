@@ -99,7 +99,6 @@ PROVIDER_CHOICES = (("a+", "A+"), ("filesystem", "File system"))
 PROVIDERS = {
     "a+": {
         "hook": "provider.aplus.hook",
-        "cron": "provider.aplus.cron",
         "reload": "provider.aplus.reload",
         "get_submission_text": "data.aplus.get_submission_text",
         "host": "http://localhost:8000",
