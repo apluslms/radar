@@ -52,6 +52,7 @@ MIDDLEWARE = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
+# Short name and display name of available tokenizers.
 TOKENIZER_CHOICES = (
     ("skip", "Skip"),
     ("scala", "Scala"),
@@ -60,6 +61,8 @@ TOKENIZER_CHOICES = (
     ("html", "HTML"),
     ("css", "CSS"),
 )
+# Tokenizer functions and the separator string injected into the first line
+# of each file.
 TOKENIZERS = {
     "skip": {
         "tokenize": "tokenizer.skip.tokenize",
@@ -101,6 +104,7 @@ PROVIDERS = {
         "hook": "provider.aplus.hook",
         "reload": "provider.aplus.reload",
         "get_submission_text": "data.aplus.get_submission_text",
+        # Override these in local settings
         "host": "http://localhost:8000",
         "token": "asd123",
     },
@@ -111,13 +115,39 @@ PROVIDERS = {
     },
 }
 
-REVIEW_CHOICES = ((-10, "False alert"), (0, "Unspecified match"), (5, "Suspicious match"), (10, "Plagiate"), (1, "Approved plagiate"))
+REVIEW_CHOICES = (
+    (-10, "False alert"),
+    (0, "Unspecified match"),
+    (1, "Approved plagiate"),
+    (5, "Suspicious match"),
+    (10, "Plagiate"),
+)
 REVIEWS = (
-    { "value": REVIEW_CHOICES[4][0], "name": REVIEW_CHOICES[4][1], "class": "success" },
-    { "value": REVIEW_CHOICES[0][0], "name": REVIEW_CHOICES[0][1], "class": "success" },
-    { "value": REVIEW_CHOICES[1][0], "name": REVIEW_CHOICES[1][1], "class": "default" },
-    { "value": REVIEW_CHOICES[2][0], "name": REVIEW_CHOICES[2][1], "class": "warning" },
-    { "value": REVIEW_CHOICES[3][0], "name": REVIEW_CHOICES[3][1], "class": "danger" },
+    {
+        "value": REVIEW_CHOICES[4][0],
+        "name": REVIEW_CHOICES[4][1],
+        "class": "success"
+    },
+    {
+        "value": REVIEW_CHOICES[0][0],
+        "name": REVIEW_CHOICES[0][1],
+        "class": "success"
+    },
+    {
+        "value": REVIEW_CHOICES[1][0],
+        "name": REVIEW_CHOICES[1][1],
+        "class": "default"
+    },
+    {
+        "value": REVIEW_CHOICES[2][0],
+        "name": REVIEW_CHOICES[2][1],
+        "class": "warning"
+    },
+    {
+        "value": REVIEW_CHOICES[3][0],
+        "name": REVIEW_CHOICES[3][1],
+        "class": "danger"
+    },
 )
 
 MATCH_ALGORITHM = "matcher.jplag.match"
@@ -131,6 +161,9 @@ SUBMISSION_VIEW_WIDTH = 5
 # requesting submission file contents from the provider.
 SUBMISSION_BYTES_LIMIT = 10**6
 
+# Parameters to stop matching submissions if an exercise gets too many similar submissions.
+# If at least AUTO_PAUSE_COUNT submissions exist, and the average similarity
+# of these submissions exceeds AUTO_PAUSE_MEAN, put the exercise of these submissions on pause.
 AUTO_PAUSE_MEAN = 0.9
 AUTO_PAUSE_COUNT = 50
 
@@ -194,7 +227,6 @@ STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
 # Directory to store all the submitted files.
 SUBMISSION_DIRECTORY = os.path.join(BASE_DIR, "submission_files")
 
-
 LOGGING = {
   'version': 1,
   'disable_existing_loggers': False,
@@ -217,7 +249,7 @@ LOGGING = {
   },
   'loggers': {
     'radar': {
-      'level': 'DEBUG',
+      'level': 'INFO',
       'handlers': ['email', 'console'],
       'propagate': True
     },
