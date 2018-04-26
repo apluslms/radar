@@ -135,8 +135,6 @@ SUBMISSION_BYTES_LIMIT = 10**6
 AUTO_PAUSE_MEAN = 0.9
 AUTO_PAUSE_COUNT = 50
 
-CRON_STOP_SECONDS = 120
-
 ROOT_URLCONF = 'radar.urls'
 
 WSGI_APPLICATION = 'radar.wsgi.application'
@@ -226,6 +224,19 @@ LOGGING = {
     },
   },
 }
+
+# Celery
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_BROKER_URL = "amqp://localhost:5672"
+CELERY_BEAT_SCHEDULE = {
+    "match_all_unmatched_submissions": {
+        "task": "provider.tasks.match_all_unmatched_submissions",
+        "schedule": 60, # Match all submissions once per minute.
+    }
+}
+
 
 from r_django_essentials.conf import update_settings_from_module
 
