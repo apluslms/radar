@@ -4,7 +4,7 @@ from celery.utils.log import get_task_logger
 import radar.config as config_loaders
 from matcher import matcher
 from provider import aplus
-from data.models import Course, Submission
+from data.models import Course, Submission, Exercise
 from tokenizer import tokenizer
 
 logger = get_task_logger(__name__)
@@ -15,20 +15,10 @@ class ProviderTaskError(Exception):
 
 
 @shared_task(ignore_result=True)
-def create_all_submissions_from_exercise(exercise_key, course_key):
-    logger.info("Processing submissions for A+ exercise %s for course %s", exercise_key, course_key)
-    course = Course.objects.get(key=course_key)
-    exercise = course.get_exercise(exercise_key)
-    # Fetch all submissions for this exercise and queue them for comparison
-    aplus.reload(exercise, config_loaders.provider_config(course.provider))
-
-
-@shared_task(ignore_result=True)
-def reload_exercise():
-    pass
-
-@shared_task(ignore_result=True)
 def create_submission(submission_key, course_key, submission_api_url):
+    """
+    Fetch submission data for a new submission with provider key submission_key from a given API url, save submission and tokenize submission content.
+    """
     course = Course.objects.get(key=course_key)
     logger.info("Processing submission with key %s for %s", submission_key, course)
     if Submission.objects.filter(key=submission_key).exists():
@@ -76,6 +66,28 @@ def create_submission(submission_key, course_key, submission_api_url):
         submission,
         config_loaders.provider_config(course.provider)
     )
+
+
+@shared_task(ignore_result=True)
+def reload_exercise_submissions(exercise_key, submissions_api_url):
+    """
+    Fetch the current submission list from the API url, clear existing submissions, and queue newly fetched submissions for work.
+    """
+    exercise = Exercise.objects.get(key=exercise_key)
+    api_client = aplus.get_api_client(exercise.course)
+    submissions_data = api_client.load_data(submissions_api_url)
+    if submissions_data is None:
+        raise ProviderTaskError("Invalid submissions data returned from %s for exercise %s: expected an iterable but got None" % (submissions_api_url, exercise))
+    exercise.submissions.all().delete()
+    for submission in submissions_data:
+        if not Submission.objects.filter(key=submission["id"]).exists():
+            create_submission.delay(
+                submission["id"],
+                exercise.course.key,
+                submission["url"]
+            )
+        else:
+            logger.error("Got a duplicate submission with key %s from %s", submission["id"], submissions_api_url)
 
 
 @shared_task(ignore_result=True)

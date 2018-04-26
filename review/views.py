@@ -168,6 +168,7 @@ def configure_course(request, course_key=None, course=None):
                 "new_json": json.dumps(new_exercises),
             }
     elif "create_exercises" in request.POST:
+        p_config = provider_config(course.provider)
         exercises = json.loads(request.POST["exercises_json"])
         # TODO gather list of invalid exercise data and render as errors
         for exercise_data in exercises:
@@ -177,7 +178,7 @@ def configure_course(request, course_key=None, course=None):
             exercise.set_from_config(exercise_data)
             exercise.save()
             # Queue fetching all submissions for this exercise
-            aplus.queued_reload(exercise)
+            aplus.reload(exercise, p_config)
         context["create_exercises_success"] = True
     return render(request, "review/configure.html", context)
 

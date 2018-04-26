@@ -36,33 +36,11 @@ def hook(request, course, config):
 
 def reload(exercise, config):
     """
-    Clears all submissions and fetches the current submission list from A+.
-
+    Reload all submissions for exercise from the A+ API.
     """
-    api_client = get_api_client(exercise.course)
+    logger.debug("Reloading all submissions for exercise %s", exercise)
     submissions_url = config["host"] + API_SUBMISSION_LIST_URL % { "eid": exercise.key }
-    submissions_data = api_client.load_data(submissions_url)
-    if submissions_data is None:
-        logger.error("Invalid submissions data returned from %s, expected an iterable but got None", submissions_url)
-        return
-    exercise.submissions.all().delete()
-    for submission in submissions_data:
-        if not Submission.objects.filter(key=submission["id"]).exists():
-            data = {"sid": str(submission["id"])}
-            ProviderQueue.objects.create(
-                course=exercise.course,
-                data=json.dumps(data)
-            )
-        else:
-            logger.error("Got a duplicate submission with id %s from %s", submission ["id"], submissions_url)
-
-
-def queued_reload(exercise):
-    data = {"eid": exercise.key}
-    ProviderQueue.objects.create(
-        course=exercise.course,
-        data=json.dumps(data)
-    )
+    tasks.reload_exercise_submissions.delay(exercise.key, submissions_url)
 
 
 # TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself and not use someones LTI login tokens to fetch stuff from the API
