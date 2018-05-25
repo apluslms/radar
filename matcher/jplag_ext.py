@@ -6,12 +6,11 @@ from matcher.matcher import TokenMatchSet, TokenMatch
 logger = logging.getLogger("radar.matcher")
 
 
-def build_mask(bools):
-    """Return a bitmask from an iterable over booleans"""
-    mask = 0
-    for i, b in enumerate(bools):
-        mask |= b << i
-    return mask
+def bitstring(bools):
+    """
+    Return a string of bits from an iterable over booleans.
+    """
+    return ''.join(str(int(b)) for b in bools)
 
 
 def match(tokens_a, marks_a, tokens_b, marks_b, min_length):
@@ -27,8 +26,8 @@ def match(tokens_a, marks_a, tokens_b, marks_b, min_length):
     reverse = len(tokens_b) < len(tokens_a)
     pattern = tokens_b if reverse else tokens_a
     text = tokens_a if reverse else tokens_b
-    pattern_marks = build_mask(marks_b if reverse else marks_a)
-    text_marks = build_mask(marks_a if reverse else marks_b)
+    pattern_marks = bitstring(marks_b if reverse else marks_a)
+    text_marks = bitstring(marks_a if reverse else marks_b)
 
     match_list = gst.match(pattern, pattern_marks, text, text_marks, min_length)
     if reverse:

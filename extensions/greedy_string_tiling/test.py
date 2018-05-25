@@ -30,13 +30,13 @@ class Test1Simple(TestCase):
         import gst
         pattern = b"hello"
         text = b"how delightful, hello there"
-        matches = gst.match(pattern, 0, text, 0, len(pattern))
+        matches = gst.match(pattern, '', text, '', len(pattern))
         self.assertIsInstance(matches, list)
         self.assertEqual(len(matches), 1)
         self.assertCorrectMatchSubstringMapping(pattern, text, matches[0])
 
         pattern_str, text_str = pattern.decode("ascii"), text.decode("ascii")
-        matches = gst.match(pattern_str, 0, text_str, 0, len(pattern_str))
+        matches = gst.match(pattern_str, '', text_str, '', len(pattern_str))
         self.assertCorrectMatchSubstringMapping(pattern, text, matches[0])
 
     def test3_single_partial_match(self):
@@ -44,13 +44,13 @@ class Test1Simple(TestCase):
         pattern = b"hello"
         text = b"we are in helsinki now"
         match_len = 3
-        matches = gst.match(pattern, 0, text, 0, match_len)
+        matches = gst.match(pattern, '', text, '', match_len)
         self.assertIsInstance(matches, list)
         self.assertEqual(len(matches), 1)
         self.assertCorrectMatchSubstringMapping(pattern, text, matches[0])
 
         pattern_str, text_str = pattern.decode("ascii"), text.decode("ascii")
-        matches = gst.match(pattern_str, 0, text_str, 0, match_len)
+        matches = gst.match(pattern_str, '', text_str, '', match_len)
         self.assertIsInstance(matches, list)
         self.assertEqual(len(matches), 1)
         self.assertCorrectMatchSubstringMapping(pattern, text, matches[0])
@@ -59,12 +59,12 @@ class Test1Simple(TestCase):
         import gst
         pattern = b"hello"
         text = b"go away, you nuisance"
-        matches = gst.match(pattern, 0, text, 0, len(pattern))
+        matches = gst.match(pattern, '', text, '', len(pattern))
         self.assertIsInstance(matches, list)
         self.assertEqual(len(matches), 0)
 
         pattern_str, text_str = pattern.decode("ascii"), text.decode("ascii")
-        matches = gst.match(pattern_str, 0, text_str, 0, len(pattern_str))
+        matches = gst.match(pattern_str, '', text_str, '', len(pattern_str))
         self.assertIsInstance(matches, list)
         self.assertEqual(len(matches), 0)
 
@@ -103,7 +103,7 @@ class Test2RandomInputShortStrings(TestCase):
     @given(text_and_pattern=tuples_of_text_and_substring())
     def test1_full_match(self, text_and_pattern):
         text, pattern = text_and_pattern
-        matches = self.gst.match(pattern, 0, text, 0, len(pattern))
+        matches = self.gst.match(pattern, '', text, '', len(pattern))
         for match in matches:
             self.assertCorrectMatchSubstringMapping(pattern, text, match)
 
@@ -112,7 +112,7 @@ class Test2RandomInputShortStrings(TestCase):
     def test2_full_match_bytes(self, text_and_pattern):
         text, pattern = text_and_pattern
         pattern_bytes, text_bytes = pattern.encode("ascii"), text.encode("ascii")
-        matches = self.gst.match(pattern_bytes, 0, text_bytes, 0, len(pattern_bytes))
+        matches = self.gst.match(pattern_bytes, '', text_bytes, '', len(pattern_bytes))
         for match in matches:
             self.assertCorrectMatchSubstringMapping(pattern, text, match)
 
@@ -126,7 +126,7 @@ class Test3RandomInputLongStrings(TestCase):
     @given(text_and_pattern=tuples_of_text_and_substring(text_min_size=100, text_max_size=100000))
     def test1_full_match(self, text_and_pattern):
         text, pattern = text_and_pattern
-        matches = self.gst.match(pattern, 0, text, 0, len(pattern))
+        matches = self.gst.match(pattern, '', text, '', len(pattern))
         for match in matches:
             self.assertCorrectMatchSubstringMapping(pattern, text, match)
 
@@ -135,7 +135,7 @@ class Test3RandomInputLongStrings(TestCase):
     def test2_full_match_bytes(self, text_and_pattern):
         text, pattern = text_and_pattern
         pattern_bytes, text_bytes = pattern.encode("ascii"), text.encode("ascii")
-        matches = self.gst.match(pattern_bytes, 0, text_bytes, 0, len(pattern_bytes))
+        matches = self.gst.match(pattern_bytes, '', text_bytes, '', len(pattern_bytes))
         for match in matches:
             self.assertCorrectMatchSubstringMapping(pattern, text, match)
 

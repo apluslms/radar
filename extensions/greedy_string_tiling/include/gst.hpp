@@ -48,11 +48,6 @@ inline T scanpatterns(Tokens&, Tokens&, const T&, const T&, Matches&) noexcept;
 template<class Tokens, class Matches, class Tiles, class T>
 inline T markarrays(Tokens&, Tokens&, const T&, Matches&, Tiles&) noexcept;
 
-Tiles match_strings(
-        const std::string& pattern,
-        const std::string& text,
-        const unsigned long& minimum_match_length,
-        const unsigned long& init_pattern_marks = 0u,
-        const unsigned long& init_text_marks = 0u) noexcept;
+Tiles match_strings(const std::string&, const std::string&, const unsigned long&, const std::string&, const std::string&) noexcept;
 
 #endif // GST_H

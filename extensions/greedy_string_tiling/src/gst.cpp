@@ -133,19 +133,19 @@ inline T markarrays(Tokens& pattern_marks, Tokens& text_marks, const T& maxmatch
 
 Tiles match_strings(const std::string& pattern, const std::string& text,
         const unsigned long& minimum_match_length,
-        const unsigned long& init_pattern_marks,
-        const unsigned long& init_text_marks) noexcept {
+        const std::string& init_pattern_marks,
+        const std::string& init_text_marks) noexcept {
 
     std::vector<Token> pattern_marks;
     pattern_marks.reserve(pattern.size());
     for (auto i = 0u; i < pattern.size(); ++i) {
-        pattern_marks.push_back({ pattern[i], (init_pattern_marks & 1 << i) > 0 });
+        pattern_marks.push_back({ pattern[i], init_pattern_marks[i] == '1' });
     }
 
     std::vector<Token> text_marks;
     text_marks.reserve(text.size());
     for (auto i = 0u; i < text.size(); ++i) {
-        text_marks.push_back({ text[i], (init_text_marks & 1 << i) > 0 });
+        text_marks.push_back({ text[i], init_text_marks[i] == '1' });
     }
 
     unsigned long length_of_tokens_tiled = 0;
@@ -157,20 +157,9 @@ Tiles match_strings(const std::string& pattern, const std::string& text,
     while (maxmatch > minimum_match_length) {
         std::vector<Match> matches;
         // Find all matching substrings and their lengths, and push the data to matches
-        maxmatch = scanpatterns(
-                pattern_marks,
-                text_marks,
-                minimum_match_length,
-                matches
-        );
+        maxmatch = scanpatterns(pattern_marks, text_marks, minimum_match_length, matches);
         // Create new tiles by marking all unmarked tokens that participate in a maximal match of length maxmatch
-        length_of_tokens_tiled += markarrays(
-                pattern_marks,
-                text_marks,
-                maxmatch,
-                matches,
-                tiles
-        );
+        length_of_tokens_tiled += markarrays(pattern_marks, text_marks, maxmatch, matches, tiles);
     }
 
     return tiles;

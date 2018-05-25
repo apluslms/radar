@@ -6,7 +6,7 @@
 
 #define GSTMODULE_DOCSTRING "This module implements a pattern matching function for str and bytes objects."
 
-#define GST_MATCH_DOCSTRING "Takes 5 arguments: pattern (ascii str/bytes), pattern_length (uint), pattern_marks (uint), text (ascii str/bytes), text_length (uint), text_marks (uint), minimum_match_length (uint)"
+#define GST_MATCH_DOCSTRING "Takes 5 arguments: pattern (ascii str/bytes), pattern_marks (binary str/bytes), text (ascii str/bytes), text_marks (binary str/bytes), minimum_match_length (uint)"
 
 static PyObject* MatchError;
 
@@ -20,20 +20,22 @@ gst_match(PyObject* self, PyObject* args)
     const char* pattern_c_str;
     Py_ssize_t pattern_length;
 
-    unsigned long pattern_marks;
+    const char* pattern_marks;
+    Py_ssize_t pattern_marks_length;
 
     const char* text_c_str;
     Py_ssize_t text_length;
 
-    unsigned long text_marks;
+    const char* text_marks;
+    Py_ssize_t text_marks_length;
 
     unsigned long minimum_match_length;
 
-    if (!PyArg_ParseTuple(args, "s#ks#kk",
+    if (!PyArg_ParseTuple(args, "s#s#s#s#k",
             &pattern_c_str, &pattern_length,
-            &pattern_marks,
+            &pattern_marks, &pattern_marks_length,
             &text_c_str, &text_length,
-            &text_marks,
+            &text_marks, &text_marks_length,
             &minimum_match_length)) {
         PyErr_SetString(MatchError,
             "Invalid arguments; valid arguments are str/bytes, uint, str/bytes, uint, uint");
@@ -48,7 +50,10 @@ gst_match(PyObject* self, PyObject* args)
     const std::string pattern(pattern_c_str, pattern_length);
     const std::string text(text_c_str, text_length);
 
-    const auto matches = match_strings(pattern, text, minimum_match_length, pattern_marks, text_marks);
+    const std::string pattern_marks_str(pattern_marks, pattern_marks_length);
+    const std::string text_marks_str(text_marks, text_marks_length);
+
+    const auto matches = match_strings(pattern, text, minimum_match_length, pattern_marks_str, text_marks_str);
 
     // Build a list of 3-tuples from matches and return it
 
