@@ -25,7 +25,6 @@ def match(tokens_a, marks_a, tokens_b, marks_b, min_length):
 
     # Choose the shorter token string to be the pattern and the longer as text
     reverse = len(tokens_b) < len(tokens_a)
-    logger.debug("%s", "B shorter than A" if reverse else "A shorter than B")
     pattern = tokens_b if reverse else tokens_a
     text = tokens_a if reverse else tokens_b
     pattern_marks = build_mask(marks_b if reverse else marks_a)
@@ -37,5 +36,5 @@ def match(tokens_a, marks_a, tokens_b, marks_b, min_length):
     else:
         matches.store = [TokenMatch(*match) for match in match_list]
 
-    logger.debug("Total %d matching tiles %s", matches.match_count(), matches.json())
+    logger.debug("Total %d matching tiles", matches.match_count())
     return matches
