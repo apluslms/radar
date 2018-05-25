@@ -1,0 +1,7 @@
+*.so
+build
+
+*.egg-info
+
+.hypothesis
+
