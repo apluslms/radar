@@ -48,6 +48,7 @@ gst_match(PyObject* self, PyObject* args)
         return PyList_New(0); // Return an empty list
     }
 
+    // TODO: replace with c++17 string_view to avoid copying the const char*
     const std::string pattern(pattern_c_str, pattern_length);
     const std::string text(text_c_str, text_length);
 
