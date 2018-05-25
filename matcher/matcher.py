@@ -26,10 +26,10 @@ def match(a):
         return a / b if b > 0 else 0.0
 
     def top_marks(length, top):
-        marks = [ False ] * length
-        for i in range(0, top):
-            marks[i] = True
-        return marks
+        for _ in range(0, top):
+            yield True
+        for _ in range(top, length):
+            yield False
 
     f = named_function(settings.MATCH_ALGORITHM)
 
