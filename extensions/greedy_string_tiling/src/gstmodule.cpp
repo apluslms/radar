@@ -12,7 +12,9 @@ static PyObject* MatchError;
 
 /*
  * Corresponding Python function definition
- * def gst.match(pattern: str (or bytes), text: str (or bytes), minimum_match_length: uint)
+ * def gst.match(pattern: str/bytes, pattern_marks: str/bytes, text: str/bytes, text_marks: str/bytes, minimum_match_length: uint):
+ *     #stuff
+ *     return [(pattern_begin, text_begin, match_length) for ... in matches]
  */
 static PyObject*
 gst_match(PyObject* self, PyObject* args)
