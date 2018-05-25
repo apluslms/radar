@@ -6,7 +6,7 @@
 
 #define GSTMODULE_DOCSTRING "This module implements a pattern matching function for str and bytes objects."
 
-#define GST_MATCH_DOCSTRING "Takes 5 arguments: pattern (ascii str/bytes), pattern_marks (binary str/bytes), text (ascii str/bytes), text_marks (binary str/bytes), minimum_match_length (uint)"
+#define GST_MATCH_DOCSTRING "Takes 5 arguments: pattern (ascii str/bytes), pattern_marks (ascii (1 or 0) str/bytes), text (ascii str/bytes), text_marks (ascii (1 or 0) str/bytes), minimum_match_length (uint)"
 
 static PyObject* MatchError;
 
@@ -39,8 +39,7 @@ gst_match(PyObject* self, PyObject* args)
             &text_c_str, &text_length,
             &text_marks, &text_marks_length,
             &minimum_match_length)) {
-        PyErr_SetString(MatchError,
-            "Invalid arguments; valid arguments are str/bytes, uint, str/bytes, uint, uint");
+        PyErr_SetString(MatchError, "Invalid arguments, please see docstring");
         return (PyObject*)NULL;
     }
 
