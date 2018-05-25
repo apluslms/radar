@@ -1,3 +1,6 @@
+import logging
+logging.disable(logging.CRITICAL)
+
 from django.conf import settings
 from django.test import TestCase
 
@@ -57,11 +60,10 @@ class MatcherTestCase(TestCase):
         self.assertEqual(s.longest_authored_tile, 4)
         s = Submission.objects.get(student__key="002")
         self.assertEqual(s.authored_token_count, 10)
-        self.assertEqual(s.longest_authored_tile, 10)
+        self.assertEqual(s.longest_authored_tile, 10, "Submission with tokens {} should have longest authored tile {}".format(s.tokens, 10))
         self.assertEqual(Comparison.objects.all().count(), 3)
         cts = Comparison.objects.filter(submission_b__isnull=True).order_by("submission_a")
         self.assertEqual(len(cts), 2)
-        print(cts[1].matches_json)
         self.assertAlmostEqual(cts[0].similarity, 5 / 9, 1)
         self.assertAlmostEqual(cts[1].similarity, 7 / 17, 1)
         self.assertEqual(cts[0].matches_json, "[[0,0,5]]")
@@ -71,12 +73,13 @@ class MatcherTestCase(TestCase):
         self.assertEqual(c.matches_json, "[[12,5,2]]")
 
     def _create_test_course(self):
-        course = Course(key="test", name="Test", provider="filesystem", tokenizer="scala", minimum_match_tokens=2)
+        course = Course(key="test", name="Test", provider="filesystem", tokenizer="scala", minimum_match_tokens=2, api_id="0", namespace_id="0")
         course.save()
         exercise = course.get_exercise("1")
         student1 = course.get_student("001")
         student2 = course.get_student("002")
-        s1 = Submission(exercise=exercise, student=student1, tokens=TOKENS1, indexes_json="[]")
+        s1 = Submission(key="1", exercise=exercise, student=student1, tokens=TOKENS1, indexes_json="[]")
         s1.save()
-        s2 = Submission(exercise=exercise, student=student2, tokens=TOKENS2, indexes_json="[]")
+        s2 = Submission(key="2", exercise=exercise, student=student2, tokens=TOKENS2, indexes_json="[]")
         s2.save()
+
