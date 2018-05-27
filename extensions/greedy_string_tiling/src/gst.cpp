@@ -3,25 +3,24 @@
 
 
 inline bool is_unmarked(const Token& token) noexcept {
-    return !token.mark;
+    return not token.mark;
 }
 
 
 inline bool is_a_match(const Token& pattern_tok, const Token& text_tok) noexcept {
-    return (is_unmarked(pattern_tok) && is_unmarked(text_tok)
-            && pattern_tok.chr == text_tok.chr);
+    return is_unmarked(pattern_tok) and is_unmarked(text_tok) and pattern_tok.chr == text_tok.chr;
 }
 
 
 inline bool is_not_occluded(const Match& match) noexcept {
-    return (is_unmarked(match.pattern_it[match.match_length - 1])
-            && is_unmarked(match.text_it[match.match_length - 1]));
+    return is_unmarked(match.pattern_it[match.match_length - 1])
+           and is_unmarked(match.text_it[match.match_length - 1]);
 }
 
 
 template<typename InputIt, typename T>
 inline bool is_non_overlapping(InputIt it_a, InputIt it_b, const T& offset) noexcept {
-    return ((it_a + offset - 1 < it_b) || (it_b + offset - 1 < it_a));
+    return (it_a + offset - 1 < it_b) or (it_b + offset - 1 < it_a);
 }
 
 
@@ -41,7 +40,7 @@ inline void add_if_non_overlapping(Matches& matches, InputIt new_match_pattern_i
             break;
         }
         if (is_non_overlapping(new_match_pattern_it, it->pattern_it, maxmatch)
-                && is_non_overlapping(new_match_text_it, it->text_it, maxmatch)) {
+                and is_non_overlapping(new_match_text_it, it->text_it, maxmatch)) {
             matches.push_back({ new_match_pattern_it, new_match_text_it, maxmatch });
             return;
         }
@@ -69,8 +68,8 @@ inline T scanpatterns(Tokens& pattern_marks, Tokens& text_marks, const T& minimu
             auto text_jt = text_it;
             T matching_chars = 0;
             // Starting at pattern_it and text_it, count the amount of consequtive, matching characters
-            while (pattern_jt != pattern_marks.end() && text_jt != text_marks.end()
-                   && is_a_match(*pattern_jt, *text_jt)) {
+            while (pattern_jt != pattern_marks.end() and text_jt != text_marks.end()
+                   and is_a_match(*pattern_jt, *text_jt)) {
                 ++matching_chars;
                 ++pattern_jt;
                 ++text_jt;
