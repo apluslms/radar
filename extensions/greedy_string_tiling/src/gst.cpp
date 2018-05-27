@@ -1,4 +1,3 @@
-#include <sstream>
 #include <algorithm>
 #include "gst.hpp"
 
@@ -35,9 +34,6 @@ inline void add_if_non_overlapping(Matches& matches, InputIt new_match_pattern_i
         return;
     }
 
-    // Create new Match objects into a buffer so the iterators of matches aren't invalidated by mutation
-    std::vector<Match> new_matches;
-
     // Iterate over all longest matches, i.e. start from the top of the stack
     for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
         if (it->match_length < maxmatch) {
@@ -46,12 +42,10 @@ inline void add_if_non_overlapping(Matches& matches, InputIt new_match_pattern_i
         }
         if (is_non_overlapping(new_match_pattern_it, it->pattern_it, maxmatch)
                 && is_non_overlapping(new_match_text_it, it->text_it, maxmatch)) {
-            new_matches.push_back({ new_match_pattern_it, new_match_text_it, maxmatch });
+            matches.push_back({ new_match_pattern_it, new_match_text_it, maxmatch });
+            return;
         }
     }
-
-    std::move(new_matches.begin(), new_matches.end(), std::back_inserter(matches));
-
 }
 
 
