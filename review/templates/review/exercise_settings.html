@@ -13,7 +13,9 @@
 	<h4>Exercise tokenizer and matcher</h4>
 	<div class="alert alert-warning">
 		<p>Changing these settings will clear the current comparisons from the database.
-		Calculating the new results will take approximately 1 minute per 10 submissions.</p>
+		Calculating the new results will take approximately 1 minute per 10 submissions.
+        This will not clear the tokenized submissions.
+        </p>
 	</div>
 	{% csrf_token %}
 	{{ form_tokenizer|bootstrap }}

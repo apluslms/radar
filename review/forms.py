@@ -25,21 +25,26 @@ class ExerciseTokenizerForm(forms.Form):
         help_text="Anything to be excluded from the submission comparison")
 
     def save(self, exercise):
+        new_tokenizer = self.cleaned_data["tokenizer"]
+        exercise.override_tokenizer = new_tokenizer if new_tokenizer != exercise.course.tokenizer else None
 
-        (tokens, _) = tokenize_source(self.cleaned_data["template"], tokenizer_config(self.cleaned_data["tokenizer"]))
-        # put_text(exercise, ".template", self.cleaned_data["template"])
-        exercise.template_tokens = tokens
+        tokens, _ = tokenize_source(
+            self.cleaned_data["template"],
+            tokenizer_config(new_tokenizer)
+        )
+        if exercise.template_tokens != tokens:
+            exercise.template_tokens = tokens
 
-        exercise.override_tokenizer = None\
-            if self.cleaned_data["tokenizer"] == exercise.course.tokenizer\
-            else self.cleaned_data["tokenizer"]
-        exercise.override_minimum_match_tokens = None\
-            if self.cleaned_data["minimum_match_tokens"] == exercise.course.minimum_match_tokens\
-            else self.cleaned_data["minimum_match_tokens"]
+        new_min_match_tokens = self.cleaned_data["minimum_match_tokens"]
+
+        exercise.override_minimum_match_tokens = (new_min_match_tokens
+                if new_min_match_tokens != exercise.course.minimum_match_tokens
+                else None)
+
+        exercise.submissions.update(max_similarity=None)
         exercise.save()
-
         Comparison.objects.clean_for_exercise(exercise)
-        exercise.clear_tokens_and_matches()
+
 
 
 class ExerciseOneLineForm(forms.Form):
