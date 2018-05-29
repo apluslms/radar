@@ -125,7 +125,7 @@ inline T markarrays(Tokens& pattern_marks, Tokens& text_marks, const T& maxmatch
 
 
 Tiles match_strings(const std::string& pattern, const std::string& text,
-        const unsigned long& minimum_match_length,
+        const unsigned& minimum_match_length,
         const std::string& init_pattern_marks,
         const std::string& init_text_marks) noexcept {
 
@@ -141,8 +141,8 @@ Tiles match_strings(const std::string& pattern, const std::string& text,
         text_marks.push_back({ text[i], init_text_marks[i] == '1' });
     }
 
-    unsigned long length_of_tokens_tiled = 0;
-    unsigned long maxmatch = minimum_match_length + 1;
+    unsigned length_of_tokens_tiled = 0;
+    unsigned maxmatch = minimum_match_length + 1;
 
     // Begin searching for all possible matching substrings, until the longest
     // possible, unseen, matching substrings are shorter or equal to minimum_match_length

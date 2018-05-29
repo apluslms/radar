@@ -13,7 +13,7 @@ typedef std::vector<Token> Tokens;
 struct Match {
     typename Tokens::iterator pattern_it;
     typename Tokens::iterator text_it;
-    unsigned long match_length;
+    unsigned match_length;
 
     inline void mark_all_tokens() const noexcept {
         for (auto i = 0u; i < match_length; ++i) {
@@ -24,9 +24,9 @@ struct Match {
 };
 
 struct Tile {
-    unsigned long pattern_index;
-    unsigned long text_index;
-    unsigned long match_length;
+    unsigned pattern_index;
+    unsigned text_index;
+    unsigned match_length;
 };
 
 typedef std::vector<Tile> Tiles;
@@ -48,6 +48,6 @@ inline T scanpatterns(Tokens&, Tokens&, const T&, const T&, Matches&) noexcept;
 template<class Tokens, class Matches, class Tiles, class T>
 inline T markarrays(Tokens&, Tokens&, const T&, Matches&, Tiles&) noexcept;
 
-Tiles match_strings(const std::string&, const std::string&, const unsigned long&, const std::string&, const std::string&) noexcept;
+Tiles match_strings(const std::string&, const std::string&, const unsigned&, const std::string&, const std::string&) noexcept;
 
 #endif // GST_H
