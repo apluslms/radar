@@ -1,14 +1,25 @@
-__pycache__
-*.pyc
-
 db.sqlite3
 local_settings.py
 submission_files
+celerybeat-schedule
+node_modules
 
 .project
 .pydevproject
 .settings
 .DS_Store
-*~
+.hypothesis
 
+**/CMake*
+**/cmake*
+Makefile
+!CMakeLists.txt
+compile_commands.json
+
+**/bin
+*.a
 *.swp
+*~
+__pycache__
+*.pyc
+*.pdf
