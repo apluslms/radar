@@ -26,25 +26,21 @@ inline bool is_non_overlapping(InputIt it_a, InputIt it_b, const T& offset) noex
 
 template<class Matches, class InputIt, class T>
 inline void add_if_non_overlapping(Matches& matches, InputIt new_match_pattern_it, InputIt new_match_text_it, const T& maxmatch) noexcept {
-
-    // Initial matches have nothing to overlap with
-    if (matches.empty()) {
-        matches.push_back({ new_match_pattern_it, new_match_text_it, maxmatch });
-        return;
-    }
-
-    // Iterate over all longest matches, i.e. start from the top of the stack
-    for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
-        if (it->match_length < maxmatch) {
-            // Reached a match that is not maximal, all matches beyond this point are shorter than maxmatch
-            break;
-        }
-        if (is_non_overlapping(new_match_pattern_it, it->pattern_it, maxmatch)
-                and is_non_overlapping(new_match_text_it, it->text_it, maxmatch)) {
-            matches.push_back({ new_match_pattern_it, new_match_text_it, maxmatch });
-            return;
+    if (!matches.empty()) {
+        // Iterate over all longest matches, i.e. start from the top of the stack
+        for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
+            if (it->match_length < maxmatch) {
+                // Reached a match that is not maximal, all matches beyond this point are shorter than maxmatch
+                return;
+            }
+            if (is_non_overlapping(new_match_pattern_it, it->pattern_it, maxmatch)
+                    and is_non_overlapping(new_match_text_it, it->text_it, maxmatch)) {
+                // New non-overlapping match found
+                break;
+            }
         }
     }
+    matches.push_back({ new_match_pattern_it, new_match_text_it, maxmatch });
 }
 
 
@@ -129,13 +125,13 @@ Tiles match_strings(const std::string& pattern, const std::string& text,
         const std::string& init_pattern_marks,
         const std::string& init_text_marks) noexcept {
 
-    std::vector<Token> pattern_marks;
+    Tokens pattern_marks;
     pattern_marks.reserve(pattern.size());
     for (auto i = 0u; i < pattern.size(); ++i) {
         pattern_marks.push_back({ pattern[i], init_pattern_marks[i] == '1' });
     }
 
-    std::vector<Token> text_marks;
+    Tokens text_marks;
     text_marks.reserve(text.size());
     for (auto i = 0u; i < text.size(); ++i) {
         text_marks.push_back({ text[i], init_text_marks[i] == '1' });
@@ -146,7 +142,7 @@ Tiles match_strings(const std::string& pattern, const std::string& text,
 
     // Begin searching for all possible matching substrings, until the longest
     // possible, unseen, matching substrings are shorter or equal to minimum_match_length
-    std::vector<Tile> tiles;
+    Tiles tiles;
     while (maxmatch > minimum_match_length) {
         std::vector<Match> matches;
         // Find all matching substrings and their lengths, and push the data to matches
