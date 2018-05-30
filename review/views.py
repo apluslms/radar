@@ -183,10 +183,8 @@ def configure_course(request, course_key=None, course=None):
 
 @access_resource
 def graph(request, course, course_key):
-    min_similarity = 0.95 # TODO parametrize in UI
+    min_similarity = 0.05 # TODO parametrize in UI
     graph_data = generate_match_graph(course, min_similarity)
-    max_edge_weight = graph_data["max_edge_weight"]
-    del graph_data["max_edge_weight"]
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
@@ -195,7 +193,6 @@ def graph(request, course, course_key):
         ),
         "course": course,
         "graph": {
-            "edge_size_choices_max": max_edge_weight,
             "min_similarity": min_similarity,
             "graph_json": json.dumps(graph_data),
             "is_empty": not graph_data["nodes"],

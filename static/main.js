@@ -129,14 +129,16 @@ JS.prototype.drawGraph = function(graphData) {
     });
   });
   graphData.edges.forEach((edge, i) => {
+    console.log(edge);
     sigmaObject.graph.addEdge({
       id: 'e' + i,
       source: edge.source,
       target: edge.target,
-      size: edge.count,
-      label: '' + edge.count,
+      size: edge.data[0].similarity.sum*10,
+      label: '' + edge.data[0].similarity.max,
       color: '#ccc',
-      hover_color: '#222'
+      hover_color: '#222',
+      weight: edge.data[0].similarity.sum
     });
   });
 
@@ -163,6 +165,13 @@ function applyMinEdgeSizeFilter(newMinEdgeSize) {
   sigmaFilter
     .undo('min-edge-size')
     .edgesBy(e => e.size >= newMinEdgeSize, 'min-edge-size')
+    .apply();
+}
+
+function applyMinEdgeWeightFilter(newMinEdgeWeight) {
+  sigmaFilter
+    .undo('min-edge-weight')
+    .edgesBy(e => e.similarity >= newMinEdgeWeight, 'min-edge-weight')
     .apply();
 }
 
