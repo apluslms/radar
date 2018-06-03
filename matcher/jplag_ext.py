@@ -31,7 +31,7 @@ def match(tokens_a, marks_a, tokens_b, marks_b, min_length):
 
     match_list = gst.match(pattern, pattern_marks, text, text_marks, min_length)
     if reverse:
-        matches.store = [TokenMatch(*match).reverse() for match in match_list]
+        matches.store = [TokenMatch(match[1], match[0], match[2]) for match in match_list]
     else:
         matches.store = [TokenMatch(*match) for match in match_list]
 
