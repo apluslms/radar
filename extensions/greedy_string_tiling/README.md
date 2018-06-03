@@ -1,17 +1,22 @@
 # Greedy String Tiling
 
-This Python package implements a C++ extension of the Greedy String Tiling algorithm [1], which can be used for source code similarity detection as has been done with the JPlag system [2].
+This Python package implements a C++ extension of the Running Karp-Rabin Greedy String Tiling algorithm [1], which can be used for source code similarity detection as has been done with the JPlag system [2].
 When used using the provided wrapper/adapter `matcher.jplag_ext.match`, it can be expected to behave exactly as the pure Python implementation `matcher.jplag.match`, except faster.
 
 ## Installing
 
-Activate the virtual environment used by Radar and run the below command to build and install the extension:
+* Activate the virtual environment used by Radar
+* Download all compilation dependencies (creates a directory `thirdparty` into current working dir):
 
-```pip install -e .```
+    ```python3 setup.py prepare```
 
-To make sure everything works correctly, it is a good idea to run some tests for the extension:
+* Build and install the extension:
 
-```python3 ./test.py```
+    ```pip install -e .```
+
+* To make sure everything works correctly, it is a good idea to run some tests for the extension:
+
+    ```python3 ./test.py```
 
 ## References
 

@@ -55,7 +55,7 @@ gst_match(PyObject* self, PyObject* args)
     const std::string pattern_marks_str(pattern_marks, pattern_marks_length);
     const std::string text_marks_str(text_marks, text_marks_length);
 
-    const auto matches = match_strings(pattern, text, minimum_match_length, pattern_marks_str, text_marks_str);
+    const auto& matches = match_strings(pattern, text, minimum_match_length, pattern_marks_str, text_marks_str);
 
     // Build a list of 3-tuples from matches and return it
 

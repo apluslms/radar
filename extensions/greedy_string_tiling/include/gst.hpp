@@ -3,6 +3,10 @@
 #include <string>
 #include <vector>
 
+/*
+ * Tokens are single characters that can be marked.
+ * Marked tokens denote characters that participate in some pair of matching substrings.
+ */
 struct Token {
     const char chr;
     bool mark;
@@ -10,10 +14,17 @@ struct Token {
 
 typedef std::vector<Token> Tokens;
 
+typedef unsigned long match_length_t;
+
+/*
+ * Matches contain starting positions of two matching substrings and the length of the match.
+ * Match instances should never contain iterators that are not
+ * dereferencable in the index range [0, match_length).
+ */
 struct Match {
     typename Tokens::iterator pattern_it;
     typename Tokens::iterator text_it;
-    unsigned match_length;
+    match_length_t match_length;
 
     inline void mark_all_tokens() const noexcept {
         for (auto i = 0u; i < match_length; ++i) {
@@ -23,31 +34,32 @@ struct Match {
     };
 };
 
+typedef std::vector<Match> Matches;
+
+/*
+ * Tiles are finalized matches that should not be changed.
+ */
 struct Tile {
-    unsigned pattern_index;
-    unsigned text_index;
-    unsigned match_length;
+    const match_length_t pattern_index;
+    const match_length_t text_index;
+    const match_length_t match_length;
 };
 
 typedef std::vector<Tile> Tiles;
 
-inline bool is_unmarked(const Token&) noexcept;
 
-template<class InputIt, class T>
-inline bool is_not_occluded(InputIt, InputIt, const T&) noexcept;
-
-template<class InputIt, class T>
-inline bool is_non_overlapping(InputIt, InputIt, const T&) noexcept;
-
-template<class Matches, class InputIt, class T>
-inline void add_non_overlapping_maxmatch(Matches&, InputIt, InputIt, const T&) noexcept;
-
-template<class Tokens, class Matches, class T>
-inline T scanpatterns(Tokens&, Tokens&, const T&, const T&, Matches&) noexcept;
-
-template<class Tokens, class Matches, class Tiles, class T>
-inline T markarrays(Tokens&, Tokens&, const T&, Matches&, Tiles&) noexcept;
-
-Tiles match_strings(const std::string&, const std::string&, const unsigned&, const std::string&, const std::string&) noexcept;
+/*
+ * For two given strings, run Karp-Rabin Greedy String tiling and return a vector of Tiles that correspond to matching substrings of maximal length from both strings.
+ * Initial search length denotes the threshold of a match; substrings shorter than init_search_length are not compared.
+ * Setting init_search_length to a high (low) value will considerably reduce (increase) the running time.
+ * Initial marks can be given as a string of zeros and ones.
+ * Marked characters cannot participate in a maximal match and substrings containing them will be skipped.
+ */
+Tiles match_strings(
+        const std::string& pattern,
+        const std::string& text,
+        const match_length_t& init_search_length,
+        const std::string& init_pattern_marks = "",
+        const std::string& init_text_marks = "") noexcept;
 
 #endif // GST_H
