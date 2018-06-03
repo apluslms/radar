@@ -122,16 +122,16 @@ class Test3RandomInputLongStrings(TestCase):
     def setUp(self):
         self.gst = importlib.import_module("gst")
 
-    @settings(max_examples=300)
-    @given(text_and_pattern=tuples_of_text_and_substring(text_min_size=100, text_max_size=100000))
+    @settings(max_examples=10)
+    @given(text_and_pattern=tuples_of_text_and_substring(text_min_size=100, text_max_size=2000))
     def test1_full_match(self, text_and_pattern):
         text, pattern = text_and_pattern
         matches = self.gst.match(pattern, '', text, '', len(pattern))
         for match in matches:
             self.assertCorrectMatchSubstringMapping(pattern, text, match)
 
-    @settings(max_examples=300)
-    @given(text_and_pattern=tuples_of_text_and_substring(text_min_size=100, text_max_size=100000))
+    @settings(max_examples=10)
+    @given(text_and_pattern=tuples_of_text_and_substring(text_min_size=100, text_max_size=2000))
     def test2_full_match_bytes(self, text_and_pattern):
         text, pattern = text_and_pattern
         pattern_bytes, text_bytes = pattern.encode("ascii"), text.encode("ascii")
