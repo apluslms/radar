@@ -7,22 +7,19 @@ from radar.config import tokenizer_config, configured_function
 logger = logging.getLogger("radar.tokenizer")
 
 
-def tokenize_submission(submission, p_config):
+def tokenize_submission(submission, submission_text, p_config):
     """
     Tokenizes a submission.
 
     """
     logger.info("Tokenizing submission %s", submission)
-    get_submission_text = configured_function(p_config, "get_submission_text")
-    source = get_submission_text(submission, p_config)
-    if source is None:
-        logger.error("Failed to get submission text for submission %s", submission)
-        return False
-    tokens, indexes = tokenize_source(source, tokenizer_config(submission.exercise.tokenizer))
+    tokens, indexes = tokenize_source(
+        submission_text,
+        tokenizer_config(submission.exercise.tokenizer)
+    )
     submission.tokens = tokens
     submission.indexes_json = json.dumps(indexes)
     submission.save()
-    return True
 
 
 def tokenize_source(source, t_config):

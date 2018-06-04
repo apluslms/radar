@@ -1,3 +1,5 @@
+import hashlib
+
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
@@ -34,7 +36,7 @@ def create_submission(submission_key, course_key, submission_api_url):
     # Check if exercise is configured for Radar, if not, skip to next.
     radar_config = aplus.get_radar_config(exercise_data)
     if radar_config is None:
-        logger.debug("Exercise '%s' has no Radar configuration, submission ignored.", exercise_name)
+        logger.info("Exercise '%s' has no Radar configuration, submission ignored.", exercise_name)
         return
     logger.debug("Exercise '%s' has a Radar configuration with tokenizer '%s', proceeding to create a submission.", exercise_name, radar_config["tokenizer"])
 
@@ -60,12 +62,26 @@ def create_submission(submission_key, course_key, submission_api_url):
         provider_submission_time=data["submission_time"],
         grade=data["grade"],
     )
-    logger.debug("Successfully processed submission with key %s for %s", submission_key, course)
-    logger.debug("Queuing submission tokenization for submission %s", submission_key)
+
+    logger.debug("Retrieving contents of submission %s", submission_key)
+    provider_config = config_loaders.provider_config(course.provider)
+    get_submission_text = configured_function(provider_config, "get_submission_text")
+    submission_text = get_submission_text(submission, provider_config)
+    if submission_text is None:
+        raise ProviderTaskError("Failed to get submission text for submission %s", submission)
+
+    logger.debug("Tokenizing contents of submission %s", submission_key)
     tokenizer.tokenize_submission(
         submission,
-        config_loaders.provider_config(course.provider)
+        submission_text,
+        provider_config
     )
+    logger.debug("Compute checksum of submission source %s", submission_key)
+    submission_hash = hashlib.md5(submission_text.encode("utf-8"))
+    submission.source_checksum = submission_hash.hexdigest()
+    submission.save()
+
+    logger.debug("Successfully processed submission with key %s for %s", submission_key, course)
 
 
 @shared_task(ignore_result=True)

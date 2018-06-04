@@ -239,6 +239,8 @@ class Submission(models.Model):
     provider_submission_time = models.DateTimeField(blank=True, null=True, default=None)
     grade = models.FloatField(default=0.0)
     tokens = models.TextField(blank=True, null=True, default=None)
+    source_checksum = models.TextField(blank=True, null=True, default=None,
+            help_text="MD5 checksum of all characters in the submission source")
     indexes_json = models.TextField(blank=True, null=True, default=None)
     authored_token_count = models.IntegerField(blank=True, null=True, default=None)
     longest_authored_tile = models.IntegerField(blank=True, null=True, default=None)
