@@ -65,7 +65,10 @@ def create_submission(submission_key, course_key, submission_api_url):
 
     logger.debug("Retrieving contents of submission %s", submission_key)
     provider_config = config_loaders.provider_config(course.provider)
-    get_submission_text = configured_function(provider_config, "get_submission_text")
+    get_submission_text = config_loaders.configured_function(
+        provider_config,
+        "get_submission_text"
+    )
     submission_text = get_submission_text(submission, provider_config)
     if submission_text is None:
         raise ProviderTaskError("Failed to get submission text for submission %s", submission)
