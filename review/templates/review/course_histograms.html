@@ -1,6 +1,10 @@
 {% extends 'base.html' %}
 {% block content %}
 
+<div>
+    <h4>Similarity distribution of all submissions for each exercise. Similarity is represented in the range [0, 1], where 0 means disjoint strings and 1 means equal strings.</h4>
+</div>
+
 <ul class="course-histograms">
 	{% for exercise in exercises %}
 	<li class="well well-sm{% if exercise.paused %} paused{% endif %}">
