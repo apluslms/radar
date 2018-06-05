@@ -16,6 +16,7 @@ struct Result {
     match_length_t iterations = 0;
     match_length_t match_count = 0;
     float string_similarity = 0;
+    match_length_t str_len = 0;
 };
 
 template<class T>
@@ -34,8 +35,9 @@ struct TestArgs {
 constexpr auto table_width = 15;
 
 void dump_result_header(std::ostream& os) {
-    os << std::setw(table_width) << "iterations"
-       << std::setw(table_width + 5) << "string similarity"
+    os << std::setw(table_width - 5) << "iterations"
+       << std::setw(table_width) << "string length"
+       << std::setw(table_width) << "similarity Pr"
        << std::setw(table_width) << "min (s)"
        << std::setw(table_width) << "max (s)"
        << std::setw(table_width) << "avg (s)"
@@ -47,8 +49,9 @@ void dump_result_header(std::ostream& os) {
 std::ostream& operator<<(std::ostream& os, const Result& res) {
     auto avg = res.total_time / res.iterations;
     os << std::setprecision(4)
-       << std::setw(table_width) << res.iterations
-       << std::setw(table_width + 5) << res.string_similarity
+       << std::setw(table_width - 5) << res.iterations
+       << std::setw(table_width) << res.str_len
+       << std::setw(table_width) << res.string_similarity
        << std::setw(table_width) << res.min_time
        << std::setw(table_width) << res.max_time
        << std::setw(table_width) << avg
@@ -78,6 +81,7 @@ Result bench_match_strings(const TestArgs<T>& args) {
         res.total_time += elapsed_c;
         res.iterations++;
         res.string_similarity = args.random_copy_prob;
+        res.str_len = args.text_size;
 
         for (auto& tile : tiles) {
             const auto& pattern_str = pattern.substr(tile.pattern_index, tile.match_length);
@@ -95,10 +99,11 @@ Result bench_match_strings(const TestArgs<T>& args) {
 
 int main() {
 
+    std::cout << "\nBENCHMARKING\n" << std::endl;
     std::cout << "Tiny random strings" << std::endl;
     {
         double total_time = 0;
-        constexpr auto iterations = 100;
+        constexpr auto iterations = 500;
         constexpr auto text_len = 20;
         constexpr auto pattern_len = text_len;
         dump_result_header(std::cout);
@@ -113,11 +118,29 @@ int main() {
         std::cout << std::endl;
     }
 
-    std::cout << "Average length random strings" << std::endl;
+    std::cout << "Short random strings" << std::endl;
     {
         double total_time = 0;
-        constexpr auto iterations = 100;
-        constexpr auto text_len = 600;
+        constexpr auto iterations = 250;
+        constexpr auto text_len = 1000;
+        constexpr auto pattern_len = text_len;
+        dump_result_header(std::cout);
+        for (auto p = 0; p <= 4; ++p) {
+            const float copy_prob = 0.5f + p / 8.0f;
+            const TestArgs<match_length_t> args{ iterations, text_len, pattern_len, copy_prob};
+            auto res = bench_match_strings(args);
+            std::cout << res  << std::endl;
+            total_time += res.total_time;
+        }
+        std::cout << "5 * " << iterations << " iterations, total (sec): " << std::setprecision(2) << total_time << std::endl;
+        std::cout << std::endl;
+    }
+
+    std::cout << "Long random strings" << std::endl;
+    {
+        double total_time = 0;
+        constexpr auto iterations = 25;
+        constexpr auto text_len = 50000;
         constexpr auto pattern_len = text_len;
         dump_result_header(std::cout);
         for (auto p = 0; p <= 4; ++p) {
@@ -134,8 +157,8 @@ int main() {
     std::cout << "Very long random strings" << std::endl;
     {
         double total_time = 0;
-        constexpr auto iterations = 100;
-        constexpr auto text_len = 50000;
+        constexpr auto iterations = 5;
+        constexpr auto text_len = 200000;
         constexpr auto pattern_len = text_len;
         dump_result_header(std::cout);
         for (auto p = 0; p <= 4; ++p) {
@@ -149,4 +172,21 @@ int main() {
         std::cout << std::endl;
     }
 
+    std::cout << "Excessively long random strings" << std::endl;
+    {
+        double total_time = 0;
+        constexpr auto iterations = 1;
+        constexpr auto text_len = 1000000;
+        constexpr auto pattern_len = text_len;
+        dump_result_header(std::cout);
+        for (auto p = 0; p <= 4; ++p) {
+            const float copy_prob = 0.5f + p / 8.0f;
+            const TestArgs<match_length_t> args{ iterations, text_len, pattern_len, copy_prob};
+            auto res = bench_match_strings(args);
+            std::cout << res  << std::endl;
+            total_time += res.total_time;
+        }
+        std::cout << "5 * " << iterations << " iterations, total (sec): " << std::setprecision(2) << total_time << std::endl;
+        std::cout << std::endl;
+    }
 }

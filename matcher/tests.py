@@ -30,7 +30,7 @@ class TestBenchmark(TestCase):
     """For the match algorithm specified in the settings module, run benchmark tests with random data and assert that the amount of successful iterations is large enough"""
 
     def benchmark(self, match_args, min_iterations=10):
-        timeout_seconds = 1
+        timeout_seconds = 0.5
         iterations = 0
         total_time = 0
         while total_time < timeout_seconds:
