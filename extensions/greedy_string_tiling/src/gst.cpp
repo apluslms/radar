@@ -49,7 +49,7 @@ inline T scanpatterns(Tokens& pattern_marks, Tokens& text_marks, Matches& matche
         return maxmatch;
     }
 
-    // Compute hash value for each possible substring of search_length in text and store its starting position
+    // Compute hash value for each possible unmarked substring of search_length in text and store its starting position
     for (auto text_it = text_it_begin; text_it + search_length - 1 < text_marks.end(); ++text_it) {
         if (text_it == text_it_begin) {
             // Initialize hash using first text range
@@ -59,6 +59,11 @@ inline T scanpatterns(Tokens& pattern_marks, Tokens& text_marks, Matches& matche
         } else {
             // Update rolling hash
             text_hasher.update((text_it - 1)->chr, (text_it + search_length - 1)->chr);
+        }
+
+        // Skip all strings with at least 1 marked token
+        if (not std::all_of(text_it, text_it + search_length, is_unmarked)) {
+            continue;
         }
 
         const auto& text_hash_it = text_hash_to_positions.find(text_hasher.hashvalue);
@@ -95,6 +100,11 @@ inline T scanpatterns(Tokens& pattern_marks, Tokens& text_marks, Matches& matche
         } else {
             // Update rolling hash
             pattern_hasher.update((pattern_it - 1)->chr, (pattern_it + search_length - 1)->chr);
+        }
+
+        // Skip all strings with at least 1 marked token
+        if (not std::all_of(pattern_it, pattern_it + search_length, is_unmarked)) {
+            continue;
         }
 
         // Check if there is a matching text range
@@ -204,11 +214,12 @@ Tiles match_strings(
     match_length_t length_of_tokens_tiled = 0u;
     match_length_t search_length = init_search_length;
 
+    Matches matches;
+
     // Search for all matches of maximal length and longer than search_length
     while (search_length > 0 and search_length >= init_search_length) {
-
+        matches.clear();
         // Find all matching substrings and their lengths, and push the data to matches
-        Matches matches;
         match_length_t maxmatch = scanpatterns(pattern_marks, text_marks, matches, search_length);
 
         if (maxmatch > 2 * search_length) {

@@ -27,6 +27,16 @@ std::string next_string(T text_size) {
     return text;
 }
 
+template<class T>
+std::string next_bitstring(T size, float p) {
+    std::bernoulli_distribution bernoulli(p);
+    std::string s;
+    while(size-- > 0) {
+        s += bernoulli(e) ? '1' : '0';
+    }
+    return s;
+}
+
 std::string random_string_copy(const std::string& src, float copy_prob) {
     std::bernoulli_distribution bernoulli(copy_prob);
     std::string dest;
@@ -35,6 +45,5 @@ std::string random_string_copy(const std::string& src, float copy_prob) {
     }
     return dest;
 }
-
 
 #endif // DATA_GENERATOR_HPP
