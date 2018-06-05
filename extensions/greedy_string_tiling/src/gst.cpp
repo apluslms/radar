@@ -138,7 +138,6 @@ inline T scanpatterns(Tokens& pattern_marks, Tokens& text_marks, Matches& matche
                 return matching_chars;
             } else {
                 // Record a match
-                /* add_if_non_overlapping(matches, pattern_it, hash_it, matching_chars); */
                 matches.push_back({ pattern_it, hash_it, matching_chars });
                 maxmatch = std::max(maxmatch, matching_chars);
             }
