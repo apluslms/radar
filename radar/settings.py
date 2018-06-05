@@ -150,8 +150,12 @@ REVIEWS = (
     },
 )
 
-MATCH_ALGORITHM = "matcher.jplag.match"
-#MATCH_ALGORITHM = "matcher.jplag_ext.match"
+MATCH_ALGORITHMS = {
+    "jplag": "matcher.jplag.match",
+    "jplag_ext": "matcher.jplag_ext.match",
+}
+
+MATCH_ALGORITHM = MATCH_ALGORITHMS["jplag_ext"]
 MATCH_STORE_MIN_SIMILARITY = 0.2
 MATCH_STORE_MAX_COUNT = 10
 

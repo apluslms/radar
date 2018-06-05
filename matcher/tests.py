@@ -1,13 +1,14 @@
-import string
-import random
-import time
 import logging
+import random
+import string
+import time
 logging.disable(logging.CRITICAL)
 
 from django.test import TestCase
+from django.conf import settings
+from django.utils.module_loading import import_string
 
-import matcher.jplag_ext as jplag_ext
-import matcher.jplag as jplag
+match_algorithm = import_string(settings.MATCH_ALGORITHM)
 
 def random_char():
     return random.choice(string.printable)
@@ -26,35 +27,21 @@ def generate_data(a_size, b_size, similarity_p):
 
 
 class TestBenchmark(TestCase):
+    """For the match algorithm specified in the settings module, run benchmark tests with random data and assert that the amount of successful iterations is large enough"""
 
-    def setUp(self):
-        self.results = []
-        self.iterations = 100
-
-    def benchmark(self, args):
-        result = {"name": "jplag", "times": []}
-        for _ in range(self.iterations):
+    def benchmark(self, match_args, min_iterations=10):
+        timeout_seconds = 1
+        iterations = 0
+        total_time = 0
+        while total_time < timeout_seconds:
             start_time = time.perf_counter()
-            jplag.match(*args)
+            match_algorithm(*match_args)
             end_time = time.perf_counter()
-            result["times"].append(end_time - start_time)
-        self.results.append(result)
-        result = {"name": "jplag_ext", "times": []}
-        for _ in range(self.iterations):
-            start_time = time.perf_counter()
-            jplag_ext.match(*args)
-            end_time = time.perf_counter()
-            result["times"].append(end_time - start_time)
-        self.results.append(result)
-
-    def tearDown(self):
-        print("\n{}\n{} iterations".format(self, self.iterations))
-        print("{:10s};{:4s} {:4s} {:4s} {:4s} {:s}"
-              .format("algorithm", "min", "max", "avg", "sum", "(seconds)"))
-        for res in self.results:
-            algname, times = res["name"], res["times"]
-            print("{:10s}: {:.2f} {:.2f} {:.2f} {:.2f}"
-                  .format(algname, min(times), max(times), sum(times)/len(times), sum(times)))
+            total_time += end_time - start_time
+            iterations += 1
+        self.assertGreater(iterations, min_iterations,
+                "Expected match algorithm {0!r} to compute its result at least {1} times in {2} seconds but it managed only {3} iterations before {2} second timeout."
+                .format(match_algorithm, min_iterations, timeout_seconds, iterations))
 
     def test_a1_very_unlikely_equal_tiny(self):
         self.benchmark(generate_data(100, 100, 0))
