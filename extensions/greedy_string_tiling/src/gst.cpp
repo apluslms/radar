@@ -15,9 +15,9 @@ inline bool is_a_match(const Token& pattern_tok, const Token& text_tok) noexcept
 
 
 inline bool all_tokens_match(const Match& match) noexcept {
-    for (auto i = 0u; i < match.match_length; ++i) {
-        const auto& pattern_it = match.pattern_it + i;
-        const auto& text_it = match.text_it + i;
+    auto pattern_it = match.pattern_it;
+    auto text_it = match.text_it;
+    for (auto i = 0u; i < match.match_length; ++i, ++pattern_it, ++text_it) {
         if (!is_a_match(*pattern_it, *text_it)) {
             return false;
         }
@@ -152,17 +152,10 @@ inline T scanpatterns(Tokens& pattern_marks, Tokens& text_marks, Matches& matche
 template<class T>
 inline T markarrays(Tokens& pattern_marks, Tokens& text_marks, Matches& matches, Tiles& tiles) noexcept {
 
-    // Ensure matches are in ascending order according to match length
-    // It is likely that most of the matches are already correctly sorted
-    const auto& by_match_length = [](const auto& m_a, const auto& m_b) {
-        return m_a.match_length < m_b.match_length;
-    };
-    std::sort(matches.begin(), matches.end(), by_match_length);
-
     T length_of_tokens_tiled = 0;
 
-    // Iterate stack starting with the longest match
-    for (auto match_it = matches.rbegin(); match_it != matches.rend(); ++match_it) {
+    // Iterate queue starting with the longest match
+    for (auto match_it = matches.begin(); match_it != matches.end(); ++match_it) {
         const auto& maxmatch = match_it->match_length;
         if (all_tokens_match(*match_it)) {
             // All tokens of this match are unmarked, i.e. do not belong to another match.
@@ -176,7 +169,6 @@ inline T markarrays(Tokens& pattern_marks, Tokens& text_marks, Matches& matches,
             length_of_tokens_tiled += maxmatch;
         }
     }
-
     return length_of_tokens_tiled;
 }
 
