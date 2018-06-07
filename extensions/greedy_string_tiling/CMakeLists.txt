@@ -1,7 +1,7 @@
 # You don't need this file for installing the Python extension as
 # its build process is handled by setuptools.
 # This file exists for development purposes, e.g. compiling the unit tests
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.5)
 project(GreedyStringTiling)
 
 set(CMAKE_CXX_STANDARD 14)
