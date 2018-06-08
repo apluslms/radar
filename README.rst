@@ -1,17 +1,13 @@
 Radar
 =====
 
-Plagiate detector for source code and other tokenizable data.
+Automatic similarity analysis for source code and other tokenizable data.
 
-Accepts HTTP hook requests that record new data submissions. Alternatively
-submissions can be loaded from command line. Cron task will sequentially
-complete provider tasks, tokenize submissions and match them against all
-previously matched submissions.
+Accepts HTTP hook requests that record new data submissions, which are then fetched from some provider API.
+Recorded submissions will be processed asynchronously using Celery.
 
-Similarity matches will form submission groups for easy evaluation of the
-cases. Views are provided to follow submitters over series of exercises.
-
-teemu.t.lehtinen@aalto.fi, 9.2.2015
+Similarity matches will form submission groups for easy evaluation of the cases.
+Views are provided to follow submitters over series of exercises.
 
 Requirements
 ------------
@@ -26,17 +22,25 @@ Optional
 * Esprima 4.0 (for JavaScript tokenizer)
 * Write access to ``submission_files/`` (By default, submission files are downloaded when needed and stay only in main memory)
 
+When using the compiled matcher algorithm:
+* CMake 3.5
+* C++14 compliant compiler
+
 Directory structure
 -------------------
-* ``radar/`` Django main
+
+* ``accounts/`` Django app: user models that have A+ API access
+* ``aplus_client/`` Django app: A+ API client, copied from `MOOC Jutut`_
 * ``data/`` Django app: models, commands and cron
-* ``review/`` Django app: reviewer interface
-* ``bootstrapform/`` Django app: formats Django forms for Bootstrap
-* ``provider/`` Data integrations for different sources
-* ``tokenizer/`` Tokenizers for supported data formats
+* ``extensions/`` CPython extensions
+* ``ltilogin/`` Django app: handling user creation on first login using LTI access
 * ``matcher/`` Algorithms for matching token strings
-* ``templates/`` Django main level templates
+* ``provider/`` Data integrations for different sources
+* ``radar/`` Django main
+* ``review/`` Django app: reviewer interface
 * ``static/`` Django static files
+* ``templates/`` Django main level templates
+* ``tokenizer/`` Tokenizers for supported data formats
 
 Built on open source
 --------------------
@@ -66,5 +70,13 @@ If you want Radar to fetch new submissions automatically as they are submitted i
 * Using the current URL, ``<Radar>/<course-instance-key>``, append ``/hook-submission`` to produce something like ``<Radar>/<course-instance-key>/hook-submission``. This is the submission hook url that A+ sends a POST to each time a new submission is created.
 * Log into the A+ admin page in your A+ service and under COURSE, add a new entry into Course hooks.
 
+Original author
+---------------
+
+teemu.t.lehtinen@aalto.fi, 9.2.2015
+
+
 .. _A+: https://github.com/Aalto-LeTech/a-plus
 .. _Django LTI login: https://github.com/Aalto-LeTech/django-lti-login
+.. _MOOC Jutut: https://github.com/Aalto-LeTech/mooc-jutut
+
