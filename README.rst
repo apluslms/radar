@@ -23,6 +23,7 @@ Optional
 * Write access to ``submission_files/`` (By default, submission files are downloaded when needed and stay only in main memory)
 
 When using the compiled matcher algorithm:
+
 * CMake 3.5
 * C++14 compliant compiler
 
