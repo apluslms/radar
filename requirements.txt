@@ -1,5 +1,5 @@
 Django==2.0
-celery==4.1
+celery==4.1.1
 django-bootstrap-form==3.2.1
 oauthlib==2.0.1
 requests==2.13.0
