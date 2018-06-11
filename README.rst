@@ -12,7 +12,10 @@ Views are provided to follow submitters over series of exercises.
 Requirements
 ------------
 * Python 3.5
+* RabbitMQ 3.5
 * Django 2.0
+* Celery 4.1
+* and other Python packages, see ``requirements.txt``
 
 Optional
 ........
