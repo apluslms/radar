@@ -35,12 +35,16 @@ def match(a):
     Comparison.objects.filter(submission_a=a).delete()
 
     # All similarity algorithms that accept tokenized input
-    similarity_functions = a.exercise.course.similarityfunction_set.filter(tokenized_input=True)
+    similarity_functions_tokenized = a.exercise.course.similarityfunction_set.filter(tokenized_input=True)
+    # All similarity algorithms that accept the untokenized, original source
+    similarity_functions_source = a.exercise.course.similarityfunction_set.exclude(tokenized_input=True)
+
+    # TODO store all similarities for each function for comparison instead of merging all as the average
 
     # Match submission 'a' against template with all algorithms
     similarity = 0.0
     matches_json = None
-    for function_def in similarity_functions:
+    for function_def in similarity_functions_tokenized:
 
         # Import the similarity algorithm from a string
         similarity_function = config_loaders.named_function(function_def.function)
@@ -64,7 +68,7 @@ def match(a):
 
     assert matches_json is not None
 
-    similarity /= similarity_functions.count()
+    similarity /= similarity_functions_tokenized.count()
 
     # Create template comparison
     Comparison(submission_a=a, submission_b=None, similarity=similarity, matches_json=matches_json).save()
@@ -81,7 +85,7 @@ def match(a):
                 similarity = 0.0
                 matches_json = None
                 # Compute similarity for submission a and b with all similarity functions and weights
-                for function_def in similarity_functions:
+                for function_def in similarity_functions_tokenized:
                     # Import the match algorithm from a string
                     similarity_function = config_loaders.named_function(function_def.function)
                     ms = similarity_function(a.tokens, marks_a, b.tokens, marks_b, a.exercise.minimum_match_tokens)
@@ -91,7 +95,12 @@ def match(a):
                     w = function_def.weight
                     s = safe_div(ms.token_count(), (count_a + count_b) / 2)
                     similarity += w * s
-                similarity /= similarity_functions.count()
+                for function_def in similarity_functions_source:
+                    if function_def.name == "md5sum":
+                        if a.source_checksum == b.source_checksum:
+                            similarity += function_def.weight
+                similarity /= (similarity_functions_tokenized.count()
+                               + similarity_functions_source.count())
                 if similarity > settings.MATCH_STORE_MIN_SIMILARITY:
                     assert matches_json is not None
                     Comparison(submission_a=a, submission_b=b,
