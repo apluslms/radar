@@ -16,17 +16,20 @@ TEMPLATE = "abcdexxxx"
 class MatcherTestCase(TestCase):
 
     def test_algorithm(self):
-        f = named_function(settings.MATCH_ALGORITHM)
-        a = TOKENS1
-        b = TOKENS2
-        ms = f(a, [ False ] * len(a), b, [ False ] * len(b), 2)
-        self.assertEqual(len(ms.store), 2)
-        self.assertEqual(ms.store[0].a, 0)
-        self.assertEqual(ms.store[0].b, 0)
-        self.assertEqual(ms.store[0].length, 3)
-        self.assertEqual(ms.store[1].a, 5)
-        self.assertEqual(ms.store[1].b, 12)
-        self.assertEqual(ms.store[1].length, 2)
+        for function_def in settings.MATCH_ALGORITHMS:
+            if function_def["function"] is None:
+                continue
+            f = named_function(function_def["function"])
+            a = TOKENS1
+            b = TOKENS2
+            ms = f(a, [ False ] * len(a), b, [ False ] * len(b), 2)
+            self.assertEqual(len(ms.store), 2)
+            self.assertEqual(ms.store[0].a, 0)
+            self.assertEqual(ms.store[0].b, 0)
+            self.assertEqual(ms.store[0].length, 3)
+            self.assertEqual(ms.store[1].a, 5)
+            self.assertEqual(ms.store[1].b, 12)
+            self.assertEqual(ms.store[1].length, 2)
 
     def test_submission(self):
         self._create_test_course()
