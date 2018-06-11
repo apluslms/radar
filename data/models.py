@@ -289,6 +289,7 @@ class Submission(models.Model):
                 + (" (submitted: %s)" % self.provider_submission_time)
                   if self.provider_submission_time else "")
 
+
 class ComparisonManager(models.Manager):
 
     def clean_for_exercise(self, exercise):
@@ -339,3 +340,16 @@ class Comparison(models.Model):
         return "%s/%s: %s %s similarity %.2f" % (self.submission_a.exercise.course.name, self.submission_a.exercise.name, self.submission_a.student.key, c, self.similarity)
 
 
+class SimilarityFunction(models.Model):
+    """
+    Weighted string similarity function.
+    """
+    weight = models.FloatField()
+    name = models.CharField(max_length=256, unique=True)
+    description = models.TextField(blank=True, null=True)
+    function = models.CharField(max_length=256, blank=True, null=True)
+    tokenized_input = models.BooleanField()
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return "function {} with weight {} on course {}".format(self.function, self.weight, self.course)

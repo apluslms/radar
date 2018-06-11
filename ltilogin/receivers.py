@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.signals import user_logged_in
 from django.core.exceptions import PermissionDenied
 
-from data.models import Course, URLKeyField
+from data.models import Course, URLKeyField, SimilarityFunction
 from aplus_client.django.models import ApiNamespace as Site
 
 
@@ -50,6 +50,20 @@ def add_course_permissions(sender, **kwargs):
             apiclient.update_params(params)
             course_obj = apiclient.load_data(url)
             course = Course.objects.get_new_or_updated(course_obj, namespace=site, key=course_key)
+            # Initialize default string similarity functions and their weights
+            for match_algorithm in settings.MATCH_ALGORITHMS:
+                weight = match_algorithm["default_weight"]
+                if weight is None:
+                    continue
+                SimilarityFunction(
+                    weight=weight,
+                    name=match_algorithm["name"],
+                    description=match_algorithm["description"],
+                    function=match_algorithm["function"],
+                    tokenized_input=match_algorithm["tokenized_input"],
+                    course=course
+                ).save()
+            course.save()
 
         # add course membership for permissions
         user.courses.add(course)

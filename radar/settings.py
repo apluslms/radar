@@ -150,12 +150,33 @@ REVIEWS = (
     },
 )
 
-MATCH_ALGORITHMS = {
-    "jplag": "matcher.jplag.match",
-    "jplag_ext": "matcher.jplag_ext.match",
-}
+MATCH_ALGORITHMS = [
+    {
+        "name": "jplag",
+        "description": "Greedy string tiling",
+        "function": "matcher.jplag.match",
+        "tokenized_input": True,
+        "default_weight": None
+    },
+    {
+        "name": "jplag_ext",
+        "description": "Greedy string tiling C++ extension",
+        "function": "matcher.jplag_ext.match",
+        "tokenized_input": True,
+        "default_weight": 1.0
+    },
+    {
+        "name": "md5sum",
+        "description": "MD5 checksum of the submission source",
+        "function": None,
+        "tokenized_input": False,
+        "default_weight": 1.0
+    },
+]
 
-MATCH_ALGORITHM = MATCH_ALGORITHMS["jplag_ext"]
+# Visualizations will be done from the matches reported by the main match algorithm
+MAIN_MATCH_ALGORITHM = "jplag_ext"
+
 MATCH_STORE_MIN_SIMILARITY = 0.2
 MATCH_STORE_MAX_COUNT = 10
 

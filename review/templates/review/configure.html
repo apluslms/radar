@@ -9,6 +9,25 @@
 {% endfor %}
 </div>
 {% else %}
+
+<h4>Enabled similarity functions</h4>
+<table class="table table-condensed table-striped">
+    <tr>
+        <th>Function</th>
+        <th>Description</th>
+        <th>Weight</th>
+    </tr>
+    {% for function in similarity_functions %}
+    <tr>
+        <td>{{ function.name }}</td>
+        <td>{{ function.description }}</td>
+        <td>{{ function.weight }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h4>Exercise configuration</h4>
+
 <form method="post">
   {% csrf_token %}
 
@@ -35,7 +54,7 @@
 
     <h4>New exercise data</h4>
     {% if exercises.new %}
-    <table class="table config-table">
+    <table class="table table-condensed table-striped config-table">
       <tr>
         <th>A+ exercise key</th>
         <th>Name</th>
