@@ -6,3 +6,4 @@ requests==2.13.0
 git+https://github.com/Aalto-LeTech/django-lti-login.git@master#egg=django-lti-login
 cachetools==2.0.1
 git+https://github.com/raphendyr/raphendyr-django-essentials.git@1.2.1
+git+https://github.com/Aalto-LeTech/a-plus-client.git@0862cac947b9c33f133680416ba5749cb7990b26
