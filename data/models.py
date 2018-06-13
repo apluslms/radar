@@ -343,13 +343,26 @@ class Comparison(models.Model):
 class SimilarityFunction(models.Model):
     """
     Weighted string similarity function.
+    Each course instance can choose the desired functions and add arbitrary weights.
     """
     weight = models.FloatField()
     name = models.CharField(max_length=256, unique=True)
     description = models.TextField(blank=True, null=True)
     function = models.CharField(max_length=256, blank=True, null=True)
-    tokenized_input = models.BooleanField()
+    tokenized_input = models.BooleanField(help_text="Does this function accept tokenized input or untokenized, unmodified source strings")
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
 
     def __str__(self):
-        return "function {} with weight {} on course {}".format(self.function, self.weight, self.course)
+        return "function {} with weight {:.2f} on course {}".format(self.function, self.weight, self.course)
+
+
+class ComparisonResult(models.Model):
+    """
+    Resulting (unweighted) similarity after doing a comparison of two submissions using some similarity function.
+    """
+    similarity = models.FloatField(help_text="Unweighted similarity score")
+    function = models.ForeignKey(SimilarityFunction, on_delete=models.CASCADE, related_name="+")
+    comparison = models.ForeignKey(Comparison, on_delete=models.CASCADE, null=True)
+
+    def __str__(self):
+        return "similarity {:.2f} with function {} for comparison {}".format(self.similarity, self.function, self.comparison)

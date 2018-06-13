@@ -70,3 +70,7 @@ class TestBenchmark(TestCase):
     def test_c4_very_likely_equal_large(self):
         self.benchmark(generate_data(1000, 1000, 1))
 
+
+class TestMatcherState(TestCase):
+    """Attempt to cover as many failure states as possible when calling matcher.match with some submission object."""
+    pass

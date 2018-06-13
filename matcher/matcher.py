@@ -4,7 +4,7 @@ import logging
 from django.conf import settings
 from django.db.models import Avg
 
-from data.models import Comparison, Submission, Exercise
+from data.models import Comparison, ComparisonResult, Submission, Exercise
 import radar.config as config_loaders
 import gc
 
@@ -36,82 +36,92 @@ def match(a):
 
     # All similarity algorithms that accept tokenized input
     similarity_functions_tokenized = a.exercise.course.similarityfunction_set.filter(tokenized_input=True)
-    # All similarity algorithms that accept the untokenized, original source
-    similarity_functions_source = a.exercise.course.similarityfunction_set.exclude(tokenized_input=True)
-
-    # TODO store all similarities for each function for comparison instead of merging all as the average
 
     # Match submission 'a' against template with all algorithms
-    similarity = 0.0
-    matches_json = None
-    for function_def in similarity_functions_tokenized:
+    template_comparison = Comparison(submission_a=a, submission_b=None)
+    results = []
+
+    # template offset? TODO: could this be avoided?
+    l = 0
+    while l < len(a.tokens) and l < len(a.exercise.template_tokens) and a.tokens[l] == a.exercise.template_tokens[l]:
+        l += 1
+
+    for similarity_function in similarity_functions_tokenized:
 
         # Import the similarity algorithm from a string
-        similarity_function = config_loaders.named_function(function_def.function)
+        sim_func_callable = config_loaders.named_function(similarity_function.function)
 
         # Match against template.
-        logger.debug("Match %s vs template, with function %s", a.student.key, function_def.name)
-        l = 0
-        while l < len(a.tokens) and l < len(a.exercise.template_tokens) and a.tokens[l] == a.exercise.template_tokens[l]:
-            l += 1
-        ms = similarity_function(a.tokens, top_marks(len(a.tokens), l),
+        logger.debug("Match %s vs template, with function %s", a.student.key, similarity_function.name)
+        ms = sim_func_callable(a.tokens, top_marks(len(a.tokens), l),
                a.exercise.template_tokens, top_marks(len(a.exercise.template_tokens), l),
                a.exercise.minimum_match_tokens)
-        if function_def.name == settings.MAIN_MATCH_ALGORITHM:
-            assert matches_json is None
-            matches_json = ms.json()
+        if similarity_function.name == settings.MAIN_MATCH_ALGORITHM:
+            # Set the match indexes for match visualization
+            template_comparison.matches_json = ms.json()
         if l > 0:
             ms.add_non_overlapping(TokenMatch(0, 0, l))
-        w = function_def.weight
-        s = safe_div(ms.token_count(), len(a.tokens))
-        similarity += w * s
+        similarity = safe_div(ms.token_count(), len(a.tokens))
+        results.append(ComparisonResult(similarity=similarity, function=similarity_function))
 
-    assert matches_json is not None
+    # Save all comparison results if there are any
+    avg_similarity = 0.0
+    if results:
+        template_comparison.save()
+        for result in results:
+            result.comparison = template_comparison
+            result.save()
+            avg_similarity += result.function.weight * result.similarity
+        avg_similarity /= len(results)
+    template_comparison.similarity = avg_similarity
+    template_comparison.save()
 
-    similarity /= similarity_functions_tokenized.count()
+    # Now, match submission 'a' against all previously matched submissions 'b' of the same exercise.
 
-    # Create template comparison
-    Comparison(submission_a=a, submission_b=None, similarity=similarity, matches_json=matches_json).save()
+    # All similarity algorithms that accept the untokenized, submitted source string
+    similarity_functions_source = a.exercise.course.similarityfunction_set.filter(tokenized_input=False)
 
-    # Match against previously matched submissions.
     marks_a, count_a, longest_a = a.template_marks()
     if longest_a >= a.exercise.minimum_match_tokens:
         for b in a.submissions_to_compare:
             # Force garbage collection.
             gc.collect() # is this necessary for correctness or just an optimization attempt?
-            logger.debug("Match %s and %s, with function %s", a.student.key, b.student.key, function_def.name)
+            logger.debug("Match %s and %s", a.student.key, b.student.key)
             marks_b, count_b, longest_b = b.template_marks()
             if longest_b >= a.exercise.minimum_match_tokens:
-                similarity = 0.0
-                matches_json = None
-                # Compute similarity for submission a and b with all similarity functions and weights
-                for function_def in similarity_functions_tokenized:
+                # Compute similarity for submission a and b with all similarity functions that accept the tokenized string
+                ab_comparison = Comparison(submission_a=a, submission_b=b)
+                results = []
+                for similarity_function in similarity_functions_tokenized:
                     # Import the match algorithm from a string
-                    similarity_function = config_loaders.named_function(function_def.function)
-                    ms = similarity_function(a.tokens, marks_a, b.tokens, marks_b, a.exercise.minimum_match_tokens)
-                    if function_def.name == settings.MAIN_MATCH_ALGORITHM:
-                        assert matches_json is None
-                        matches_json = ms.json()
-                    w = function_def.weight
-                    s = safe_div(ms.token_count(), (count_a + count_b) / 2)
-                    similarity += w * s
-                for function_def in similarity_functions_source:
-                    if function_def.name == "md5sum":
+                    sim_func_callable = config_loaders.named_function(similarity_function.function)
+                    ms = sim_func_callable(a.tokens, marks_a, b.tokens, marks_b, a.exercise.minimum_match_tokens)
+                    if similarity_function.name == settings.MAIN_MATCH_ALGORITHM:
+                        assert ab_comparison.matches_json is None
+                        ab_comparison.matches_json = ms.json()
+                    similarity = safe_div(ms.token_count(), (count_a + count_b) / 2)
+                    if similarity > settings.MATCH_STORE_MIN_SIMILARITY:
+                        results.append(ComparisonResult(similarity=similarity, function=similarity_function))
+                for similarity_function in similarity_functions_source:
+                    if similarity_function.name == "md5sum":
                         if a.source_checksum == b.source_checksum:
-                            similarity += function_def.weight
-                similarity /= (similarity_functions_tokenized.count()
-                               + similarity_functions_source.count())
-                if similarity > settings.MATCH_STORE_MIN_SIMILARITY:
-                    assert matches_json is not None
-                    Comparison(submission_a=a, submission_b=b,
-                        similarity=similarity,
-                        matches_json=matches_json
-                    ).save()
-                if similarity > b.max_similarity:
-                    b.max_similarity = similarity
+                            similarity = similarity_function.weight
+                            results.append(ComparisonResult(similarity=similarity, function=similarity_function))
+                avg_similarity = 0.0
+                if results:
+                    ab_comparison.save()
+                    for result in results:
+                        result.comparison = ab_comparison
+                        result.save()
+                        avg_similarity += result.function.weight * result.similarity
+                    avg_similarity /= len(results)
+                ab_comparison.similarity = avg_similarity
+                ab_comparison.save()
+                if avg_similarity > b.max_similarity:
+                    b.max_similarity = avg_similarity
                     b.save()
-                if a.max_similarity is None or similarity > a.max_similarity:
-                    a.max_similarity = similarity
+                if a.max_similarity is None or avg_similarity > a.max_similarity:
+                    a.max_similarity = avg_similarity
                     a.save()
 
         tail = (Comparison.objects
