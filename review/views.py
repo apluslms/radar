@@ -37,12 +37,32 @@ def course(request, course_key=None, course=None):
 
 @access_resource
 def course_histograms(request, course_key=None, course=None):
+    """
+    Compute similarity distribution as histograms for each similarity function separately, and one weighted average of all similarity scores.
+    """
+    exercises_data = []
+    for exercise in course.exercises.all():
+        data = {"exercise": exercise}
+        similarity_results = []
+        # For all enabled similarity functions
+        for similarity_func in course.similarityfunction_set.all():
+            # All similarity scores computed with this similarity function, sorted in descending order in one flattened list
+            max_comparison_results = [r for results in exercise.comparison_results_max_similarity_with_function(similarity_func) for r in list(results) if results]
+            if max_comparison_results:
+                similarity_results.append({
+                    "similarity_func": similarity_func.name,
+                    "similarity_json": json.dumps(max_comparison_results)
+                })
+        data["similarity_results"] = similarity_results
+        exercises_data.append(data)
+    logger.info(exercises_data)
     return render(request, "review/course_histograms.html", {
         "hierarchy": ((settings.APP_NAME, reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("Histograms", None)),
         "course": course,
-        "exercises": course.exercises.all()
+        "exercises_data": exercises_data,
+        "similarity_functions": course.similarityfunction_set.all()
     })
 
 

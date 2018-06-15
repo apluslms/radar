@@ -152,6 +152,21 @@ class Exercise(models.Model):
     def submissions_max_similarity_json(self):
         return json.dumps(list(self.submissions_max_similarity))
 
+    def comparison_results_max_similarity_with_function(self, similarity_function):
+        """
+        Return an iterator over query sets of all comparison results for all submissions of this exercise, where the similarity is computed with the given similarity function.
+        """
+        return (ComparisonResult.objects
+                .filter(
+                    comparison__submission_a=submission,
+                    comparison__submission_b__isnull=False,
+                    function=similarity_function)
+                .values("comparison__submission_a__student__id")
+                .annotate(m=models.Max("similarity"))
+                .order_by("-m")
+                .values_list("m", flat=True)
+                for submission in self.matched_submissions)
+
     def top_comparisons(self):
         max_list = self.matched_submissions.values('student__id')\
             .annotate(m=models.Max('max_similarity')).order_by('-m')\

@@ -5,14 +5,38 @@
     <h4>Similarity distribution of all submissions for each exercise. Similarity is represented in the range [0, 1], where 0 means disjoint strings and 1 means equal strings.</h4>
 </div>
 
+<h4>Available similarity scores</h4>
+<table class="table table-condensed table-striped">
+    <tr>
+        <th>Function</th>
+        <th>Description</th>
+        <th>Weight</th>
+    </tr>
+    {% for function in similarity_functions %}
+    <tr>
+        <td>{{ function.name }}</td>
+        <td>{{ function.description }}</td>
+        <td>{{ function.weight }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
 <ul class="course-histograms">
-	{% for exercise in exercises %}
-	<li class="well well-sm{% if exercise.paused %} paused{% endif %}">
-		<p><a href="{% url 'exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }}:
-		Submissions {{ exercise.submissions.count }} ({{ exercise.matched_submissions.count }} matched)</a></p>
+	{% for exercise_data in exercises_data %}
+	<li class="well well-sm{% if exercise_data.exercise.paused %} paused{% endif %}">
+		<p><a href="{% url 'exercise' course_key=course.key exercise_key=exercise_data.exercise.key %}">{{ exercise_data.exercise.name }}:
+		Submissions {{ exercise_data.exercise.submissions.count }} ({{ exercise_data.exercise.matched_submissions.count }} matched)</a></p>
+
+        <p>Average similarity with all enabled similarity functions</p>
 		<div class="histogram">
-			<pre class="json">{{ exercise.submissions_max_similarity_json }}</pre>
+			<pre class="json">{{ exercise_data.exercise.submissions_max_similarity_json }}</pre>
 		</div>
+        {% for similarity_data in exercise_data.similarity_results %}
+        <p>{{ similarity_data.similarity_func }}</p>
+		<div class="histogram">
+			<pre class="json">{{ similarity_data.similarity_json }}</pre>
+		</div>
+        {% endfor %}
 	</li>
 	{% endfor %}
 </ul>

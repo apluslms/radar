@@ -143,14 +143,14 @@ REVIEWS = (
 MATCH_ALGORITHMS = [
     {
         "name": "jplag",
-        "description": "Greedy string tiling",
+        "description": "Greedy string tiling, longest matching substring",
         "function": "matcher.jplag.match",
         "tokenized_input": True,
         "default_weight": None
     },
     {
         "name": "jplag_ext",
-        "description": "Greedy string tiling C++ extension",
+        "description": "Greedy string tiling, longest matching substring",
         "function": "matcher.jplag_ext.match",
         "tokenized_input": True,
         "default_weight": 1.0
