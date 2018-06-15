@@ -15,6 +15,9 @@ AUTH_USER_MODEL = "accounts.RadarUser"
 
 APP_NAME = "Radar"
 
+with open(os.path.join(BASE_DIR, "radar", "secret_key")) as f:
+    SECRET_KEY = f.read().strip()
+
 # Application definition
 
 INSTALLED_APPS = (
