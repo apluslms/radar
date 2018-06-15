@@ -364,7 +364,7 @@ class SimilarityFunction(models.Model):
     name = models.CharField(max_length=256, unique=True)
     description = models.TextField(blank=True, null=True)
     function = models.CharField(max_length=256, blank=True, null=True)
-    tokenized_input = models.BooleanField(help_text="Does this function accept tokenized input or untokenized, unmodified source strings")
+    tokenized_input = models.BooleanField(help_text="True, if this function accepts as input the untokenized, unmodified, source string")
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
 
     def __str__(self):
