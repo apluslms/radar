@@ -110,6 +110,18 @@ def reload_exercise_submissions(exercise_key, submissions_api_url):
 
 
 @shared_task(ignore_result=True)
+def match_all_exercise_unmatched_submissions(exercise_id):
+    exercise = Exercise.objects.get(pk=exercise_id)
+    submissions = Submission.objects.filter(
+        exercise=exercise,
+        exercise__paused=False,
+        max_similarity__isnull=True
+    )
+    for submission in submissions:
+        matcher.match(submission)
+
+
+@shared_task(ignore_result=True)
 def match_all_unmatched_submissions(course_key=None):
     courses = []
     if course_key is None:
@@ -119,11 +131,5 @@ def match_all_unmatched_submissions(course_key=None):
     else:
         courses.append(Course.objects.get(key=course_key))
     for course in courses:
-        submissions = Submission.objects.filter(
-            exercise__course=course,
-            exercise__paused=False,
-            max_similarity__isnull=True
-        )
-        for submission in submissions:
-            matcher.match(submission)
-
+        for exercise in course.exercises.all():
+            match_all_exercise_unmatched_submissions.delay(exercise.id)
