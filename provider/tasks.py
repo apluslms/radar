@@ -111,13 +111,12 @@ def reload_exercise_submissions(exercise_key, submissions_api_url):
 
 @shared_task(ignore_result=True)
 def match_all_exercise_unmatched_submissions(exercise_id):
-    exercise = Exercise.objects.get(pk=exercise_id)
-    submissions = Submission.objects.filter(
-        exercise=exercise,
+    unmatched_submissions = Submission.objects.filter(
+        exercise__id=exercise_id,
         exercise__paused=False,
         max_similarity__isnull=True
     )
-    for submission in submissions:
+    for submission in unmatched_submissions:
         matcher.match(submission)
 
 
