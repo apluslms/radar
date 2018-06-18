@@ -17,9 +17,7 @@ def tokenize_submission(submission, submission_text, p_config):
         submission_text,
         tokenizer_config(submission.exercise.tokenizer)
     )
-    submission.tokens = tokens
-    submission.indexes_json = json.dumps(indexes)
-    submission.save()
+    return tokens, json.dumps(indexes)
 
 
 def tokenize_source(source, t_config):

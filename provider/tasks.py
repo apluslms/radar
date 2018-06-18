@@ -74,11 +74,17 @@ def create_submission(submission_key, course_key, submission_api_url):
         raise ProviderTaskError("Failed to get submission text for submission %s", submission)
 
     logger.debug("Tokenizing contents of submission %s", submission_key)
-    tokenizer.tokenize_submission(
+    tokens, json_indexes = tokenizer.tokenize_submission(
         submission,
         submission_text,
         provider_config
     )
+    logger.info(tokens, json_indexes)
+    if not tokens:
+        raise ProviderTaskError("Tokenizer returned an empty token string for submission %s, will not save submission", submission_key)
+    submission.tokens = tokens
+    submission.indexes_json = json_indexes
+
     logger.debug("Compute checksum of submission source %s", submission_key)
     submission_hash = hashlib.md5(submission_text.encode("utf-8"))
     submission.source_checksum = submission_hash.hexdigest()
