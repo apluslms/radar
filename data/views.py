@@ -15,13 +15,16 @@ def hook_submission(request, course_key=None):
     """
     Receives the hook call for new submission
     and passes it to the course provider.
-    
+
     """
     course = get_object_or_404(Course, key=course_key)
 
     if course.archived:
         logger.error("Submission hook failed, archived course %s", course)
         raise Http404()
+
+    if request.method == "GET":
+        return HttpResponse("Received hook submission request for course {}, but doing nothing since GET requests are ignored.".format(course))
 
     config = provider_config(course.provider)
     try:

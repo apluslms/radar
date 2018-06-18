@@ -10,6 +10,23 @@
 </div>
 {% else %}
 
+<h4>Provider data</h4>
+<table class="table table-condensed table-striped">
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Path</th>
+    </tr>
+    {% for data in provider_data %}
+    <tr>
+        <td>{{ data.name }}</td>
+        <td>{{ data.description }}</td>
+        <td><a href="{{ data.path }}">{{ data.path }}</a></td>
+    </tr>
+    {% endfor %}
+</table>
+
+
 <h4>Enabled similarity functions</h4>
 <table class="table table-condensed table-striped">
     <tr>

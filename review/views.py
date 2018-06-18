@@ -162,6 +162,18 @@ def configure_course(request, course_key=None, course=None):
         "course": course,
         #TODO postable form for editing weights
         "similarity_functions": course.similarityfunction_set.all(),
+        "provider_data": [
+            {
+                "name": 'Submission hook',
+                "description": 'Data providers should make POST-requests, containing submission IDs, to this path',
+                "path": reverse("hook_submission", kwargs={"course_key": course.key}),
+            },
+            {
+                "name": 'LTI login',
+                "description": 'Login requests using the LTI-protocol should be made to this path',
+                "path": reverse("lti_login"),
+            },
+        ],
         "errors": []
     }
     if "retrieve_exercise_data" in request.POST:
