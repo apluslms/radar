@@ -50,8 +50,8 @@ TOKENIZER_CHOICES = (
     ("skip", "Skip"),
     ("scala", "Scala"),
     ("python", "Python"),
-    ("js", "JavaScript"),
-    ("html", "HTML"),
+    ("js", "JavaScript (ECMA 2016)"),
+    ("html", "HTML5"),
     ("css", "CSS"),
 )
 # Tokenizer functions and the separator string injected into the first line

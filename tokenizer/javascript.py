@@ -12,7 +12,7 @@ def tokenize_no_string(source):
     """
     javascript.tokenize but return a list of tokens in place of the token string.
     """
-    parsed = util.run(("node", "tokenizer/node_scripts/jsTokenizer.js"), source)
+    parsed = util.run(("nodejs", "tokenizer/node_scripts/jsTokenizer.js"), source)
     data = json.loads(parsed.decode("utf-8"))
     return data["tokens"], data["indexes"]
 
