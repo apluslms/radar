@@ -161,21 +161,21 @@ class Exercise(models.Model):
                     comparison__submission_a=submission,
                     comparison__submission_b__isnull=False,
                     function=similarity_function)
-                .values("comparison__submission_a__student__id")
-                .annotate(m=models.Max("similarity"))
-                .order_by("-m")
-                .values_list("m", flat=True)
+                .aggregate(models.Max("similarity"))
                 for submission in self.matched_submissions)
 
     def top_comparisons(self):
-        max_list = self.matched_submissions.values('student__id')\
-            .annotate(m=models.Max('max_similarity')).order_by('-m')\
-            [:settings.SUBMISSION_VIEW_HEIGHT]
-        return self._comparisons_by_submission([
-            self.matched_submissions.filter(student__id=each['student__id'])\
-                .order_by('-max_similarity').first().id\
+        max_list = (self.matched_submissions
+                .values('student__id')
+                .annotate(m=models.Max('max_similarity'))
+                .order_by('-m')[:settings.SUBMISSION_VIEW_HEIGHT])
+        return self._comparisons_by_submission(
+            self.matched_submissions
+            .filter(student__id=each['student__id'])
+            .order_by('-max_similarity')
+            .first().id
             for each in max_list
-        ])
+        )
 
     def comparisons_for_student(self, student):
         return self._comparisons_by_submission(
@@ -190,13 +190,18 @@ class Exercise(models.Model):
         for s in submissions:
             comparisons.append({
                 "submission_id": s,
-                "matches": list(Comparison.objects\
-                    .exclude(submission_b__isnull=True)\
-                    .filter(models.Q(submission_a__id=s) | models.Q(submission_b__id=s))\
-                    .order_by("-similarity")\
-                    .select_related("submission_a", "submission_b",
-                        "submission_a__exercise", "submission_a__student",
-                        "submission_b__student")[:settings.SUBMISSION_VIEW_WIDTH]
+                "matches": list(
+                    Comparison.objects
+                    .exclude(submission_b__isnull=True)
+                    .filter(models.Q(submission_a__id=s) | models.Q(submission_b__id=s))
+                    .order_by("-similarity")
+                    .select_related(
+                        "submission_a",
+                        "submission_b",
+                        "submission_a__exercise",
+                        "submission_a__student",
+                        "submission_b__student"
+                    )[:settings.SUBMISSION_VIEW_WIDTH]
                 )
             })
         return comparisons
@@ -259,7 +264,8 @@ class Submission(models.Model):
     indexes_json = models.TextField(blank=True, null=True, default=None)
     authored_token_count = models.IntegerField(blank=True, null=True, default=None)
     longest_authored_tile = models.IntegerField(blank=True, null=True, default=None)
-    max_similarity = models.FloatField(db_index=True, blank=True, null=True, default=None)
+    max_similarity = models.FloatField(db_index=True, blank=True, null=True, default=None,
+            help_text="Maximum weighted average over all similarity scores computed by different similarity functions")
 
     @property
     def submissions_to_compare(self):
@@ -327,7 +333,8 @@ class Comparison(models.Model):
     """
     submission_a = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="+")
     submission_b = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="+", blank=True, null=True)
-    similarity = models.FloatField(default=0.0)
+    similarity = models.FloatField(default=0.0,
+            help_text="Similarity score resulting from the comparison of two submissions. This value should be used as an aggregate of the similarity scores produced by different similarity functions.")
     matches_json = models.TextField(blank=True, null=True, default=None)
     review = models.IntegerField(choices=settings.REVIEW_CHOICES, default=0)
     objects = ComparisonManager()
@@ -380,9 +387,9 @@ class SimilarityFunction(models.Model):
     Each course instance can choose the desired functions and add arbitrary weights.
     """
     weight = models.FloatField()
-    name = models.CharField(max_length=256, unique=True)
+    name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
-    function = models.CharField(max_length=256, blank=True, null=True)
+    function = models.CharField(max_length=100, blank=True, null=True)
     tokenized_input = models.BooleanField(help_text="True, if this function accepts as input the untokenized, unmodified, source string")
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
 
