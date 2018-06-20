@@ -271,6 +271,15 @@ class Submission(models.Model):
     def template_comparison(self):
         return Comparison.objects.filter(submission_a=self, submission_b__isnull=True).first()
 
+    def max_similarity_from_comparisons(self):
+        """
+        Return the maximum similarity (or default to 0) over all comparisons this submission participates in.
+        """
+        res = (Comparison.objects
+                .filter(submission_a=self)
+                .aggregate(models.Max("similarity")).get("similarity__max"))
+        return res or 0
+
     def template_matches(self):
         ct = self.template_comparison
         if ct is None:
@@ -339,6 +348,16 @@ class Comparison(models.Model):
     def review_class(self):
         return next((m["class"] for m in settings.REVIEWS if m["value"] == self.review), "unknown")
 
+    @property
+    def max_similarity(self):
+        res = self.results.aggregate(models.Max("similarity")).get("similarity__max")
+        return res or 0
+
+    @property
+    def avg_similarity(self):
+        res = self.results.aggregate(models.Avg("similarity")).get("similarity__avg")
+        return res or 0
+
     def update_review(self, review):
         try:
             r = int(review)
@@ -376,8 +395,13 @@ class ComparisonResult(models.Model):
     Resulting (unweighted) similarity after doing a comparison of two submissions using some similarity function.
     """
     similarity = models.FloatField(help_text="Unweighted similarity score")
-    function = models.ForeignKey(SimilarityFunction, on_delete=models.CASCADE, related_name="+")
-    comparison = models.ForeignKey(Comparison, on_delete=models.CASCADE, null=True)
+    function = models.ForeignKey(SimilarityFunction,
+            on_delete=models.CASCADE,
+            related_name="+")
+    comparison = models.ForeignKey(Comparison,
+            on_delete=models.CASCADE,
+            null=True,
+            related_name="results")
 
     def __str__(self):
         return "similarity {:.2f} with function {} for comparison {}".format(self.similarity, self.function, self.comparison)
