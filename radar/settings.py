@@ -167,9 +167,6 @@ MATCH_ALGORITHMS = [
     },
 ]
 
-# Visualizations will be done from the matches reported by the main match algorithm
-MAIN_MATCH_ALGORITHM = "jplag_ext"
-
 MATCH_STORE_MIN_SIMILARITY = 0.2
 MATCH_STORE_MAX_COUNT = 10
 

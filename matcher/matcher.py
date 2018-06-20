@@ -56,12 +56,12 @@ def match(a):
         ms = sim_func_callable(a.tokens, top_marks(len(a.tokens), l),
                a.exercise.template_tokens, top_marks(len(a.exercise.template_tokens), l),
                a.exercise.minimum_match_tokens)
-        if similarity_function.name == settings.MAIN_MATCH_ALGORITHM:
+        if l > 0:
+            ms.add_non_overlapping(TokenMatch(0, 0, l))
+        if template_comparison.matches_json is None:
             # Set the match indexes for match visualization
             template_comparison.matches_json = ms.json()
             template_comparison.save()
-        if l > 0:
-            ms.add_non_overlapping(TokenMatch(0, 0, l))
         similarity = similarity_function.weight * safe_div(ms.token_count(), len(a.tokens))
         ComparisonResult(similarity=similarity, function=similarity_function, comparison=template_comparison).save()
 
@@ -83,6 +83,7 @@ def match(a):
             if longest_b >= a.exercise.minimum_match_tokens:
                 # Compute similarity for submission a and b with all similarity functions that accept the tokenized string
                 ab_comparison = Comparison(submission_a=a, submission_b=b)
+                results = []
 
                 for similarity_function in similarity_functions_source:
                     if similarity_function.name == "md5sum":
@@ -90,6 +91,10 @@ def match(a):
                             similarity = similarity_function.weight
                             comparison_result = ComparisonResult(similarity=similarity, function=similarity_function)
                             if similarity > settings.MATCH_STORE_MIN_SIMILARITY:
+                                ms = TokenMatchSet()
+                                # Matching checksums implies a match consisting of all tokens
+                                ms.add_non_overlapping(TokenMatch(0, 0, len(a.tokens)))
+                                results.append({"similarity": similarity, "match_set": ms})
                                 ab_comparison.save()
                                 comparison_result.comparison = ab_comparison
                                 comparison_result.save()
@@ -98,19 +103,21 @@ def match(a):
                     # Import the match algorithm from a string
                     sim_func_callable = config_loaders.named_function(similarity_function.function)
                     ms = sim_func_callable(a.tokens, marks_a, b.tokens, marks_b, a.exercise.minimum_match_tokens)
-                    if similarity_function.name == settings.MAIN_MATCH_ALGORITHM:
-                        assert ab_comparison.matches_json is None
-                        ab_comparison.matches_json = ms.json()
                     similarity = similarity_function.weight * safe_div(ms.token_count(), (count_a + count_b) / 2)
                     comparison_result = ComparisonResult(similarity=similarity, function=similarity_function)
                     # Commit comparison result to database only if the specified similarity threshold is exceeded
                     if similarity > settings.MATCH_STORE_MIN_SIMILARITY:
+                        results.append({"similarity": similarity, "match_set": ms})
                         ab_comparison.save()
                         comparison_result.comparison = ab_comparison
                         comparison_result.save()
 
-                ab_comparison.similarity = ab_comparison.max_similarity
-                ab_comparison.save()
+                # If at least one of the comparisons yielded a similarity result above the min similarity threshold, store the result with maximum similarity
+                if results:
+                    max_result = max(results, key=lambda r: r["similarity"])
+                    ab_comparison.similarity = max_result["similarity"]
+                    ab_comparison.matches_json = max_result["match_set"].json()
+                    ab_comparison.save()
 
         tail = (Comparison.objects
                 .filter(submission_a=a)
