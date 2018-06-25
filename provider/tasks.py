@@ -4,7 +4,7 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 
 import radar.config as config_loaders
-from matcher import matcher
+from matcher import matcher, tasks as matcher_tasks
 from provider import aplus
 from data.models import Course, Submission, Exercise
 from tokenizer import tokenizer
@@ -91,6 +91,13 @@ def create_submission(submission_key, course_key, submission_api_url):
     submission.save()
 
     logger.debug("Successfully processed submission with key %s for %s", submission_key, course)
+
+    # Compute similarity to exercise template
+    # This must be done sequentially because it is a prerequisite for computing all other comparisons
+    matcher.match_against_template(submission)
+
+    # Queue submission for matching against all matched submissions
+    matcher_tasks.match_submission.delay(submission.id)
 
 
 @shared_task(ignore_result=True)

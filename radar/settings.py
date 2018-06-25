@@ -143,29 +143,26 @@ REVIEWS = (
     },
 )
 
-MATCH_ALGORITHMS = [
-    {
-        "name": "jplag",
+MATCH_ALGORITHMS = {
+    "jplag": {
         "description": "Greedy string tiling, longest matching substring",
-        "function": "matcher.jplag.match",
+        "callable": "matcher.jplag.match",
         "tokenized_input": True,
-        "default_weight": None
+        "weight": None
     },
-    {
-        "name": "jplag_ext",
+    "jplag_ext": {
         "description": "Greedy string tiling, longest matching substring",
-        "function": "matcher.jplag_ext.match",
+        "callable": "matcher.jplag_ext.match",
         "tokenized_input": True,
-        "default_weight": 1.0
+        "weight": 1.0
     },
-    {
-        "name": "md5sum",
+    "md5sum": {
         "description": "MD5 checksum of the submission source",
-        "function": None,
+        "callable": None,
         "tokenized_input": False,
-        "default_weight": 1.0
+        "weight": 1.0
     },
-]
+}
 
 MATCH_STORE_MIN_SIMILARITY = 0.2
 MATCH_STORE_MAX_COUNT = 10

@@ -292,7 +292,7 @@ class Submission(models.Model):
             raise FieldError("Template matches requested before matching a submission")
         return json.loads(ct.matches_json)
 
-    def template_marks(self):
+    def template_marks(self): # TODO understand what this does and document
         token_count = len(self.tokens)
         marks = [ False ] * token_count
         authored = token_count
@@ -328,12 +328,12 @@ class ComparisonManager(models.Manager):
 
 class Comparison(models.Model):
     """
-    Compares two submissions.
-
+    Comparison of two submissions, with a resulting similarity score.
+    When submission_b is null, the Comparison contains the result from comparison submission_a to an exercise template.
     """
     submission_a = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="+")
     submission_b = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="+", blank=True, null=True)
-    similarity = models.FloatField(default=0.0,
+    similarity = models.FloatField(default=None, null=True,
             help_text="Similarity score resulting from the comparison of two submissions. This value should be used as an aggregate of the similarity scores produced by different similarity functions.")
     matches_json = models.TextField(blank=True, null=True, default=None)
     review = models.IntegerField(choices=settings.REVIEW_CHOICES, default=0)
