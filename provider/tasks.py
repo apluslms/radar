@@ -44,6 +44,8 @@ def create_submission(submission_key, course_key, submission_api_url):
     exercise = course.get_exercise(str(exercise_data["id"]))
     if exercise.name == "unknown":
         logger.debug("Exercise '%s' with key %d does not yet exist in Radar, creating a new entry.", exercise_name, exercise_data["id"])
+        # Get template source
+        radar_config["template_source"] = radar_config["get_template_source"]()
         exercise.set_from_config(radar_config)
         exercise.save()
 

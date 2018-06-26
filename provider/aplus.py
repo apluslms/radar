@@ -131,7 +131,7 @@ def get_radar_config(exercise_data):
        "url": exercise_data.get("html_url"),
        "tokenizer": radar_config.get("tokenizer", "skip"),
        "minimum_match_tokens": radar_config.get("minimum_match_tokens") or 15,
-       "template_source": load_exercise_template_from_api_data(exercise_data)
+       "get_template_source": lambda: load_exercise_template_from_api_data(exercise_data)
     }
     return data
 
