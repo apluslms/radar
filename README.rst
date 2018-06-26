@@ -34,7 +34,6 @@ Directory structure
 -------------------
 
 * ``accounts/`` Django app: user models that have A+ API access
-* ``aplus_client/`` Django app: A+ API client, copied from `MOOC Jutut`_
 * ``data/`` Django app: models, commands and cron
 * ``extensions/`` CPython extensions
 * ``ltilogin/`` Django app: handling user creation on first login using LTI access

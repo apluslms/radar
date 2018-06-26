@@ -144,12 +144,6 @@ REVIEWS = (
 )
 
 MATCH_ALGORITHMS = {
-    "jplag": {
-        "description": "Greedy string tiling, longest matching substring",
-        "callable": "matcher.jplag.match",
-        "tokenized_input": True,
-        "weight": None
-    },
     "jplag_ext": {
         "description": "Greedy string tiling, longest matching substring",
         "callable": "matcher.jplag_ext.match",
@@ -162,6 +156,19 @@ MATCH_ALGORITHMS = {
         "tokenized_input": False,
         "weight": 1.0
     },
+
+    # # Example
+    # "jplag": {
+    #     # Reference to a known algorithm, or a one line explanation on how the algorithm computes the similarity
+    #     "description": "Greedy string tiling, longest matching substring",
+    #     # Python-importable dotted path to the function within the Django project
+    #     "callable": "matcher.jplag.match",
+    #     # True if the callable accepts tokenized strings as input (regular match algorithm).
+    #     # False if the similarity is produced using some custom scheme that is hand coded (e.g. md5sum of the submission source, yielding binary similarity)
+    #     "tokenized_input": True,
+    #     # Decimal number that is multiplied with the output of the callable to produce the final similarity.
+    #     "weight": 0.5
+    # },
 }
 
 MATCH_STORE_MIN_SIMILARITY = 0.2
