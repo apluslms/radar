@@ -220,6 +220,10 @@ class Exercise(models.Model):
         if config["minimum_match_tokens"] != self.course.minimum_match_tokens:
             self.override_minimum_match_tokens = config["minimum_match_tokens"]
 
+    def clear_all_matches(self):
+        Comparison.objects.clean_for_exercise(self)
+        self.submissions.update(indexes_json=None, max_similarity=None)
+
     def clear_tokens_and_matches(self):
         self.submissions.update(tokens=None, indexes_json=None, max_similarity=None)
 

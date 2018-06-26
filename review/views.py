@@ -191,7 +191,7 @@ def configure_course(request, course_key=None, course=None):
             exercise.set_from_config(exercise_data)
             exercise.save()
             # Queue fetching all submissions for this exercise
-            aplus.reload(exercise, p_config)
+            aplus.full_reload(exercise, p_config)
         context["create_exercises_success"] = True
     return render(request, "review/configure.html", context)
 
@@ -227,7 +227,7 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
         ),
         "course": course,
         "exercise": exercise,
-        "provider_reload": "reload" in p_config
+        "provider_reload": "full_reload" in p_config
     }
     if request.method == "POST":
         form = ExerciseForm(request.POST)
@@ -239,9 +239,10 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
         if "save_and_clear" in request.POST:
             if form_tokenizer.is_valid():
                 form_tokenizer.save(exercise)
+                configured_function(p_config, "recompare")(exercise, p_config)
                 return redirect("course", course_key=course.key)
         if "provider_reload" in request.POST:
-            configured_function(p_config, "reload")(exercise, p_config)
+            configured_function(p_config, "full_reload")(exercise, p_config)
             return redirect("course", course_key=course.key)
     else:
         context["form"] = ExerciseForm({

@@ -45,6 +45,13 @@ MIDDLEWARE = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.memcached.MemcachedCache",
+        "LOCATION": "127.0.0.1:11211",
+    },
+}
+
 # Short name and display name of available tokenizers.
 TOKENIZER_CHOICES = (
     ("skip", "Skip"),
@@ -95,7 +102,8 @@ PROVIDER_CHOICES = (("a+", "A+"), ("filesystem", "File system"))
 PROVIDERS = {
     "a+": {
         "hook": "provider.aplus.hook",
-        "reload": "provider.aplus.reload",
+        "full_reload": "provider.aplus.reload",
+        "recompare": "provider.aplus.recompare",
         "get_submission_text": "data.aplus.get_submission_text",
         # Override these in local settings
         "host": "http://localhost:8000",
@@ -281,11 +289,25 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_BROKER_URL = "amqp://localhost:5672"
-CELERY_BEAT_SCHEDULE = {
-    "match_all_unmatched_submissions": {
-        "task": "provider.tasks.match_all_unmatched_submissions",
-        "schedule": 60, # Match all submissions once per minute.
-    }
+# celery.chord tasks (used by matcher.tasks.match_submissions) are not supported with the RPC backend, therefore we use Memcached
+CELERY_RESULT_BACKEND = "cache+memcached://127.0.0.1:11211/"
+
+# CELERY_BEAT_SCHEDULE = {
+#     # Match all submission pairs that for some reason have not been matched.
+#     # The task matches only submissions that are over one hour old to avoid interfering with regular matching tasks.
+#     "match_all_missing_comparisons": {
+#         "task": "matcher.tasks.match_all_missing_comparisons",
+#         "schedule": 60 * 60, # Run once per hour
+#     }
+# }
+
+# Use a separate task queue for matching submissions.
+# This task queue should be consumed by a single worker.
+# This avoids the situation where some submission pairs might never get matched due to data races from concurrent creation and matching of new submissions.
+CELERY_TASK_ROUTES = {
+    "matcher.tasks.match_submission": {
+        "queue": "match_submission",
+    },
 }
 
 

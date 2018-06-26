@@ -57,6 +57,7 @@ def create_submission(submission_key, course_key, submission_api_url):
     submission = Submission.objects.create(
         key=submission_key,
         exercise=exercise,
+        max_similarity=0.0,
         student=student,
         provider_url=data["html_url"],
         provider_submission_time=data["submission_time"],
@@ -101,47 +102,41 @@ def create_submission(submission_key, course_key, submission_api_url):
 
 
 @shared_task(ignore_result=True)
-def reload_exercise_submissions(exercise_key, submissions_api_url):
+def reload_exercise_submissions(exercise_id, submissions_api_url):
     """
     Fetch the current submission list from the API url, clear existing submissions, and queue newly fetched submissions for work.
     """
-    exercise = Exercise.objects.get(key=exercise_key)
+    exercise = Exercise.objects.get(pk=exercise_id)
     api_client = aplus.get_api_client(exercise.course)
     submissions_data = api_client.load_data(submissions_api_url)
     if submissions_data is None:
         raise ProviderTaskError("Invalid submissions data returned from %s for exercise %s: expected an iterable but got None" % (submissions_api_url, exercise))
     exercise.submissions.all().delete()
     for submission in submissions_data:
-        if not Submission.objects.filter(key=submission["id"]).exists():
-            create_submission.delay(
-                submission["id"],
-                exercise.course.key,
-                submission["url"]
-            )
-        else:
-            logger.error("Got a duplicate submission with key %s from %s", submission["id"], submissions_api_url)
+        create_submission.delay(submission["id"], exercise.course.key, submission["url"])
 
 
 @shared_task(ignore_result=True)
-def match_all_exercise_unmatched_submissions(exercise_id):
-    unmatched_submissions = Submission.objects.filter(
-        exercise__id=exercise_id,
-        exercise__paused=False,
-        max_similarity__isnull=True
-    )
-    for submission in unmatched_submissions:
-        matcher.match(submission)
+def match_all_unmatched_submissions_for_exercise(exercise_id):
+    exercise = Exercise.objects.get(pk=exercise_id)
+    for submission in exercise.unmatched_submissions:
+        matcher.match_against_template(submission)
+        matcher_tasks.match_submission.delay(submission.id)
 
 
 @shared_task(ignore_result=True)
 def match_all_unmatched_submissions(course_key=None):
-    courses = []
+    """
+    For a given course key, queue every submission with null similarity for matching.
+    If course key is not given, queue every unmatched submission on every course.
+    """
     if course_key is None:
         courses = Course.objects.filter(archived=False)
     elif not Course.objects.filter(key=course_key).exists():
-        raise ProviderTaskError("Cannot match submissions for course that does not exist, key was %s" % course_key)
+        raise ProviderTaskError("Cannot match submissions for non-existing course with key %s" % course_key)
     else:
-        courses.append(Course.objects.get(key=course_key))
+        courses = Course.objects.filter(key=course_key)
     for course in courses:
-        for exercise in course.exercises.all():
-            match_all_exercise_unmatched_submissions.delay(exercise.id)
+        logger.info("Matching all submissions for course %s", course)
+        for exercise in course.exercises.exclude(paused=True):
+            match_all_unmatched_submissions_for_exercise.delay(exercise.id)

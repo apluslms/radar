@@ -33,11 +33,20 @@ def hook(request, course, config):
 
 def reload(exercise, config):
     """
-    Reload all submissions for exercise from the A+ API.
+    Reload all submissions to given exercise from the A+ API, tokenize sources and match all.
     """
     logger.debug("Reloading all submissions for exercise %s", exercise)
     submissions_url = config["host"] + API_SUBMISSION_LIST_URL % { "eid": exercise.key }
-    tasks.reload_exercise_submissions.delay(exercise.key, submissions_url)
+    tasks.reload_exercise_submissions.delay(exercise.id, submissions_url)
+
+
+def recompare(exercise, config):
+    """
+    Clear all comparisons of submissions to given exercise and match all from scratch.
+    """
+    logger.debug("Recomparing all submissions for exercise %s", exercise)
+    exercise.clear_all_matches()
+    tasks.match_all_unmatched_submissions_for_exercise.delay(exercise.id)
 
 
 # TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself and not use someones LTI login tokens to fetch stuff from the API
