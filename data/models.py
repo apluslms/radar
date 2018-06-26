@@ -335,12 +335,14 @@ class Comparison(models.Model):
     submission_b = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="+", blank=True, null=True)
     similarity = models.FloatField(default=None, null=True,
             help_text="Similarity score resulting from the comparison of two submissions. This value should be used as an aggregate of the similarity scores produced by different similarity functions.")
+    similarity_function = models.CharField(max_length=200,
+            help_text="Name of the similarity function used to compute the similarity of this comparison")
     matches_json = models.TextField(blank=True, null=True, default=None)
     review = models.IntegerField(choices=settings.REVIEW_CHOICES, default=0)
     objects = ComparisonManager()
 
     class Meta:
-        unique_together = ("submission_a", "submission_b")
+        unique_together = ("submission_a", "submission_b", "similarity_function")
         ordering = ["-similarity", ]
 
     @property
@@ -379,36 +381,3 @@ class Comparison(models.Model):
     def __str__(self):
         c = "template" if self.submission_b is None else "vs %s" % (self.submission_b.student.key)
         return "%s/%s: %s %s similarity %.2f" % (self.submission_a.exercise.course.name, self.submission_a.exercise.name, self.submission_a.student.key, c, self.similarity)
-
-
-class SimilarityFunction(models.Model):
-    """
-    Weighted string similarity function.
-    Each course instance can choose the desired functions and add arbitrary weights.
-    """
-    weight = models.FloatField()
-    name = models.CharField(max_length=100, unique=True)
-    description = models.TextField(blank=True, null=True)
-    function = models.CharField(max_length=100, blank=True, null=True)
-    tokenized_input = models.BooleanField(help_text="True, if this function accepts as input the untokenized, unmodified, source string")
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return "function {} with weight {:.2f} on course {}".format(self.function, self.weight, self.course)
-
-
-class ComparisonResult(models.Model):
-    """
-    Resulting (unweighted) similarity after doing a comparison of two submissions using some similarity function.
-    """
-    similarity = models.FloatField(help_text="Unweighted similarity score")
-    function = models.ForeignKey(SimilarityFunction,
-            on_delete=models.CASCADE,
-            related_name="+")
-    comparison = models.ForeignKey(Comparison,
-            on_delete=models.CASCADE,
-            null=True,
-            related_name="results")
-
-    def __str__(self):
-        return "similarity {:.2f} with function {} for comparison {}".format(self.similarity, self.function, self.comparison)

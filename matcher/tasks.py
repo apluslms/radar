@@ -3,7 +3,7 @@ from django.db import models
 from celery import shared_task, chord
 from celery.utils.log import get_task_logger
 
-from matcher import matcher, safe_div, TokenMatch, TokenMatchSet
+from matcher import matcher
 from data.models import Submission, Comparison
 import radar.config as config_loaders
 
