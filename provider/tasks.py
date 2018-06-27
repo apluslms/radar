@@ -8,6 +8,7 @@ from matcher import matcher, tasks as matcher_tasks
 from provider import aplus
 from data.models import Course, Submission, Exercise
 from tokenizer import tokenizer
+from radar.celery import task_error_handler
 
 logger = get_task_logger(__name__)
 
@@ -18,11 +19,11 @@ class ProviderTaskError(Exception):
 
 def create_and_match(submission_key, course_key, submission_api_url):
     """
-    Create new submission, then match it.
+    Create a new submission by fetching API data, then match the created submission.
     Done asynchronously using two chained tasks.
     """
     create = create_submission.s(submission_key, course_key, submission_api_url)
-    match = matcher_tasks.match_submission.s() # Will be passed the return value from create
+    match = matcher_tasks.match_submission.s() # Will be passed the submission id from create
     celery.chain(create, match)()
 
 
@@ -98,6 +99,7 @@ def create_submission(submission_key, course_key, submission_api_url):
         raise ProviderTaskError("Tokenizer returned an empty token string for submission %s, will not save submission" % submission_key)
     submission.tokens = tokens
     submission.indexes_json = json_indexes
+    submission.save()
 
     logger.debug("Compute checksum of submission source %s", submission_key)
     submission_hash = hashlib.md5(submission_text.encode("utf-8"))

@@ -385,3 +385,18 @@ class Comparison(models.Model):
     def __str__(self):
         c = "template" if self.submission_b is None else "vs %s" % (self.submission_b.student.key)
         return "%s/%s: %s %s similarity %.2f" % (self.submission_a.exercise.course.name, self.submission_a.exercise.name, self.submission_a.student.key, c, self.similarity)
+
+
+class TaskError(models.Model):
+    """
+    Fatal error during asynchronous task execution.
+    """
+    created = models.DateTimeField(auto_now_add=True)
+    error_string = models.CharField(max_length=300)
+    full_traceback = models.TextField()
+
+    class Meta:
+        ordering = ["-created"]
+
+    def __str__(self):
+        return "TaskError at {} for course {}: {}".format(self.created, self.course, self.error_string)
