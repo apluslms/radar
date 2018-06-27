@@ -1,9 +1,9 @@
 import os
-from celery import Celery
+import celery
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'radar.settings')
 
-app = Celery('radar')
+app = celery.Celery('radar')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 

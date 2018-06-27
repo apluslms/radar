@@ -1,6 +1,6 @@
 import hashlib
 
-from celery import shared_task, chain
+import celery
 from celery.utils.log import get_task_logger
 
 import radar.config as config_loaders
@@ -23,10 +23,10 @@ def create_and_match(submission_key, course_key, submission_api_url):
     """
     create = create_submission.s(submission_key, course_key, submission_api_url)
     match = matcher_tasks.match_submission.s() # Will be passed the return value from create
-    chain(create, match)()
+    celery.chain(create, match)()
 
 
-@shared_task(ignore_result=False)
+@celery.shared_task(ignore_result=False)
 def create_submission(submission_key, course_key, submission_api_url):
     """
     Fetch submission data for a new submission with provider key submission_key from a given API url, create new submission, and tokenize submission content.
@@ -112,7 +112,7 @@ def create_submission(submission_key, course_key, submission_api_url):
     return submission.id
 
 
-@shared_task(ignore_result=True)
+@celery.shared_task(ignore_result=True)
 def reload_exercise_submissions(exercise_id, submissions_api_url):
     """
     Fetch the current submission list from the API url, clear existing submissions, and create new submissions.
@@ -127,7 +127,7 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
         create_submission.delay(submission["id"], exercise.course.key, submission["url"])
 
 
-@shared_task(ignore_result=True)
+@celery.shared_task(ignore_result=True)
 def match_all_unmatched_submissions_for_exercise(exercise_id):
     exercise = Exercise.objects.get(pk=exercise_id)
     for submission in exercise.unmatched_submissions:
@@ -135,7 +135,7 @@ def match_all_unmatched_submissions_for_exercise(exercise_id):
         matcher_tasks.match_submission.delay(submission.id)
 
 
-@shared_task(ignore_result=True)
+@celery.shared_task(ignore_result=True)
 def match_all_unmatched_submissions(course_key=None):
     """
     For a given course key, queue every submission with null similarity for matching.

@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import models
-from celery import shared_task, chord
+import celery
 from celery.utils.log import get_task_logger
 
 from matcher import matcher
@@ -12,7 +12,7 @@ logger = get_task_logger(__name__)
 
 
 # NOTE: Must be synchronized
-@shared_task(ignore_result=True)
+@celery.shared_task(ignore_result=True)
 def match_submission(submission_id):
     """
     Initialize all possible Comparison objects resulting from matching the given submission against all other submissions.
@@ -38,10 +38,10 @@ def match_submission(submission_id):
     # Does not block this task.
     comparison_tasks = map(do_comparison.s, create_pending_comparisons())
     join_results = join_comparison_results.s()
-    chord(comparison_tasks)(join_results)
+    celery.chord(comparison_tasks)(join_results)
 
 
-@shared_task(ignore_result=False) # celery.chord tasks need to track the results for synchronization
+@celery.shared_task(ignore_result=False) # celery.chord tasks need to track the results for synchronization
 def do_comparison(comparison_id):
     """
     Compute similarity for an initialized but yet unfinished Comparison, consisting of two submissions a and b.
@@ -95,7 +95,7 @@ def do_comparison(comparison_id):
     return comparison_id
 
 
-@shared_task(ignore_result=True)
+@celery.shared_task(ignore_result=True)
 def join_comparison_results(comparison_ids):
     """
     For a list of ids for Comparison instances of one Submission instance, compute maximum similarity and update the Submission.
