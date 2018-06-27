@@ -122,7 +122,7 @@ def join_comparison_results(comparison_ids):
                 submission.exercise.save()
 
 
-@shared_task(ignore_result=True)
+@celery.shared_task(ignore_result=True)
 def match_all_missing_comparisons(submission_id):
     """
     Ensure a submission has been compared against all other submissions of the same exercise and create missing comparisons if there are any.
