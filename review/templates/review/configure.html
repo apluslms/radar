@@ -34,11 +34,11 @@
         <th>Description</th>
         <th>Weight</th>
     </tr>
-    {% for function in similarity_functions %}
+    {% for function_name, function_data in similarity_functions %}
     <tr>
-        <td>{{ function.name }}</td>
-        <td>{{ function.description }}</td>
-        <td>{{ function.weight }}</td>
+        <td>{{ function_name }}</td>
+        <td>{{ function_data.description }}</td>
+        <td>{{ function_data.weight }}</td>
     </tr>
     {% endfor %}
 </table>

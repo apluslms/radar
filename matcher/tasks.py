@@ -22,7 +22,6 @@ def match_submission(submission_id):
     if not submission_id:
         return
     submission = Submission.objects.get(pk=submission_id)
-    logger.info("Matching submission %s", submission)
     def create_pending_comparisons():
         for other in submission.submissions_to_compare:
             for similarity_function in settings.MATCH_ALGORITHMS:
@@ -35,7 +34,6 @@ def match_submission(submission_id):
                 yield comparison.id
     # Compute all comparisons in parallel and invoke a callback, that takes the return values
     # of each finished do_comparison task as an iterable, and joins all results.
-    # Does not block this task.
     comparison_tasks = map(do_comparison.s, create_pending_comparisons())
     join_results = join_comparison_results.s()
     celery.chord(comparison_tasks)(join_results)
@@ -128,6 +126,7 @@ def match_all_missing_comparisons(submission_id):
     Ensure a submission has been compared against all other submissions of the same exercise and create missing comparisons if there are any.
     """
     # TODO implement
+    # TODO run only on 1 hour old submissions
     submission = Submission.objects.get(pk=submission_id)
     all_submissions = Submission.objects.filter(exercise=submission.exercise)
 

@@ -141,8 +141,7 @@ def configure_course(request, course_key=None, course=None):
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("Configure", None)),
         "course": course,
-        #TODO postable form for editing weights
-        "similarity_functions": course.similarityfunction_set.all(),
+        "similarity_functions": settings.MATCH_ALGORITHMS.items(),
         "provider_data": [
             {
                 "name": 'Submission hook',
