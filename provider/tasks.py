@@ -1,6 +1,6 @@
 import hashlib
 
-from celery import shared_task
+from celery import shared_task, chain
 from celery.utils.log import get_task_logger
 
 import radar.config as config_loaders
@@ -16,13 +16,25 @@ class ProviderTaskError(Exception):
     pass
 
 
-@shared_task(ignore_result=True)
+def create_and_match(submission_key, course_key, submission_api_url):
+    """
+    Create new submission, then match it.
+    Done asynchronously using two chained tasks.
+    """
+    create = create_submission.s(submission_key, course_key, submission_api_url)
+    match = matcher_tasks.match_submission.s() # Will be passed the return value from create
+    chain(create, match)()
+
+
+@shared_task(ignore_result=False)
 def create_submission(submission_key, course_key, submission_api_url):
     """
-    Fetch submission data for a new submission with provider key submission_key from a given API url, save submission and tokenize submission content.
+    Fetch submission data for a new submission with provider key submission_key from a given API url, create new submission, and tokenize submission content.
+    Return submission id (int) on success and None if skipped.
+    Raises ProviderTaskError on failure.
     """
     course = Course.objects.get(key=course_key)
-    logger.info("Processing submission with key %s for %s", submission_key, course)
+    logger.info("Processing submission with key %s for %s", submission_key, course_key)
     if Submission.objects.filter(key=submission_key).exists():
         raise ProviderTaskError("Submission with key %s already exists, will not create a duplicate." % submission_key)
 
@@ -36,7 +48,7 @@ def create_submission(submission_key, course_key, submission_api_url):
     # Check if exercise is configured for Radar, if not, skip to next.
     radar_config = aplus.get_radar_config(exercise_data)
     if radar_config is None:
-        logger.info("Exercise '%s' has no Radar configuration, submission ignored.", exercise_name)
+        logger.debug("Exercise '%s' has no Radar configuration, submission ignored.", exercise_name)
         return
     logger.debug("Exercise '%s' has a Radar configuration with tokenizer '%s', proceeding to create a submission.", exercise_name, radar_config["tokenizer"])
 
@@ -74,7 +86,7 @@ def create_submission(submission_key, course_key, submission_api_url):
     )
     submission_text = get_submission_text(submission, provider_config)
     if submission_text is None:
-        raise ProviderTaskError("Failed to get submission text for submission %s", submission)
+        raise ProviderTaskError("Failed to get submission text for submission %s" % submission)
 
     logger.debug("Tokenizing contents of submission %s", submission_key)
     tokens, json_indexes = tokenizer.tokenize_submission(
@@ -82,9 +94,8 @@ def create_submission(submission_key, course_key, submission_api_url):
         submission_text,
         provider_config
     )
-    logger.info(tokens, json_indexes)
     if not tokens:
-        raise ProviderTaskError("Tokenizer returned an empty token string for submission %s, will not save submission", submission_key)
+        raise ProviderTaskError("Tokenizer returned an empty token string for submission %s, will not save submission" % submission_key)
     submission.tokens = tokens
     submission.indexes_json = json_indexes
 
@@ -95,18 +106,16 @@ def create_submission(submission_key, course_key, submission_api_url):
 
     logger.debug("Successfully processed submission with key %s for %s", submission_key, course)
 
-    # Compute similarity to exercise template
-    # This must be done sequentially because it is a prerequisite for computing all other comparisons
+    # Compute similarity of submitted tokens to exercise template tokens
     matcher.match_against_template(submission)
 
-    # Queue submission for matching against all matched submissions
-    matcher_tasks.match_submission.delay(submission.id)
+    return submission.id
 
 
 @shared_task(ignore_result=True)
 def reload_exercise_submissions(exercise_id, submissions_api_url):
     """
-    Fetch the current submission list from the API url, clear existing submissions, and queue newly fetched submissions for work.
+    Fetch the current submission list from the API url, clear existing submissions, and create new submissions.
     """
     exercise = Exercise.objects.get(pk=exercise_id)
     api_client = aplus.get_api_client(exercise.course)

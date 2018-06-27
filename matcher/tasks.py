@@ -19,6 +19,8 @@ def match_submission(submission_id):
     This task should be used as a synchronization point to prevent data races that result from processing new submissions in parallel, which might leave some submission pairs without comparison.
     For example, use a dedicated worker to consume these tasks from a single queue.
     """
+    if not submission_id:
+        return
     submission = Submission.objects.get(pk=submission_id)
     logger.info("Matching submission %s", submission)
     def create_pending_comparisons():
