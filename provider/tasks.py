@@ -72,7 +72,6 @@ def create_submission(submission_key, course_key, submission_api_url):
     submission = Submission.objects.create(
         key=submission_key,
         exercise=exercise,
-        max_similarity=0.0,
         student=student,
         provider_url=data["html_url"],
         provider_submission_time=data["submission_time"],
