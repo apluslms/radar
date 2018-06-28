@@ -3,6 +3,7 @@ import requests
 
 from data.models import URLKeyField
 import provider.tasks as tasks
+import matcher.tasks as matcher_tasks
 
 
 POST_KEY = "submission_id"
@@ -26,7 +27,7 @@ def hook(request, course, config):
     sid = _detect_submission_id(request)
     if sid is None:
         raise AplusProviderError("Received invalid request to A+ submission hook: invalid submission id.")
-    # Queue submission for handling
+    # Queue submission for asynchronous handling
     submission_url = config["host"] + API_SUBMISSION_URL % { "sid": sid }
     tasks.create_and_match(sid, course.key, submission_url)
 
@@ -34,9 +35,12 @@ def hook(request, course, config):
 def reload(exercise, config):
     """
     Reload all submissions to given exercise from the A+ API, tokenize sources and match all.
+    Deletes all existing submissions to exercise.
     """
     logger.debug("Reloading all submissions for exercise %s", exercise)
     submissions_url = config["host"] + API_SUBMISSION_LIST_URL % { "eid": exercise.key }
+    # Queue exercise for asynchronous handling,
+    # all submissions to this exercise are created in parallel while matching is sequential
     tasks.reload_exercise_submissions.delay(exercise.id, submissions_url)
 
 
@@ -46,7 +50,7 @@ def recompare(exercise, config):
     """
     logger.debug("Recomparing all submissions for exercise %s", exercise)
     exercise.clear_all_matches()
-    tasks.match_all_unmatched_submissions_for_exercise.delay(exercise.id)
+    matcher_tasks.match_all_new_submissions_to_exercise.delay(exercise.id)
 
 
 # TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself and not use someones LTI login tokens to fetch stuff from the API

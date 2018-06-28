@@ -269,7 +269,7 @@ class Submission(models.Model):
     authored_token_count = models.IntegerField(blank=True, null=True, default=None)
     longest_authored_tile = models.IntegerField(blank=True, null=True, default=None)
     max_similarity = models.FloatField(db_index=True, blank=True, null=True, default=None,
-            help_text="Maximum weighted average over all similarity scores computed by different similarity functions")
+            help_text="Maximum weighted average over all similarity scores computed by different similarity functions. Null max_similarity indicates a pending Submission, waiting for matching.")
 
     @property
     def submissions_to_compare(self):
@@ -281,13 +281,13 @@ class Submission(models.Model):
     def template_comparison(self):
         return Comparison.objects.filter(submission_a=self, submission_b__isnull=True).first()
 
-    def max_similarity_from_comparisons(self):
+    def reduce_max_similarity_from_comparisons(self):
         """
         Return the maximum similarity (or default to 0) over all comparisons this submission participates in.
         """
         res = (Comparison.objects
                 .filter(submission_a=self)
-                .aggregate(models.Max("similarity")).get("similarity__max"))
+                .aggregate(models.Max("similarity"))["similarity__max"])
         return res or 0
 
     def template_matches(self):
@@ -392,11 +392,10 @@ class TaskError(models.Model):
     Fatal error during asynchronous task execution.
     """
     created = models.DateTimeField(auto_now_add=True)
-    error_string = models.CharField(max_length=300)
-    full_traceback = models.TextField()
+    error_string = models.TextField()
 
     class Meta:
         ordering = ["-created"]
 
     def __str__(self):
-        return "TaskError at {} for course {}: {}".format(self.created, self.course, self.error_string)
+        return "created: {}, error: {}".format(self.created, self.error_string)
