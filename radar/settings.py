@@ -301,16 +301,6 @@ CELERY_RESULT_BACKEND = "cache+memcached://127.0.0.1:11211/"
 #     }
 # }
 
-# Use a separate task queue for matching submissions.
-# This task queue should be consumed by a single worker.
-# This avoids the situation where some submission pairs might never get matched due to data races from concurrent creation and matching of new submissions.
-CELERY_TASK_ROUTES = {
-    "matcher.tasks.match_submission": {
-        "queue": "match_submission",
-    },
-}
-
-
 from r_django_essentials.conf import update_settings_from_module
 
 update_settings_from_module(__name__, "local_settings")

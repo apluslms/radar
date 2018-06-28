@@ -43,7 +43,7 @@ def course_histograms(request, course_key=None, course=None):
                       ("Histograms", None)),
         "course": course,
         "exercises": course.exercises.all(),
-        "similarity_functions": course.similarityfunction_set.all()
+        "similarity_functions": settings.MATCH_ALGORITHMS.items(),
     })
 
 
