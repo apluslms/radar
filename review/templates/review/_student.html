@@ -8,7 +8,7 @@
         {% endif %}
         <small>
             {{ submission.created|date:"d.m. H:i" }}
-            grd: {{ submission.grade|percent }}
+            grade: {{ submission.grade }}
             len: {{ submission.authored_token_count }}
         </small>
     </a>
