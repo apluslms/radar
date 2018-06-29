@@ -392,10 +392,11 @@ class TaskError(models.Model):
     Fatal error during asynchronous task execution.
     """
     created = models.DateTimeField(auto_now_add=True)
+    package = models.CharField(max_length=100, default='-empty-')
     error_string = models.TextField()
 
     class Meta:
         ordering = ["-created"]
 
     def __str__(self):
-        return "created: {}, error: {}".format(self.created, self.error_string)
+        return "Failed task in package {}, occurred at {}, with error {}".format(self.package, self.created, self.error_string)

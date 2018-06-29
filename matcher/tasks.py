@@ -4,7 +4,7 @@ import celery
 from celery.utils.log import get_task_logger
 
 from matcher import matcher
-from data.models import Exercise, Submission
+from data.models import Exercise, Submission, TaskError
 
 
 logger = get_task_logger(__name__)
@@ -23,6 +23,10 @@ def match_all_new_submissions_to_exercise(exercise_id):
 
 @celery.shared_task(ignore_result=True)
 def match_new_submission(submission_id):
+    if submission_id is None:
+        # If this task is chained and the preceding task failed, it will pass None as id
+        write_error("Cannot match submission with id None")
+        return
     submission = Submission.objects.get(pk=submission_id)
     matcher.match(submission)
 
@@ -46,3 +50,7 @@ def match_all_submissions(submission_ids):
 #     submission = Submission.objects.get(pk=submission_id)
 #     all_submissions = Submission.objects.filter(exercise=submission.exercise)
 
+
+def write_error(message):
+    logger.error(message)
+    TaskError(package="matcher", error_string=message).save()

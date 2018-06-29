@@ -165,4 +165,4 @@ def task_error_handler(task_id, *args, **kwargs):
 
 def write_error(message):
     logger.error(message)
-    TaskError(error_string=message).save()
+    TaskError(package="provider", error_string=message).save()
