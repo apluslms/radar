@@ -41,7 +41,7 @@ def match_against_template(submission):
 
     for function_name, function_data in settings.MATCH_ALGORITHMS.items():
         if not function_data["tokenized_input"]:
-            # Templates consist only of tokenized strings
+            # Templates consist only of tokenized strings, we can skip this similarity function
             continue
         similarity_function = config_loaders.named_function(function_data["callable"])
         matches = similarity_function(

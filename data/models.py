@@ -156,18 +156,6 @@ class Exercise(models.Model):
     def submissions_max_similarity_json(self):
         return json.dumps(list(self.submissions_max_similarity))
 
-    def comparison_results_max_similarity_with_function(self, similarity_function):
-        """
-        Return an iterator over query sets of all comparison results for all submissions of this exercise, where the similarity is computed with the given similarity function.
-        """
-        return (ComparisonResult.objects
-                .filter(
-                    comparison__submission_a=submission,
-                    comparison__submission_b__isnull=False,
-                    function=similarity_function)
-                .aggregate(models.Max("similarity"))
-                for submission in self.matched_submissions)
-
     def top_comparisons(self):
         max_list = (self.valid_matched_submissions
                 .values('student__id')
@@ -286,15 +274,6 @@ class Submission(models.Model):
     @property
     def template_comparison(self):
         return Comparison.objects.filter(submission_a=self, submission_b__isnull=True).first()
-
-    def reduce_max_similarity_from_comparisons(self):
-        """
-        Return the maximum similarity (or default to 0) over all comparisons this submission participates in.
-        """
-        res = (Comparison.objects
-                .filter(submission_a=self)
-                .aggregate(models.Max("similarity"))["similarity__max"])
-        return res or 0
 
     def template_matches(self):
         ct = self.template_comparison

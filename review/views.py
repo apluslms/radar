@@ -248,7 +248,6 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
             "name": exercise.name,
             "paused": exercise.paused
         })
-        # TODO: Show warning if tokenized(template_source) != exercise.template_tokens
         template_source = aplus.load_exercise_template(exercise, p_config)
         if exercise.template_tokens and not template_source:
             context["template_source_error"] = True

@@ -179,8 +179,9 @@ MATCH_ALGORITHMS = {
     # },
 }
 
-MATCH_STORE_MIN_SIMILARITY = 0.2
 MATCH_STORE_MAX_COUNT = 10
+# Minimum similarity for two submissions to be stored into the database as a Comparison instance
+MATCH_STORE_MIN_SIMILARITY = 0.2
 
 SUBMISSION_VIEW_HEIGHT = 30
 SUBMISSION_VIEW_WIDTH = 5

@@ -40,17 +40,6 @@ def match_all_submissions(submission_ids):
         matcher.match(submission)
 
 
-# @celery.shared_task(ignore_result=True)
-# def match_all_missing_comparisons(submission_id):
-#     """
-#     Ensure a submission has been compared against all other submissions of the same exercise and create missing comparisons if there are any.
-#     """
-#     # TODO implement
-#     # TODO run only on 1 hour old submissions
-#     submission = Submission.objects.get(pk=submission_id)
-#     all_submissions = Submission.objects.filter(exercise=submission.exercise)
-
-
 def write_error(message):
     logger.error(message)
     TaskError(package="matcher", error_string=message).save()
