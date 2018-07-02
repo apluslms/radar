@@ -30,7 +30,6 @@ def match_against_template(submission):
     logger.debug("Match %s vs template", submission.student.key)
     # Comparisons with single submissions are template comparisons
     comparison = Comparison(submission_a=submission, submission_b=None, similarity=0.0, matches_json="[]")
-    comparison.save()
 
     # TODO: what is this? template offset? could this be removed?
     l = 0
@@ -61,6 +60,7 @@ def match_against_template(submission):
             comparison.matches_json = matches.json()
 
     comparison.save()
+    return comparison
 
 
 class TokenMatchSet():
@@ -123,26 +123,30 @@ def match(a):
     """
     Match given submission against all other, already matched submissions for this exercise.
     """
-    logger.info("Matching submission %s", a)
+    logger.info("Matching submission %s against %d submissions", a, a.submissions_to_compare.count())
     if Submission.objects.get(pk=a.pk).tokens is None:
         logger.info("Submission is not tokenized.")
         return
 
     match_against_template(a)
-
-    # TODO what are these
-    _, a.authored_token_count, a.longest_authored_tile = a.template_marks()
+    _, a.authored_token_count, a.longest_authored_tile = a.template_marks() # TODO what are these
     a.save()
 
     # TODO parallel for
     for b in a.submissions_to_compare:
         for similarity_function in settings.MATCH_ALGORITHMS:
-            comparison = do_comparison(Comparison(
-                submission_a=a, submission_b=b,
-                similarity=0.0, similarity_function=similarity_function))
-            comparison.save()
+            comparison = do_comparison(Comparison(submission_a=a, submission_b=b, similarity=0.0, similarity_function=similarity_function))
+            if comparison.similarity > settings.MATCH_STORE_MIN_SIMILARITY:
+                comparison.save()
+            # Update max similarity for submission pairif we found a maximum
+            if a.max_similarity < comparison.similarity:
+                a.max_similarity = comparison.similarity
+                a.save()
+            if b.max_similarity < comparison.similarity:
+                b.max_similarity = comparison.similarity
+                b.save()
 
-    # TODO what is this
+    # TODO what is this? pre-emptive database cleanup?
     tail = (Comparison.objects
             .filter(submission_a=a)
             .exclude(submission_b__isnull=True)
@@ -199,6 +203,7 @@ def do_comparison(comparison):
             # Matching checksums implies a match consisting of all tokens
             similarity = function_data["weight"]
             matches.add_non_overlapping(TokenMatch(0, 0, len(a.tokens)))
+
 
     if similarity > settings.MATCH_STORE_MIN_SIMILARITY:
         comparison.similarity = similarity
