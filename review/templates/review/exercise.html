@@ -1,10 +1,39 @@
 {% extends 'base.html' %}
 {% block content %}
 
+<h4>{{ exercise.name }}</h4>
+<table class="table">
+    <tr>
+        <th>Created</th>
+        <th>Students</th>
+        <th>Matched submissions</th>
+        <th>Pending submissions</th>
+        <th>Invalid submissions</th>
+        <th>Template length</th>
+        <th>Minimum match tokens</th>
+        <th>Source tokenizer</th>
+        <th></th>
+    </tr>
+    <tr{% if exercise.paused %} class="paused"{% endif %}>
+        <td>{{ exercise.created|date:"Y-m-d" }}{% if exercise.paused %}, <b>matching paused</b>{% endif %}</td>
+        <td>{{ exercise.student_count }}</td>
+        <td>{{ exercise.valid_matched_submissions.count }}</td>
+        <td>{{ exercise.unmatched_submissions.count }}</td>
+        <td>{{ exercise.invalid_submissions.count }}</td>
+        <td>{{ exercise.template_length }} syntax tokens</td>
+        <td>{{ exercise.minimum_match_tokens }} syntax tokens</td>
+        <td>{{ exercise.tokenizer_name }}</td>
+        <td><a href="{% url 'exercise_settings' course_key=course.key exercise_key=exercise.key %}" class="btn btn-default btn-xs">
+                <span class="glyphicon glyphicon-wrench"></span> Settings</a></td>
+    </tr>
+</table>
+
+<h4>Match distribution</h4>
 <div class="histogram"></div>
 
 <pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
 
+<h4>Comparison pairs with highest similarity</h4>
 {% include 'review/_comparisontable.html' %}
 
 <pre id="js" class="well">
