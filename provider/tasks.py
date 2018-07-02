@@ -88,6 +88,8 @@ def create_submission(submission_key, course_key, submission_api_url):
     submission_text = get_submission_text(submission, provider_config)
     if submission_text is None:
         # raise ProviderTaskError("Failed to get submission text for submission %s" % submission)
+        submission.invalid = True
+        submission.save()
         write_error("Failed to get submission text for submission %s" % submission)
         return
 
@@ -98,6 +100,8 @@ def create_submission(submission_key, course_key, submission_api_url):
     )
     if not tokens:
         # raise ProviderTaskError("Tokenizer returned an empty token string for submission %s, will not save submission" % submission_key)
+        submission.invalid = True
+        submission.save()
         write_error("Tokenizer returned an empty token string for submission %s, will not save submission" % submission_key)
         return
     submission.tokens = tokens

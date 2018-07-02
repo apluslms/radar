@@ -31,7 +31,7 @@
 	{% for exercise in exercises %}
 	<li class="well well-sm{% if exercise.paused %} paused{% endif %}">
 		<p><a href="{% url 'exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }}:
-		Submissions {{ exercise.submissions.count }} ({{ exercise.matched_submissions.count }} matched)</a></p>
+		Submissions {{ exercise.submissions.count }} ({{ exercise.valid_matched_submissions.count }} matched)</a></p>
 		<div class="histogram">
 			<pre class="json">{{ exercise.submissions_max_similarity_json }}</pre>
 		</div>

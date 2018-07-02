@@ -67,7 +67,7 @@ class Course(NamespacedApiObject):
 
     @property
     def matched_submissions(self):
-        return Submission.objects.filter(exercise__course=self).exclude(max_similarity__isnull=True)
+        return Submission.objects.filter(exercise__course=self, matched=True)
 
     @property
     def marked_submissions(self):
@@ -136,15 +136,19 @@ class Exercise(models.Model):
 
     @property
     def unmatched_submissions(self):
-        return self.submissions.filter(max_similarity__isnull=True)
+        return self.submissions.filter(matched=False)
 
     @property
-    def matched_submissions(self):
-        return self.submissions.exclude(max_similarity__isnull=True)
+    def valid_matched_submissions(self):
+        return self.submissions.filter(matched=True, invalid=False)
+
+    @property
+    def invalid_submissions(self):
+        return self.submissions.filter(invalid=True)
 
     @property
     def submissions_max_similarity(self):
-        return self.matched_submissions.values("student__id")\
+        return self.valid_matched_submissions.values("student__id")\
             .annotate(m=models.Max('max_similarity')).order_by('-m')\
             .values_list('m', flat=True)
 
@@ -165,12 +169,12 @@ class Exercise(models.Model):
                 for submission in self.matched_submissions)
 
     def top_comparisons(self):
-        max_list = (self.matched_submissions
+        max_list = (self.valid_matched_submissions
                 .values('student__id')
                 .annotate(m=models.Max('max_similarity'))
                 .order_by('-m')[:settings.SUBMISSION_VIEW_HEIGHT])
         return self._comparisons_by_submission(
-            self.matched_submissions
+            self.valid_matched_submissions
             .filter(student__id=each['student__id'])
             .order_by('-max_similarity')
             .first().id
@@ -179,7 +183,7 @@ class Exercise(models.Model):
 
     def comparisons_for_student(self, student):
         return self._comparisons_by_submission(
-            self.matched_submissions\
+            self.valid_matched_submissions\
                 .filter(student=student)\
                 .order_by("created")\
                 .values_list("id", flat=True)
@@ -187,13 +191,13 @@ class Exercise(models.Model):
 
     def _comparisons_by_submission(self, submissions):
         comparisons = []
-        for s in submissions:
+        for s_id in submissions:
             comparisons.append({
-                "submission_id": s,
+                "submission_id": s_id,
                 "matches": list(
                     Comparison.objects
                     .exclude(submission_b__isnull=True)
-                    .filter(models.Q(submission_a__id=s) | models.Q(submission_b__id=s))
+                    .filter(models.Q(submission_a__id=s_id) | models.Q(submission_b__id=s_id))
                     .order_by("-similarity")
                     .select_related(
                         "submission_a",
@@ -222,10 +226,10 @@ class Exercise(models.Model):
 
     def clear_all_matches(self):
         Comparison.objects.clean_for_exercise(self)
-        self.submissions.update(indexes_json=None, max_similarity=None)
+        self.submissions.update(indexes_json=None, max_similarity=0, invalid=False, matched=False)
 
     def clear_tokens_and_matches(self):
-        self.submissions.update(tokens=None, indexes_json=None, max_similarity=None)
+        self.submissions.update(tokens=None, indexes_json=None, max_similarity=0, invalid=False, matched=False)
 
     def __str__(self):
         return "%s/%s (%s)" % (self.course.name, self.name, self.created)
@@ -268,12 +272,14 @@ class Submission(models.Model):
     indexes_json = models.TextField(blank=True, null=True, default=None)
     authored_token_count = models.IntegerField(blank=True, null=True, default=None)
     longest_authored_tile = models.IntegerField(blank=True, null=True, default=None)
-    max_similarity = models.FloatField(db_index=True, blank=True, null=True, default=None,
-            help_text="Maximum weighted average over all similarity scores computed by different similarity functions. Null max_similarity indicates a pending Submission, waiting for matching.")
+    max_similarity = models.FloatField(db_index=True, default=0.0,
+            help_text="Maximum weighted average over all similarity scores computed by different similarity functions.")
+    matched = models.BooleanField(default=False, help_text="Is this Submission waiting to be matched")
+    invalid = models.BooleanField(default=False, help_text="Is this Submission invalid in a way it cannot be matched")
 
     @property
     def submissions_to_compare(self):
-        return self.exercise.matched_submissions\
+        return self.exercise.valid_matched_submissions\
             .exclude(student=self.student)\
             .exclude(longest_authored_tile__lt=self.exercise.minimum_match_tokens)
 

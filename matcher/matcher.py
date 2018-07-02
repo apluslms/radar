@@ -150,16 +150,13 @@ def match(a):
             .values_list("id", flat=True))
     Comparison.objects.filter(pk__in=list(tail)).delete()
 
-    # Get the maximum similarity from all comparisons of a to other submissions
-    new_max_similarity = a.reduce_max_similarity_from_comparisons()
-
-    if a.max_similarity is None or a.max_similarity < new_max_similarity:
-        a.max_similarity = new_max_similarity
-        a.save()
+    a.matched = True
+    a.invalid = False
+    a.save()
 
     # Automatically pause exercise if mean gets too high.
     if a.max_similarity > settings.AUTO_PAUSE_MEAN:
-        subs = a.exercise.matched_submissions
+        subs = a.exercise.valid_matched_submissions
         if subs.count() > settings.AUTO_PAUSE_COUNT:
             avg = subs.aggregate(max_sim=Avg("max_similarity"))
             if avg["max_sim"] > settings.AUTO_PAUSE_MEAN:
