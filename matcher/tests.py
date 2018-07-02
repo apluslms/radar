@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.conf import settings
 from django.utils.module_loading import import_string
 
-match_algorithm = import_string(settings.MATCH_ALGORITHM)
+match_algorithm = import_string(settings.MATCH_ALGORITHMS["jplag_ext"]["callable"])
 
 def random_char():
     return random.choice(string.printable)

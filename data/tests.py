@@ -5,7 +5,7 @@ from django.conf import settings
 from django.test import TestCase
 
 from data.models import Course, Submission, Comparison, Exercise
-from matcher.matcher import match
+from matcher import matcher
 from radar.config import named_function
 
 
@@ -16,10 +16,10 @@ TEMPLATE = "abcdexxxx"
 class MatcherTestCase(TestCase):
 
     def test_algorithm(self):
-        for function_def in settings.MATCH_ALGORITHMS:
-            if function_def["function"] is None:
+        for function_def in settings.MATCH_ALGORITHMS.values():
+            if function_def["callable"] is None:
                 continue
-            f = named_function(function_def["function"])
+            f = named_function(function_def["callable"])
             a = TOKENS1
             b = TOKENS2
             ms = f(a, [ False ] * len(a), b, [ False ] * len(b), 2)
@@ -33,8 +33,8 @@ class MatcherTestCase(TestCase):
 
     def test_submission(self):
         self._create_test_course()
-        for submission in Submission.objects.filter(max_similarity__isnull=True).order_by("student__key"):
-            match(submission)
+        for submission in Submission.objects.filter(matched=False).order_by("student__key"):
+            matcher.match(submission)
         s = Submission.objects.get(student__key="001")
         self.assertEqual(s.authored_token_count, 9)
         self.assertEqual(s.longest_authored_tile, 9)
@@ -56,8 +56,8 @@ class MatcherTestCase(TestCase):
         exercise = Exercise.objects.all().first()
         exercise.template_tokens = TEMPLATE
         exercise.save()
-        for submission in Submission.objects.filter(max_similarity__isnull=True).order_by("student__key"):
-            match(submission)
+        for submission in Submission.objects.filter(matched=False).order_by("student__key"):
+            matcher.match(submission)
         s = Submission.objects.get(student__key="001")
         self.assertEqual(s.authored_token_count, 4)
         self.assertEqual(s.longest_authored_tile, 4)
@@ -81,8 +81,10 @@ class MatcherTestCase(TestCase):
         exercise = course.get_exercise("1")
         student1 = course.get_student("001")
         student2 = course.get_student("002")
-        s1 = Submission(key="1", exercise=exercise, student=student1, tokens=TOKENS1, indexes_json="[]")
-        s1.save()
-        s2 = Submission(key="2", exercise=exercise, student=student2, tokens=TOKENS2, indexes_json="[]")
-        s2.save()
+        submissions = [
+            Submission(key="1", exercise=exercise, student=student1, tokens=TOKENS1, indexes_json="[]"),
+            Submission(key="2", exercise=exercise, student=student2, tokens=TOKENS2, indexes_json="[]"),
+        ]
+        for s in submissions:
+            s.save()
 
