@@ -167,9 +167,12 @@ def configure_course(request, course_key=None, course=None):
         if not exercises:
             context["errors"].append("No exercises found for %s" % repr(course))
         else:
-            # Partition all radar configs into unseen and existing as an exercise
+            # Partition all radar configs into unseen and existing exercises
             new_exercises, old_exercises = [], []
             for radar_config in leafs_with_radar_config(exercises):
+                radar_config["template_source"] = radar_config["get_template_source"]()
+                # Delete the closure for getting the template source, since lambdas are not JSON serializable
+                del radar_config["get_template_source"]
                 if course.has_exercise(radar_config["exercise_key"]):
                     old_exercises.append(radar_config)
                 else:
@@ -190,7 +193,8 @@ def configure_course(request, course_key=None, course=None):
             exercise.set_from_config(exercise_data)
             exercise.save()
             # Queue fetching all submissions for this exercise
-            aplus.full_reload(exercise, p_config)
+            full_reload = configured_function(p_config, "full_reload")
+            full_reload(exercise, p_config)
         context["create_exercises_success"] = True
     return render(request, "review/configure.html", context)
 
@@ -241,7 +245,8 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
                 configured_function(p_config, "recompare")(exercise, p_config)
                 return redirect("course", course_key=course.key)
         if "provider_reload" in request.POST:
-            configured_function(p_config, "full_reload")(exercise, p_config)
+            full_reload = configured_function(p_config, "full_reload")
+            full_reload(exercise, p_config)
             return redirect("course", course_key=course.key)
     else:
         context["form"] = ExerciseForm({
