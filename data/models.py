@@ -135,8 +135,8 @@ class Exercise(models.Model):
         return Submission.objects.filter(exercise=self).values("student").distinct().count()
 
     @property
-    def unmatched_submissions(self):
-        return self.submissions.filter(matched=False)
+    def valid_unmatched_submissions(self):
+        return self.submissions.filter(matched=False, invalid=False)
 
     @property
     def valid_matched_submissions(self):
@@ -213,11 +213,11 @@ class Exercise(models.Model):
             self.override_minimum_match_tokens = config["minimum_match_tokens"]
 
     def clear_all_matches(self):
+        """
+        Delete all Comparison instances for valid, matched submissions.
+        """
         Comparison.objects.clean_for_exercise(self)
-        self.submissions.update(indexes_json=None, max_similarity=0, invalid=False, matched=False)
-
-    def clear_tokens_and_matches(self):
-        self.submissions.update(tokens=None, indexes_json=None, max_similarity=0, invalid=False, matched=False)
+        self.submissions.update(indexes_json=None, max_similarity=0, matched=False)
 
     def __str__(self):
         return "%s/%s (%s)" % (self.course.name, self.name, self.created)

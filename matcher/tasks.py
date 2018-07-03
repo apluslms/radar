@@ -13,11 +13,11 @@ logger = get_task_logger(__name__)
 @celery.shared_task(ignore_result=True)
 def match_all_new_submissions_to_exercise(exercise_id):
     """
-    Sequentially match all unmatched submissions to given exercise.
+    Sequentially match all unmatched submissions (not marked invalid) to given exercise.
     """
     logger.info("Matching all submissions to exercise with id %d", exercise_id)
     exercise = Exercise.objects.get(pk=exercise_id)
-    for submission in exercise.unmatched_submissions:
+    for submission in exercise.valid_unmatched_submissions:
         matcher.match(submission)
 
 

@@ -18,7 +18,7 @@
         <td>{{ exercise.created|date:"Y-m-d" }}{% if exercise.paused %}, <b>matching paused</b>{% endif %}</td>
         <td>{{ exercise.student_count }}</td>
         <td>{{ exercise.valid_matched_submissions.count }}</td>
-        <td>{{ exercise.unmatched_submissions.count }}</td>
+        <td>{{ exercise.valid_unmatched_submissions.count }}</td>
         <td>{{ exercise.invalid_submissions.count }}</td>
         <td>{{ exercise.template_length }} syntax tokens</td>
         <td>{{ exercise.minimum_match_tokens }} syntax tokens</td>
