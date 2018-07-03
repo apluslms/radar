@@ -197,7 +197,7 @@ def configure_course(request, course_key=None, course=None):
 
 @access_resource
 def graph(request, course, course_key):
-    min_similarity = 0.05 # TODO parametrize in UI
+    min_similarity = 0.95 # TODO parametrize in UI
     graph_data = generate_match_graph(course, min_similarity)
     context = {
         "hierarchy": (

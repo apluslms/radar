@@ -6,6 +6,7 @@
     <tr>
         <th>Created</th>
         <th>Students</th>
+        <th>Total submissions</th>
         <th>Matched submissions</th>
         <th>Pending submissions</th>
         <th>Invalid submissions</th>
@@ -17,6 +18,7 @@
     <tr{% if exercise.paused %} class="paused"{% endif %}>
         <td>{{ exercise.created|date:"Y-m-d" }}{% if exercise.paused %}, <b>matching paused</b>{% endif %}</td>
         <td>{{ exercise.student_count }}</td>
+        <td>{{ exercise.submissions.count }}</td>
         <td>{{ exercise.valid_matched_submissions.count }}</td>
         <td>{{ exercise.valid_unmatched_submissions.count }}</td>
         <td>{{ exercise.invalid_submissions.count }}</td>
@@ -28,7 +30,7 @@
     </tr>
 </table>
 
-<h4>Match distribution</h4>
+<h4>Similarity distribution of matches</h4>
 <div class="histogram"></div>
 
 <pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
