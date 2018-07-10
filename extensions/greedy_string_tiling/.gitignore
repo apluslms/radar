@@ -1,8 +1,0 @@
-*.so
-build
-
-*.egg-info
-
-.hypothesis
-
-thirdparty
