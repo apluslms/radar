@@ -39,6 +39,22 @@ class PrepareCommand(setuptools.Command):
             subprocess.run(cmd, cwd=self.output_dir, check=True)
 
 
+gstmodule = setuptools.Extension(
+    'gst',
+    sources=[
+        # Implementation
+        os.path.join('src', 'gst.cpp'),
+        # CPython wrapper
+        os.path.join('src', 'gstmodule.cpp'),
+    ],
+    include_dirs=[
+        "include",
+        os.path.join(THIRD_PARTY_DIR, "rollinghashcpp")
+    ],
+    extra_compile_args=["--std=c++14"],
+)
+
+
 setuptools.setup(
     name='greedy_string_tiling',
     version='0.1.0',
@@ -51,7 +67,7 @@ setuptools.setup(
     license='MIT',
 
     install_requires=[
-        'hypothesis', # For testing the built module. Not strictly required but recommended.
+        'hypothesis', # For testing the built module. Not required for running, but recommended for sanity.
     ],
 
     cmdclass={
@@ -59,20 +75,6 @@ setuptools.setup(
     },
 
     ext_modules=[
-        setuptools.Extension(
-            'gst',
-            sources=[
-                # Implementation
-                os.path.join('src', 'gst.cpp'),
-                # CPython wrapper
-                os.path.join('src', 'gstmodule.cpp'),
-            ],
-            include_dirs=[
-                "include",
-                os.path.join(THIRD_PARTY_DIR, "rollinghashcpp")
-            ],
-            extra_compile_args=["--std=c++14"],
-        ),
+        gstmodule,
     ],
 )
-
