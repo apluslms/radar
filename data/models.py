@@ -271,6 +271,18 @@ class Submission(models.Model):
             .exclude(student=self.student)\
             .exclude(longest_authored_tile__lt=self.exercise.minimum_match_tokens)
 
+    def as_dict(self):
+        """
+        Return self in serializable format with minimal data needed to compute submission similarity.
+        """
+        template_marks, authored_token_count, longest_authored_tile = self.template_marks()
+        return { "id": self.id,
+                 "tokens": self.tokens,
+                 "checksum": self.source_checksum,
+                 "ignore_marks": template_marks,
+                 "authored_token_count": authored_token_count,
+                 "longest_authored_tile": longest_authored_tile }
+
     @property
     def template_comparison(self):
         return Comparison.objects.filter(submission_a=self, submission_b__isnull=True).first()

@@ -34,6 +34,7 @@ def create_and_match(submission_key, course_key, submission_api_url):
 
 
 # This task should not ignore its result since it is needed for synchronization when using celery.chord
+# Highly I/O bound task, recommended to be consumed by several workers
 @celery.shared_task(ignore_result=False)
 def create_submission(submission_key, course_key, submission_api_url):
     """
@@ -112,7 +113,8 @@ def create_submission(submission_key, course_key, submission_api_url):
     submission.save()
 
     # Compute similarity of submitted tokens to exercise template tokens
-    matcher.match_against_template(submission)
+    comparison = matcher.match_against_template(submission)
+    comparison.save()
 
     return submission.id
 

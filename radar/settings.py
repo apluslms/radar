@@ -151,6 +151,8 @@ REVIEWS = (
     },
 )
 
+MATCH_ALGORITHM = "matchlib.matchers.greedy_string_tiling"
+
 MATCH_ALGORITHMS = {
     "jplag_ext": {
         "description": "Greedy string tiling, longest matching substring",
