@@ -26,6 +26,7 @@ def match_new_submission(submission_id):
     config = {
         "minimum_match_length": submission.exercise.course.minimum_match_tokens,
         "minimum_similarity": settings.MATCH_STORE_MIN_SIMILARITY,
+        "similarity_precision": settings.SIMILARITY_PRECISION,
     }
     others = [other.as_dict() for other in submission.submissions_to_compare]
     match_all_task = match_to_others.signature(
@@ -46,6 +47,7 @@ def match_all_new_submissions_to_exercise(exercise_id):
     config = {
         "minimum_match_length": exercise.course.minimum_match_tokens,
         "minimum_similarity": settings.MATCH_STORE_MIN_SIMILARITY,
+        "similarity_precision": settings.SIMILARITY_PRECISION,
     }
     compare_list = [s.as_dict() for s in exercise.valid_unmatched_submissions]
     match_all_task = match_all_combinations.signature(
