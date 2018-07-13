@@ -108,6 +108,7 @@ def create_submission(submission_key, course_key, submission_api_url):
     submission.tokens = tokens
     submission.indexes_json = json_indexes
 
+    # Compute checksum of submitted source code for finding exact character matches quickly
     submission_hash = hashlib.md5(submission_text.encode("utf-8"))
     submission.source_checksum = submission_hash.hexdigest()
     submission.save()
@@ -131,17 +132,20 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
         # raise ProviderTaskError("Invalid submissions data returned from %s for exercise %s: expected an iterable but got None" % (submissions_api_url, exercise))
         write_error("Invalid submissions data returned from %s for exercise %s: expected an iterable but got None" % (submissions_api_url, exercise))
         return
-    # We got new data from the provider, delete all submissions to this exercise
+    # We got new submissions data from the provider, delete all current submissions to this exercise
     exercise.submissions.all().delete()
     # Create a group of immutable task signatures for creating each submission from api data
     tasks_create_submissions = (
         create_submission.si(submission["id"], exercise.course.key, submission["url"]).on_error(task_error_handler.s())
         for submission in submissions_data
     )
-    # Callback to which all created submission ids are passed
-    task_match_all = matcher_tasks.match_all_submissions.s()
-    # Create all submissions in parallel, synchronize, and match all submissions sequentially
-    celery.chord(tasks_create_submissions)(task_match_all)
+    # Callback task that matches all submissions to the exercise we are reloading
+    task_match_exercise = matcher_tasks.match_all_new_submissions_to_exercise.signature(
+        (exercise_id,),
+        immutable=True
+    )
+    # Create all submissions in parallel in independent tasks, synchronize, and match all submissions sequentially in a single task
+    celery.chord(tasks_create_submissions)(task_match_exercise)
 
 
 @celery.shared_task(ignore_result=True)
