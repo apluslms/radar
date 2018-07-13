@@ -50,7 +50,7 @@ def recompare(exercise, config):
     """
     logger.debug("Recomparing all submissions for exercise %s", exercise)
     exercise.clear_all_matches()
-    matcher_tasks.match_all_new_submissions_to_exercise.delay(exercise.id)
+    matcher_tasks.match_exercise(exercise)
 
 
 # TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself and not use someones LTI login tokens to fetch stuff from the API

@@ -301,7 +301,7 @@ class Submission(models.Model):
             - longest_tile: Amount of tokens in the longest tile with non-template tokens
         """
         token_count = len(self.tokens)
-        marks = '0' * token_count
+        marks = [ False ] * token_count
         authored_count = token_count
         longest_tile = 0
         s = 0
@@ -309,13 +309,13 @@ class Submission(models.Model):
             match_start, match_len = m[0], m[2]
             # Mark tokens that have matched with template
             for i in range(match_start, match_start + match_len):
-                marks[i] = '1'
+                marks[i] = True
             # Template tokens have not been authored by the student
             authored_count -= match_len
             longest_tile = max(longest_tile, match_start - s)
             s = match_start + match_len
         longest_tile = max(longest_tile, token_count - s)
-        return marks, authored_count, longest_tile
+        return ''.join(str(int(m)) for m in marks), authored_count, longest_tile
 
     def __str__(self):
         return ("%s/%s: %s grade=%.1f (created: %s)"

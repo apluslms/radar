@@ -1,12 +1,11 @@
-import json
 import logging
 
 from django.conf import settings
 from django.db.models import Avg
 
-from matchlib.util import TokenMatch, TokenMatchSet
+from matchlib.util import TokenMatch
 
-from data.models import Comparison, Submission, Exercise
+from data.models import Comparison
 import radar.config as config_loaders
 
 
@@ -18,10 +17,7 @@ def safe_div(a, b):
 
 
 def top_marks(length, top):
-    for _ in range(top):
-        yield True
-    for _ in range(top, length):
-        yield False
+    return '1' * top + '0' * (length - top)
 
 
 def update_submission(submission, similarity):
@@ -43,27 +39,29 @@ def match_against_template(submission):
     """
     Match submission against the exercise template.
     """
-    logger.debug("Match %s vs template", submission.student.key)
+    logger.info("Match %s vs template", submission.student.key)
     # Template comparisons are defined as Comparison objects where the other (b) submission is null
     comparison = Comparison(submission_a=submission, submission_b=None, similarity=0.0, matches_json="[]")
 
+    submission_tokens, template_tokens = submission.tokens, submission.exercise.template_tokens
+
     # Calculate amount of submission tokens that match the beginning of the exercise template
     l = 0
-    while (l < len(submission.tokens) and l < len(submission.exercise.template_tokens)
-           and submission.tokens[l] == submission.exercise.template_tokens[l]):
+    while (l < len(submission_tokens) and l < len(template_tokens)
+           and submission_tokens[l] == template_tokens[l]):
         l += 1
     template_head_match_count = l
 
     # Skip matching for the template head, we already checked the matches
-    submission_marks = top_marks(len(submission.tokens), template_head_match_count)
-    template_marks = top_marks(len(submission.exercise.template_tokens), template_head_match_count)
+    submission_marks = top_marks(len(submission_tokens), template_head_match_count)
+    template_marks = top_marks(len(template_tokens), template_head_match_count)
 
     # Import similarity function and do comparison
     similarity_function = config_loaders.named_function(settings.MATCH_ALGORITHM)
     matches = similarity_function(
-        submission.tokens,
+        submission_tokens,
         submission_marks,
-        submission.exercise.template_tokens,
+        template_tokens,
         template_marks,
         submission.exercise.minimum_match_tokens
     )
@@ -71,9 +69,7 @@ def match_against_template(submission):
     if template_head_match_count > 0:
         matches.add_non_overlapping(TokenMatch(0, 0, template_head_match_count))
 
-    similarity = safe_div(matches.token_count(), len(submission.tokens))
-    if similarity > comparison.similarity:
-        comparison.similarity = similarity
-        comparison.matches_json = matches.json()
+    comparison.similarity = safe_div(matches.token_count(), len(submission_tokens))
+    comparison.matches_json = matches.json()
 
     return comparison

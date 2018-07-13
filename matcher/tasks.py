@@ -4,7 +4,7 @@ import celery
 from celery.utils.log import get_task_logger
 
 from matchlib.tasks import match_to_others, match_all_combinations
-from matcher.matcher import update_submission
+from matcher import matcher
 
 from data.models import Exercise, Submission, TaskError
 
@@ -27,9 +27,9 @@ def match_new_submission(submission_id):
         "minimum_match_length": submission.exercise.course.minimum_match_tokens,
         "minimum_similarity": settings.MATCH_STORE_MIN_SIMILARITY,
     }
-    other_iter = (other.as_dict() for other in submission.submissions_to_compare)
+    others = [other.as_dict() for other in submission.submissions_to_compare]
     match_all_task = match_to_others.signature(
-        (config, submission.as_dict(), other_iter),
+        (config, submission.as_dict(), others),
         immutable=True
     )
     celery.chain(match_all_task, handle_match_results.s())()
@@ -39,18 +39,18 @@ def match_new_submission(submission_id):
 def match_all_new_submissions_to_exercise(exercise_id):
     """
     Queue matching of all unmatched submissions (not marked invalid) to given exercise.
+    Also matches every submission to the exercise template.
     """
     logger.info("Matching all submissions to exercise with id %d", exercise_id)
+    exercise = Exercise.objects.get(pk=exercise_id)
     config = {
-        "minimum_match_length": submission.exercise.course.minimum_match_tokens,
+        "minimum_match_length": exercise.course.minimum_match_tokens,
         "minimum_similarity": settings.MATCH_STORE_MIN_SIMILARITY,
     }
-    exercise = Exercise.objects.get(pk=exercise_id)
-    to_compare_iter = (s.as_dict() for s in exercise.valid_unmatched_submissions)
+    compare_list = [s.as_dict() for s in exercise.valid_unmatched_submissions]
     match_all_task = match_all_combinations.signature(
-        (config, to_compare_iter),
-        immutable=True,
-        options={"queue": "large_tasks"}
+        (config, compare_list),
+        immutable=True
     )
     celery.chain(match_all_task, handle_match_results.s())()
 
@@ -60,14 +60,20 @@ def handle_match_results(matches):
     """
     Create Comparison instances from matchlib results and update max similarities of the submission pairs.
     """
-    for match in matches:
-        a = Submission.objects.get(pk=match["id_a"])
-        b = Submission.objects.get(pk=match["id_b"])
-        similarity = match["similarity"]
-        matches_json = match["match_indexes"]
+    logger.info("Handling %d match results", len(matches["results"]))
+    meta = matches["meta"]
+    id_a_key = meta.index("id_a")
+    id_b_key = meta.index("id_b")
+    similarity_key = meta.index("similarity")
+    matches_json_key = meta.index("match_indexes")
+    for match in matches["results"]:
+        a = Submission.objects.get(pk=match[id_a_key])
+        b = Submission.objects.get(pk=match[id_a_key])
+        similarity = match[similarity_key]
+        matches_json = match[matches_json_key]
         Comparison.objects.create(submission_a=a, submission_b=b, similarity=similarity, matches_json=matches_json)
-        update_submission(a, similarity)
-        update_submission(b, similarity)
+        matcher.update_submission(a, similarity)
+        matcher.update_submission(b, similarity)
 
 
 def write_error(message):

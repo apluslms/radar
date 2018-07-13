@@ -114,8 +114,8 @@ def create_submission(submission_key, course_key, submission_api_url):
     submission.save()
 
     # Compute similarity of submitted tokens to exercise template tokens
-    comparison = matcher.match_against_template(submission)
-    comparison.save()
+    template_comparison = matcher.match_against_template(submission)
+    template_comparison.save()
 
     return submission.id
 
@@ -140,10 +140,7 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
         for submission in submissions_data
     )
     # Callback task that matches all submissions to the exercise we are reloading
-    task_match_exercise = matcher_tasks.match_all_new_submissions_to_exercise.signature(
-        (exercise_id,),
-        immutable=True
-    )
+    task_match_exercise = matcher_tasks.match_all_new_submissions_to_exercise.si(exercise_id)
     # Create all submissions in parallel in independent tasks, synchronize, and match all submissions sequentially in a single task
     celery.chord(tasks_create_submissions)(task_match_exercise)
 
