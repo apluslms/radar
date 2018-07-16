@@ -217,7 +217,7 @@ class Exercise(models.Model):
         Delete all Comparison instances for valid, matched submissions.
         """
         Comparison.objects.clean_for_exercise(self)
-        self.submissions.update(indexes_json=None, max_similarity=0, matched=False)
+        self.submissions.update(max_similarity=0, matched=False)
 
     def __str__(self):
         return "%s/%s (%s)" % (self.course.name, self.name, self.created)
