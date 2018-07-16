@@ -27,22 +27,6 @@
 </table>
 
 
-<h4>Enabled similarity functions</h4>
-<table class="table table-condensed table-striped">
-    <tr>
-        <th>Function</th>
-        <th>Description</th>
-        <th>Weight</th>
-    </tr>
-    {% for function_name, function_data in similarity_functions %}
-    <tr>
-        <td>{{ function_name }}</td>
-        <td>{{ function_data.description }}</td>
-        <td>{{ function_data.weight }}</td>
-    </tr>
-    {% endfor %}
-</table>
-
 <h4>Exercise configuration</h4>
 
 <form method="post">

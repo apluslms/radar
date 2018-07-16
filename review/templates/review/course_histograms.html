@@ -6,27 +6,6 @@
     <br>
 </div>
 
-<div>
-    <h4>Available similarity functions</h4>
-    <p>Similarity of two strings is represented as a floating point number in the range [0, 1], where 0 denotes disjoint strings and 1 equal strings.
-    Results from different similarity functions is currently aggregated into a single, maximum weighted similarity.
-    In other words, when comparing two submissions, and one of the functions produces a higher weighted similarity than all other functions, then this similarity will be taken as the similarity of the comparison.</p>
-    <table class="table table-condensed table-striped">
-        <tr>
-            <th>Function</th>
-            <th>Description</th>
-            <th>Weight</th>
-        </tr>
-        {% for function_name, function_data in similarity_functions %}
-        <tr>
-            <td>{{ function_name }}</td>
-            <td>{{ function_data.description }}</td>
-            <td>{{ function_data.weight }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-</div>
-
 <ul class="course-histograms">
 	{% for exercise in exercises %}
 	<li class="well well-sm{% if exercise.paused %} paused{% endif %}">
