@@ -1,15 +1,35 @@
 from django.conf import settings
-from django.db import models
 import celery
 from celery.utils.log import get_task_logger
 
 from matchlib.tasks import match_to_others, match_all_combinations
 from matcher import matcher
 
-from data.models import Exercise, Submission, TaskError
+from data.models import Exercise, Submission, TaskError, Comparison
 
 
 logger = get_task_logger(__name__)
+
+
+def match_exercise(exercise):
+    """
+    Put tasks on the queue for matching all submissions to exercise.
+    """
+    submission_ids = [s.id for s in exercise.valid_unmatched_submissions]
+    match_all_to_template = (match_against_template.si(sid) for sid in submission_ids)
+    match_all_to_each_other = match_all_new_submissions_to_exercise.si(exercise.id)
+    # Match all submissions in parallel to the exercise template, synchronize, and match all submissions to exercise
+    celery.chord(match_all_to_template)(match_all_to_each_other)
+
+
+@celery.shared_task
+def match_against_template(submission_id):
+    """
+    Create template comparison for submission.
+    """
+    submission = Submission.objects.get(pk=submission_id)
+    template_comparison = matcher.match_against_template(submission)
+    template_comparison.save()
 
 
 @celery.shared_task(ignore_result=True)

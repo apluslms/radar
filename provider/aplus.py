@@ -37,7 +37,7 @@ def reload(exercise, config):
     Reload all submissions to given exercise from the A+ API, tokenize sources and match all.
     Deletes all existing submissions to exercise.
     """
-    logger.debug("Reloading all submissions for exercise %s", exercise)
+    logger.info("Reloading all submissions for exercise %s", exercise)
     submissions_url = config["host"] + API_SUBMISSION_LIST_URL % { "eid": exercise.key }
     # Queue exercise for asynchronous handling,
     # all submissions to this exercise are created in parallel while matching is sequential
@@ -48,7 +48,7 @@ def recompare(exercise, config):
     """
     Clear all comparisons of submissions to given exercise and match all from scratch.
     """
-    logger.debug("Recomparing all submissions for exercise %s", exercise)
+    logger.info("Recomparing all submissions for exercise %s", exercise)
     exercise.clear_all_matches()
     matcher_tasks.match_exercise(exercise)
 
