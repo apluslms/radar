@@ -89,6 +89,12 @@ def handle_match_results(matches):
     for match in matches["results"]:
         a = Submission.objects.get(pk=match[id_a_key])
         b = Submission.objects.get(pk=match[id_b_key])
+        if a.student == b.student:
+            # Compared two different submissions from the same author, mark as not pending and do not save similarity
+            a.matched = b.matched = True
+            a.save()
+            b.save()
+            continue
         similarity = match[similarity_key]
         if similarity > settings.MATCH_STORE_MIN_SIMILARITY:
             matches_json = match[matches_json_key]
