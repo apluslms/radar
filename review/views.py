@@ -43,7 +43,6 @@ def course_histograms(request, course_key=None, course=None):
                       ("Histograms", None)),
         "course": course,
         "exercises": course.exercises.all(),
-        "similarity_functions": settings.MATCH_ALGORITHMS.items(),
     })
 
 
@@ -141,7 +140,6 @@ def configure_course(request, course_key=None, course=None):
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       ("Configure", None)),
         "course": course,
-        "similarity_functions": settings.MATCH_ALGORITHMS.items(),
         "provider_data": [
             {
                 "name": 'Submission hook',

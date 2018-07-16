@@ -90,7 +90,7 @@ def handle_match_results(matches):
     matches_json_key = meta.index("match_indexes")
     for match in matches["results"]:
         a = Submission.objects.get(pk=match[id_a_key])
-        b = Submission.objects.get(pk=match[id_a_key])
+        b = Submission.objects.get(pk=match[id_b_key])
         similarity = match[similarity_key]
         matches_json = match[matches_json_key]
         Comparison.objects.create(submission_a=a, submission_b=b, similarity=similarity, matches_json=matches_json)

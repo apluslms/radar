@@ -261,7 +261,7 @@ class Submission(models.Model):
     authored_token_count = models.IntegerField(blank=True, null=True, default=None)
     longest_authored_tile = models.IntegerField(blank=True, null=True, default=None)
     max_similarity = models.FloatField(db_index=True, default=0.0,
-            help_text="Maximum weighted average over all similarity scores computed by different similarity functions.")
+            help_text="Maximum average similarity.")
     matched = models.BooleanField(default=False, help_text="Is this Submission waiting to be matched")
     invalid = models.BooleanField(default=False, help_text="Is this Submission invalid in a way it cannot be matched")
 
@@ -342,15 +342,14 @@ class Comparison(models.Model):
     submission_a = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="+")
     submission_b = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="+", blank=True, null=True)
     similarity = models.FloatField(default=None, null=True,
-            help_text="Similarity score resulting from the comparison of two submissions. This value should be used as an aggregate of the similarity scores produced by different similarity functions.")
-    similarity_function = models.CharField(max_length=200,
-            help_text="Name of the similarity function used to compute the similarity of this comparison")
-    matches_json = models.TextField(blank=True, null=True, default=None)
+            help_text="Similarity score resulting from the comparison of two submissions.")
+    matches_json = models.TextField(blank=True, null=True, default=None,
+            help_text="JSON-serialized array of 3-element arrays, containing the index mappings and lengths of matches. E.g. [[i, j, n], ... ] where n is the match length, i starting index of the match in submission_a, and j in submission_b.")
     review = models.IntegerField(choices=settings.REVIEW_CHOICES, default=0)
     objects = ComparisonManager()
 
     class Meta:
-        unique_together = ("submission_a", "submission_b", "similarity_function")
+        unique_together = ("submission_a", "submission_b")
         ordering = ["-similarity", ]
 
     @property
