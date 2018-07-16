@@ -15,7 +15,7 @@ def match_exercise(exercise):
     """
     Put tasks on the queue for matching all submissions to exercise.
     """
-    submission_ids = [s.id for s in exercise.valid_unmatched_submissions]
+    submission_ids = (s.id for s in exercise.valid_unmatched_submissions)
     match_all_to_template = (match_against_template.si(sid) for sid in submission_ids)
     match_all_to_each_other = match_all_new_submissions_to_exercise.si(exercise.id)
     # Match all submissions in parallel to the exercise template, synchronize, and match all submissions to exercise
@@ -45,7 +45,6 @@ def match_new_submission(submission_id):
     logger.info("Matching new submission %d", submission_id)
     config = {
         "minimum_match_length": submission.exercise.course.minimum_match_tokens,
-        "minimum_similarity": settings.MATCH_STORE_MIN_SIMILARITY,
         "similarity_precision": settings.SIMILARITY_PRECISION,
     }
     others = [other.as_dict() for other in submission.submissions_to_compare]
@@ -66,7 +65,6 @@ def match_all_new_submissions_to_exercise(exercise_id):
     exercise = Exercise.objects.get(pk=exercise_id)
     config = {
         "minimum_match_length": exercise.course.minimum_match_tokens,
-        "minimum_similarity": settings.MATCH_STORE_MIN_SIMILARITY,
         "similarity_precision": settings.SIMILARITY_PRECISION,
     }
     compare_list = [s.as_dict() for s in exercise.valid_unmatched_submissions]
@@ -92,8 +90,9 @@ def handle_match_results(matches):
         a = Submission.objects.get(pk=match[id_a_key])
         b = Submission.objects.get(pk=match[id_b_key])
         similarity = match[similarity_key]
-        matches_json = match[matches_json_key]
-        Comparison.objects.create(submission_a=a, submission_b=b, similarity=similarity, matches_json=matches_json)
+        if similarity > settings.MATCH_STORE_MIN_SIMILARITY:
+            matches_json = match[matches_json_key]
+            Comparison.objects.create(submission_a=a, submission_b=b, similarity=similarity, matches_json=matches_json)
         matcher.update_submission(a, similarity)
         matcher.update_submission(b, similarity)
 
