@@ -86,21 +86,20 @@ def handle_match_results(matches):
     id_b_key = meta.index("id_b")
     similarity_key = meta.index("similarity")
     matches_json_key = meta.index("match_indexes")
+    comparison_batch = []
     for match in matches["results"]:
         a = Submission.objects.get(pk=match[id_a_key])
         b = Submission.objects.get(pk=match[id_b_key])
-        if a.student == b.student:
-            # Compared two different submissions from the same author, mark as not pending and do not save similarity
-            a.matched = b.matched = True
-            a.save()
-            b.save()
-            continue
         similarity = match[similarity_key]
         if similarity > settings.MATCH_STORE_MIN_SIMILARITY:
             matches_json = match[matches_json_key]
             Comparison.objects.create(submission_a=a, submission_b=b, similarity=similarity, matches_json=matches_json)
-        matcher.update_submission(a, similarity)
-        matcher.update_submission(b, similarity)
+            matcher.update_submission(a, similarity)
+            matcher.update_submission(b, similarity)
+        if len(comparison_batch) > settings.COMPARISON_CREATE_BATCH_SIZE
+            Comparison.objects.bulk_create(comparison_batch)
+            comparison_batch = []
+    Comparison.objects.bulk_create(comparison_batch)
 
 
 def write_error(message):
