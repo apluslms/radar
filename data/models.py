@@ -364,16 +364,6 @@ class Comparison(models.Model):
     def review_class(self):
         return next((m["class"] for m in settings.REVIEWS if m["value"] == self.review), "unknown")
 
-    @property
-    def max_similarity(self):
-        res = self.results.aggregate(models.Max("similarity")).get("similarity__max")
-        return res or 0
-
-    @property
-    def avg_similarity(self):
-        res = self.results.aggregate(models.Avg("similarity")).get("similarity__avg")
-        return res or 0
-
     def update_review(self, review):
         try:
             r = int(review)
