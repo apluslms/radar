@@ -96,7 +96,7 @@ def handle_match_results(matches):
             Comparison.objects.create(submission_a=a, submission_b=b, similarity=similarity, matches_json=matches_json)
             matcher.update_submission(a, similarity)
             matcher.update_submission(b, similarity)
-        if len(comparison_batch) > settings.COMPARISON_CREATE_BATCH_SIZE
+        if len(comparison_batch) > settings.COMPARISON_CREATE_BATCH_SIZE:
             Comparison.objects.bulk_create(comparison_batch)
             comparison_batch = []
     Comparison.objects.bulk_create(comparison_batch)
