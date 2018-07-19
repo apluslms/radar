@@ -1,3 +1,4 @@
+import itertools
 import json
 import logging
 import re
@@ -49,6 +50,9 @@ class Course(NamespacedApiObject):
     reviewers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="courses", blank=True, help_text="Reviewers for match analysis")
     archived = models.BooleanField(db_index=True, default=False)
     objects = CourseManager()
+    similarity_graph_json = models.TextField(default='[]',
+            help_text="Serialized graph showing similarity over all exercises of this course")
+    similarity_graph_expired = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["-created"]
@@ -75,8 +79,33 @@ class Course(NamespacedApiObject):
 
     def all_comparisons(self, min_similarity):
         return (Comparison.objects
-                    .filter(submission_a__exercise__course=self)
-                    .filter(similarity__gte=min_similarity))
+                .filter(submission_a__exercise__course=self)
+                .filter(similarity__gte=min_similarity))
+
+    def all_student_pair_matches(self, min_similarity):
+        """
+        Iterate over all exercises and all student pairs on this course, and return matches with similarity over given threshold for each student pair and exercise.
+        """
+        annotation = (
+            "submission_a__student__key",
+            "submission_b__student__key",
+            "similarity",
+        )
+        for student in self.students.all():
+            for exercise in self.exercises.all():
+                comparisons = (
+                    # Include all Comparison objects with at least the given minimum similarity
+                    self.all_comparisons(min_similarity)
+                    # Include only one exercise at a time
+                    # We assume no submissions of different exercises are compared
+                    .filter(submission_a__exercise=exercise)
+                    # Include only one student at a time
+                    .filter(submission_a__student=student)
+                    # Exclude template comparisons
+                    .exclude(submission_b__isnull=True)
+                )
+                for comparison in comparisons.values_list(*annotation):
+                    yield comparison + (exercise.id, )
 
     def has_access(self, user):
         return user.is_staff or self.reviewers.filter(pk=user.pk).exists()
@@ -91,6 +120,11 @@ class Course(NamespacedApiObject):
     def get_student(self, key_str):
         student, _ = self.students.get_or_create(key=URLKeyField.safe_version(key_str))
         return student
+
+    def invalidate_similarity_graph(self):
+        if not self.similarity_graph_expired:
+            self.similarity_graph_expired = True
+            self.save()
 
     def __str__(self):
         return "%s (%s)" % (self.name, self.created)

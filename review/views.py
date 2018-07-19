@@ -9,7 +9,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from provider import aplus
 from data.models import Course, Comparison
-from data.graph import generate_match_graph
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTokenizerForm
@@ -199,8 +198,7 @@ def configure_course(request, course_key=None, course=None):
 
 @access_resource
 def graph(request, course, course_key):
-    min_similarity = 0.95 # TODO parametrize in UI
-    graph_data = generate_match_graph(course, min_similarity)
+    graph_data = course.similarity_graph_json
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
@@ -209,9 +207,8 @@ def graph(request, course, course_key):
         ),
         "course": course,
         "graph": {
-            "min_similarity": min_similarity,
-            "graph_json": json.dumps(graph_data),
-            "is_empty": not graph_data["nodes"],
+            "min_similarity": 0.95,
+            "graph_json": graph_data,
         },
     }
     return render(request, "review/graph.html", context)

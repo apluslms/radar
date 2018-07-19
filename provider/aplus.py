@@ -2,7 +2,7 @@ import logging
 import requests
 
 from data.models import URLKeyField
-import provider.tasks as tasks
+from provider import tasks
 import matcher.tasks as matcher_tasks
 
 
@@ -30,6 +30,7 @@ def hook(request, course, config):
     # Queue submission for asynchronous handling
     submission_url = config["host"] + API_SUBMISSION_URL % { "sid": sid }
     tasks.create_and_match(sid, course.key, submission_url)
+    course.invalidate_similarity_graph()
 
 
 def reload(exercise, config):
@@ -42,6 +43,7 @@ def reload(exercise, config):
     # Queue exercise for asynchronous handling,
     # all submissions to this exercise are created in parallel while matching is sequential
     tasks.reload_exercise_submissions.delay(exercise.id, submissions_url)
+    exercise.course.invalidate_similarity_graph()
 
 
 def recompare(exercise, config):
@@ -51,6 +53,7 @@ def recompare(exercise, config):
     logger.info("Recomparing all submissions for exercise %s", exercise)
     exercise.clear_all_matches()
     matcher_tasks.match_exercise(exercise)
+    exercise.course.invalidate_similarity_graph()
 
 
 # TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself and not use someones LTI login tokens to fetch stuff from the API

@@ -3,7 +3,7 @@
 
 <pre hidden id="graph-json">{{ graph.graph_json }}</pre>
 
-{% if graph.is_empty %}
+{% if not graph.graph_json %}
 <div class="alert alert-warning">
   <p>No matching pairs with a similarity of at least {{ graph.min_similarity }} found.</p>
 </div>
@@ -20,10 +20,10 @@
 TODO align buttons and the input into one nice toolbar
 {% endcomment %}
   <div class="slidecontainer">
-    <b>Minimum similarity</b>
-    <input type="range" class="slider" id="min-similarity-range"
-           value="0.95" min="0" max="1" step="0.01">
-    <p id="min-similarity-range-value">0.95</p>
+    <b>Minimum match count</b>
+    <input type="range" class="slider" id="min-match-count-range"
+           value="0" min="0" max="100" step="1">
+    <p id="min-match-count-range-value">1</p>
   </div>
   <button id="build-graph-button" type="button" class="btn btn-outline-warning"
           autocomplete="off">
@@ -49,53 +49,6 @@ TODO align buttons and the input into one nice toolbar
 
 <div id="graph-container"></div>
 
-<script>
-$(function() {
-  const shuffleLayoutButton = $("#shuffle-layout-button");
-  const forceAtlasButton = $("#toggle-forceatlas-button");
-  const buildGraphButton = $("#build-graph-button");
-  const minSimilaritySlider = $("#min-similarity-range");
-  const minSimilaritySliderValue = $("#min-similarity-range-value");
-
-  function getSliderValue() { return parseFloat(minSimilaritySlider.val()); };
-
-  const js = new JS();
-  const s = js.drawGraph(js.parseJSON($("#graph-json")));
-
-  shuffleLayoutButton.on("click", _ => {
-    shuffleGraphLayout(s);
-    if (forceAtlasButton.hasClass("active")) {
-      // shuffleGraphLayout kills force atlas, fix inconsistent visual state
-      forceAtlasButton.button("toggle");
-    }
-  });
-  forceAtlasButton.on("click", _ => {
-    if (!s.isForceAtlas2Running()) {
-      s.startForceAtlas2(forceAtlasConfig);
-    } else {
-      s.stopForceAtlas2();
-    }
-  });
-  buildGraphButton.on("click", _ => {
-    s.killForceAtlas2();
-  });
-  minSimilaritySlider.on("change", _ => {
-    const newMinSize = getSliderValue();
-    applyMinEdgeSizeFilter(newMinSize);
-    applyDisconnectedNodesFilter();
-    minSimilaritySliderValue.text(newMinSize);
-  });
-
-  s.startForceAtlas2(forceAtlasConfig);
-  let timeoutID = window.setTimeout(_ => {
-    sigmaObject.stopForceAtlas2();
-    window.clearTimeout(timeoutID);
-    [shuffleLayoutButton, forceAtlasButton].forEach(button => {
-      button.attr("disabled", false);
-    });
-  }, 2000);
-
-});
-</script>
+<script src="/static/graph/graph.js"></script>
 
 {% endblock %}

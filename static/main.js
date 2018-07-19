@@ -129,16 +129,17 @@ JS.prototype.drawGraph = function(graphData) {
     });
   });
   graphData.edges.forEach((edge, i) => {
-    console.log(edge);
+    const matchCount = edge.matches_in_exercises.length;
+    const maxSimilarity = Math.max(...edge.matches_in_exercises);
     sigmaObject.graph.addEdge({
       id: 'e' + i,
       source: edge.source,
       target: edge.target,
-      size: edge.data[0].similarity.sum*10,
-      label: '' + edge.data[0].similarity.max,
+      size: matchCount * 10,
+      label: '' + matchCount,
       color: '#ccc',
       hover_color: '#222',
-      weight: edge.data[0].similarity.sum
+      weight: matchCount,
     });
   });
 
@@ -171,7 +172,7 @@ function applyMinEdgeSizeFilter(newMinEdgeSize) {
 function applyMinEdgeWeightFilter(newMinEdgeWeight) {
   sigmaFilter
     .undo('min-edge-weight')
-    .edgesBy(e => e.similarity >= newMinEdgeWeight, 'min-edge-weight')
+    .edgesBy(e => e.weight >= newMinEdgeWeight, 'min-edge-weight')
     .apply();
 }
 

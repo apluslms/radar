@@ -300,14 +300,13 @@ CELERY_BROKER_URL = "amqp://localhost:5672"
 # celery.chord tasks (used by matcher.tasks.match_submissions) are not supported with the RPC backend, therefore we use Memcached
 CELERY_RESULT_BACKEND = "cache+memcached://127.0.0.1:11211/"
 
-# CELERY_BEAT_SCHEDULE = {
-#     # Match all submission pairs that for some reason have not been matched.
-#     # The task matches only submissions that are over one hour old to avoid interfering with regular matching tasks.
-#     "match_all_missing_comparisons": {
-#         "task": "matcher.tasks.match_all_missing_comparisons",
-#         "schedule": 60 * 60, # Run once per hour
-#     }
-# }
+# Schedule for periodic tasks
+CELERY_BEAT_SCHEDULE = {
+    "update_all_similarity_graphs": {
+        "task": "data.tasks.update_all_similarity_graphs",
+        "schedule": 60 * 60, # Run once per hour
+    }
+}
 
 from r_django_essentials.conf import update_settings_from_module
 
