@@ -145,26 +145,6 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
     celery.chord(tasks_create_submissions)(task_match_exercise)
 
 
-@celery.shared_task(ignore_result=True)
-def match_all_unmatched_submissions(course_key=None):
-    """
-    For a given course key, queue every submission with null similarity for matching.
-    If course key is not given, queue every unmatched submission on every course.
-    """
-    if course_key is None:
-        courses = Course.objects.filter(archived=False)
-    elif not Course.objects.filter(key=course_key).exists():
-        # raise ProviderTaskError("Cannot match submissions for non-existing course with key %s" % course_key)
-        write_error("Cannot match submissions for non-existing course with key %s" % course_key)
-        return
-    else:
-        courses = Course.objects.filter(key=course_key)
-    for course in courses:
-        logger.info("Matching all submissions for course %s", course)
-        for exercise in course.exercises.exclude(paused=True):
-            matcher_tasks.match_all_new_submissions_to_exercise(exercise.id)
-
-
 @celery.shared_task
 def task_error_handler(task_id, *args, **kwargs):
     write_error("Failed celery task {}".format(task_id))
