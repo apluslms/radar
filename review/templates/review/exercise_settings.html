@@ -12,7 +12,7 @@
 <form method="post" class="well">
 	<h4>Exercise tokenizer and matcher</h4>
 	<div class="alert alert-warning">
-		<p>Changing these settings will overwrite the current exercise template with the template in the text field, and clear all existing matches for this exercise.
+		<p>Changing these settings will overwrite the current exercise template with the template in the text field, clear all existing matches for this exercise, and recompare all submissions to this exercise.
         It will not clear the tokenized submissions strings.
         The amount of time required is approximately 10 minutes for 300 submissions, and will increase approximately proportional to the binomial coefficient n over 2, where n is the number of submissions.
         </p>
@@ -33,7 +33,7 @@
 	<div class="alert alert-warning">
 		<p>This function will clear all current comparisons and submissions from the database.
 		The submissions will be gradually reloaded from the provider and then tokenized and matched.
-		This will take considerable amount of time and will stress the provider API.</p>
+		The amount of time required is a bit more than in "Clear and re-compare", since all submissions are first loaded from the provider API, tokenized from scratch, and then compared.</p>
 	</div>
 	{% csrf_token %}
 	<button type="submit" name="provider_reload" class="btn btn-warning">Clear and reload</button>

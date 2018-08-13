@@ -2,6 +2,7 @@ from django.conf import settings
 import celery
 from celery.utils.log import get_task_logger
 
+# Matchlib can also be deployed to a Kubernetes node, easing the task load by allowing elastic parallel task processing
 from matchlib.tasks import match_to_others, match_all_combinations
 from matcher import matcher
 
@@ -36,6 +37,7 @@ def match_against_template(submission_id):
 def match_new_submission(submission_id):
     """
     Queue matching of given submission to all existing submissions.
+    The resulting matching task is JSON serializable and can be consumed by any deployed matchlib instance.
     """
     if submission_id is None:
         # If this task is chained and the preceding task failed, it will pass None as id
@@ -60,6 +62,7 @@ def match_all_new_submissions_to_exercise(exercise_id):
     """
     Queue matching of all unmatched submissions (not marked invalid) to given exercise.
     Also matches every submission to the exercise template.
+    The resulting matching task is JSON serializable and can be consumed by any deployed matchlib instance.
     """
     logger.info("Matching all submissions to exercise with id %d", exercise_id)
     exercise = Exercise.objects.get(pk=exercise_id)
