@@ -36,8 +36,7 @@ CELERY_TASK_ROUTES = {
     "matcher.tasks.handle_match_results": {"queue": "io"},
     # Consumed by remote Kubernetes workers
     # https://github.com/apluslms/serve-gst-matchlib
-    "matchlib.tasks.match_to_others": {"queue": "gst_matchlib_tasks"},
-    "matchlib.tasks.match_all_combinattions": {"queue": "gst_matchlib_tasks"},
+    "matchlib.tasks.*": {"queue": "gst_matchlib_tasks"},
 }
 
 CELERY_BEAT_SCHEDULE = {
