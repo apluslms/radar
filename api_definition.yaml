@@ -1,0 +1,148 @@
+openapi: "3.0.1"
+
+
+info:
+  version: 0.1.0
+  title: Radar REST API
+  description: API for accessing code similarity results from a Radar instance.
+  contact:
+    name: Aalto LeTech
+    url: https://github.com/Aalto-LeTech
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+
+paths:
+  /courses:
+    get:
+      description: Returns all course instances that the user has access to.
+      operationId: All courses
+      responses:
+        '200':
+          description: Courses response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Course'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /courses/{key}:
+    get:
+      description: Returns a course instance by an external, unique identifier.
+      operationId: Course by key
+      parameters:
+        - name: key
+          in: path
+          description: Course instance key
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Course by key response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /courses/{key}/exercises:
+    get:
+      description: Returns all exercises of a course instance
+      operationId: All exercises of course instance
+      parameters:
+        - name: key
+          in: path
+          description: Course instance key
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: All exercises of course instance response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Exercise'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /courses/{course_key}/exercises/{exercise_key}:
+    get:
+      description: Returns an exercise of a course instance
+      operationId: Exercise of course instance
+      parameters:
+        - name: course_key
+          in: path
+          description: Course instance key
+          required: true
+          schema:
+            type: string
+        - name: exercise_key
+          in: path
+          description: Exercise key
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Exercise response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exercise'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+components:
+  schemas:
+    Course:
+      allOf:
+        - $ref: '#/components/schemas/Course'
+        - required:
+          - key
+          properties:
+            key:
+              description: Alphanumeric key of a course instance.
+              type: string
+
+    Exercise:
+      allOf:
+        - $ref: '#/components/schemas/Exercise'
+        - required:
+          - key
+          properties:
+            key:
+              description: Alphanumeric key of an exercise.
+              type: string
+
+    Error:
+      required:
+        - message
+      properties:
+        message:
+          type: string
