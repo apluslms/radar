@@ -32,8 +32,8 @@ DATABASES = {
 STATIC_ROOT = "static_root"
 
 CELERY_TASK_ROUTES = {
+    # Put I/O-bound tasks to a separate queue, which can be consumed by a Celery instance containing more workers than CPU cores
     "provider.tasks.create_submission": {"queue": "io"},
-    "matcher.tasks.handle_match_results": {"queue": "io"},
     # Consumed by remote Kubernetes workers
     # https://github.com/apluslms/serve-gst-matchlib
     "matchlib.tasks.*": {"queue": "gst_matchlib_tasks"},

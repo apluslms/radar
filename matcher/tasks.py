@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.conf import settings
 import celery
 from celery.utils.log import get_task_logger
@@ -79,6 +80,7 @@ def match_all_new_submissions_to_exercise(exercise_id):
 
 
 @celery.shared_task(ignore_result=True)
+@transaction.atomic # Issue a single DB transaction after this task finishes, instead of autocommiting on every change
 def handle_match_results(matches):
     """
     Create Comparison instances from matchlib results and update max similarities of the submission pairs.
@@ -89,7 +91,6 @@ def handle_match_results(matches):
     id_b_key = meta.index("id_b")
     similarity_key = meta.index("similarity")
     matches_json_key = meta.index("match_indexes")
-    comparison_batch = []
     for match in matches["results"]:
         a = Submission.objects.get(pk=match[id_a_key])
         b = Submission.objects.get(pk=match[id_b_key])
@@ -99,10 +100,6 @@ def handle_match_results(matches):
             Comparison.objects.create(submission_a=a, submission_b=b, similarity=similarity, matches_json=matches_json)
         matcher.update_submission(a, similarity)
         matcher.update_submission(b, similarity)
-        if len(comparison_batch) > settings.COMPARISON_CREATE_BATCH_SIZE:
-            Comparison.objects.bulk_create(comparison_batch)
-            comparison_batch = []
-    Comparison.objects.bulk_create(comparison_batch)
 
 
 def write_error(message):

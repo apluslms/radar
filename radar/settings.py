@@ -187,9 +187,6 @@ MATCH_STORE_MIN_SIMILARITY = 0.2
 # Amount of float digits when serializing similarity
 SIMILARITY_PRECISION = 3
 
-# Amount of Comparison objects to accumulate into a list before issuing a DB create transaction
-COMPARISON_CREATE_BATCH_SIZE = 5000
-
 SUBMISSION_VIEW_HEIGHT = 30
 SUBMISSION_VIEW_WIDTH = 5
 
