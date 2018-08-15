@@ -22,12 +22,12 @@ TODO align buttons and the input into one nice toolbar
   <div class="slidecontainer">
     <b>Minimum match count</b>
     <input type="range" class="slider" id="min-match-count-range"
-           value="0" min="0" max="100" step="1">
-    <p id="min-match-count-range-value">1</p>
+           value="5" min="1" max="20" step="1">
+    <p id="min-match-count-range-value">5</p>
   </div>
   <button id="build-graph-button" type="button" class="btn btn-outline-warning"
           autocomplete="off">
-    Rebuild the graph from database
+    Invalidate graph cache and rebuild graph
   </button>
   <button id="shuffle-layout-button" type="button" class="btn btn-outline-primary"
           autocomplete="off">

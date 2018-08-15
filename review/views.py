@@ -4,7 +4,7 @@ import json
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
-from django.http.response import JsonResponse
+from django.http.response import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
 from provider import aplus
@@ -212,6 +212,12 @@ def graph(request, course, course_key):
         },
     }
     return render(request, "review/graph.html", context)
+
+
+@access_resource
+def invalidate_graph_cache(request, course, course_key):
+    course.invalidate_similarity_graph()
+    return HttpResponse("Graph cache invalidated")
 
 
 @access_resource
