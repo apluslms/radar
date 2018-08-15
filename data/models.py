@@ -1,4 +1,3 @@
-import itertools
 import json
 import logging
 import re
@@ -86,11 +85,6 @@ class Course(NamespacedApiObject):
         """
         Iterate over all exercises and all student pairs on this course, and return matches with similarity over given threshold for each student pair and exercise.
         """
-        annotation = (
-            "submission_a__student__key",
-            "submission_b__student__key",
-            "similarity",
-        )
         for student in self.students.all():
             for exercise in self.exercises.all():
                 comparisons = (
@@ -104,8 +98,8 @@ class Course(NamespacedApiObject):
                     # Exclude template comparisons
                     .exclude(submission_b__isnull=True)
                 )
-                for comparison in comparisons.values_list(*annotation):
-                    yield comparison + (exercise.id, )
+                for comparison in comparisons:
+                    yield comparison
 
     def has_access(self, user):
         return user.is_staff or self.reviewers.filter(pk=user.pk).exists()

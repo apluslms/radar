@@ -10,13 +10,23 @@ $(_ => {
         return parseInt(minMatchCountSlider.val());
     }
 
+    function arrayToHTML(strings) {
+        return "<ul>" + strings.map(s => "<li>" + s + "</li>").join("\n") + "</ul>";
+    }
+
+    function matchToHTML(match) {
+        const elements = [
+            "Exercise: <a href='" + match.exercise_url + "'>" + match.exercise_name + "</a>",
+            "Comparison view: <a href='" + match.comparison_url + "'>link</a>",
+            "Maximum similarity: " + match.max_similarity,
+        ];
+        return arrayToHTML(elements);
+    }
+
     function handleEdgeClick(event) {
         const edge = event.data.edge;
-        const matchesList = Array.from(edge.matchesData, match => {
-            return "<li>Exercise: " + match.exercise_id + ", Maximum similarity: " + match.max_similarity + "</li>"
-        });
-        summaryModal.find("h4.modal-title").text(edge.source + " and " + edge.target + " have " + matchesList.length + " submission pairs with high similarity");
-        summaryModal.find("div.modal-body").html("<ul>" + matchesList.join("\n") + "</ul>");
+        summaryModal.find("h4.modal-title").text(edge.source + " and " + edge.target + " have " + edge.matchesData.length + " submission pairs with high similarity");
+        summaryModal.find("div.modal-body").html(arrayToHTML(edge.matchesData.map(matchToHTML)));
         summaryModal.modal("toggle");
     }
 
