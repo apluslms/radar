@@ -130,7 +130,6 @@ JS.prototype.drawGraph = function(graphData) {
   });
   graphData.edges.forEach((edge, i) => {
     const matchCount = edge.matches_in_exercises.length;
-    const maxSimilarity = Math.max(...edge.matches_in_exercises);
     sigmaObject.graph.addEdge({
       id: 'e' + i,
       source: edge.source,
@@ -140,24 +139,13 @@ JS.prototype.drawGraph = function(graphData) {
       color: '#ccc',
       hover_color: '#222',
       weight: matchCount,
+      matchesData: Array.from(edge.matches_in_exercises),
     });
   });
 
   sigmaFilter = new sigma.plugins.filter(sigmaObject);
 
   shuffleGraphLayout(sigmaObject);
-
-  // TODO highlight edge label on edge hover requires custom renderer?
-  /*
-  sigmaObject.bind('overEdge', event => {
-    console.log("overEdge:", event.data.edge);
-    sigmaObject.refresh();
-  });
-  sigmaObject.bind('outEdge', event => {
-    console.log("outEdge:", event.data.edge);
-    sigmaObject.refresh();
-  });
-  */
 
   return sigmaObject;
 };

@@ -43,6 +43,19 @@ TODO align buttons and the input into one nice toolbar
 <div class="alert alert-warning">
   <p>No matching pairs with a similarity of at least {{ graph.min_similarity }} found.</p>
 </div>
+{% else %}
+<div id="pair-comparisons-summary-modal" class="modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title"></h4>
+      </div>
+      <div class="modal-body">
+      </div>
+    </div>
+  </div>
+</div>
 {% endif %}
 
 {% endif %}
