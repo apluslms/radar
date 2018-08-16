@@ -1,90 +1,90 @@
 var sigmaObject;
 var sigmaFilter;
 const forceAtlasConfig = {
-  // compute algorithm using a web worker
-  worker: true,
-  // running time optimization for large graphs
-  barnesHutOptimize: true,
-  // seems to increase the repulsion between nodes
-  outboundAttractionDistribution: true
+    // compute algorithm using a web worker
+    worker: true,
+    // running time optimization for large graphs
+    barnesHutOptimize: true,
+    // seems to increase the repulsion between nodes
+    outboundAttractionDistribution: true
 };
 
 
 function applyMinEdgeSizeFilter(newMinEdgeSize) {
-  sigmaFilter
-    .undo('min-edge-size')
-    .edgesBy(e => e.size >= newMinEdgeSize, 'min-edge-size')
-    .apply();
+    sigmaFilter
+        .undo('min-edge-size')
+        .edgesBy(e => e.size >= newMinEdgeSize, 'min-edge-size')
+        .apply();
 }
 
 function applyMinEdgeWeightFilter(newMinEdgeWeight) {
-  sigmaFilter
-    .undo('min-edge-weight')
-    .edgesBy(e => e.weight >= newMinEdgeWeight, 'min-edge-weight')
-    .apply();
+    sigmaFilter
+        .undo('min-edge-weight')
+        .edgesBy(e => e.weight >= newMinEdgeWeight, 'min-edge-weight')
+        .apply();
 }
 
 function applyDisconnectedNodesFilter() {
-  sigmaFilter
-    .undo('disconnected-nodes')
-    .nodesBy(n => !sigmaObject.graph.adjacentEdges(n.id).every(e => e.hidden), 'disconnected-nodes')
-    .apply();
+    sigmaFilter
+        .undo('disconnected-nodes')
+        .nodesBy(n => !sigmaObject.graph.adjacentEdges(n.id).every(e => e.hidden), 'disconnected-nodes')
+        .apply();
 }
 
 function shuffleGraphLayout(s) {
-  s.killForceAtlas2();
-  s.graph.nodes().forEach(n => {
-    n.x = Math.random() - 0.5;
-    n.y = Math.random() - 0.5;
-  });
-  s.refresh();
+    s.killForceAtlas2();
+    s.graph.nodes().forEach(n => {
+        n.x = Math.random() - 0.5;
+        n.y = Math.random() - 0.5;
+    });
+    s.refresh();
 }
 
 function drawGraph(graphData) {
-  let s = new sigma({
-    renderer: {
-      container: "graph-container",
-      type: 'canvas'
-    },
-    settings: {
-      minEdgeSize: 1,
-      maxEdgeSize: 10,
-      enableEdgeHovering: true,
-      defaultEdgeHoverColor: '#222',
-      edgeHoverExtremities: true,
-      edgeLabelSize: 'proportional',
-      edgeLabelSizePowRatio: 1.5,
-    }
-  });
-
-  graphData.nodes.forEach(node => {
-    s.graph.addNode({
-      id: node,
-      label: node,
-      size: 1,
-      color: '#444',
+    let s = new sigma({
+        renderer: {
+            container: "graph-container",
+            type: 'canvas'
+        },
+        settings: {
+            minEdgeSize: 1,
+            maxEdgeSize: 10,
+            enableEdgeHovering: true,
+            defaultEdgeHoverColor: '#222',
+            edgeHoverExtremities: true,
+            edgeLabelSize: 'proportional',
+            edgeLabelSizePowRatio: 1.5,
+        }
     });
-  });
-  graphData.edges.forEach((edge, i) => {
-    const matchCount = edge.matches_in_exercises.length;
-    s.graph.addEdge({
-      id: 'e' + i,
-      source: edge.source,
-      target: edge.target,
-      size: matchCount * 10,
-      label: '' + matchCount,
-      color: '#ccc',
-      hover_color: '#222',
-      weight: matchCount,
-      matchesData: Array.from(edge.matches_in_exercises),
+
+    graphData.nodes.forEach(node => {
+        s.graph.addNode({
+            id: node,
+            label: node,
+            size: 1,
+            color: '#444',
+        });
     });
-  });
+    graphData.edges.forEach((edge, i) => {
+        const matchCount = edge.matches_in_exercises.length;
+        s.graph.addEdge({
+            id: 'e' + i,
+            source: edge.source,
+            target: edge.target,
+            size: matchCount * 10,
+            label: '' + matchCount,
+            color: '#ccc',
+            hover_color: '#222',
+            weight: matchCount,
+            matchesData: Array.from(edge.matches_in_exercises),
+        });
+    });
 
-  sigmaFilter = new sigma.plugins.filter(s);
+    sigmaFilter = new sigma.plugins.filter(s);
 
-  shuffleGraphLayout(s);
+    shuffleGraphLayout(s);
 
-  return s;
+    return s;
 }
 
 function arrayToHTML(strings) {
