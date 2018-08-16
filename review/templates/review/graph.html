@@ -1,49 +1,70 @@
 {% extends 'base.html' %}
 {% block content %}
 
+{% if graph.graph_json %}
 <pre hidden id="graph-json">{{ graph.graph_json }}</pre>
-
-{% if not graph.graph_json %}
-<div class="alert alert-warning">
-  <p>No matching pairs with a similarity of at least {{ graph.min_similarity }} found.</p>
-</div>
 {% else %}
+<pre hidden id="graph-json">{"nodes": [], "edges": []}</pre>
+{% endif %}
 
 <div class="graph-ui">
   <dl>
     <dt>Nodes</dt>
     <dd>Students, unique by student number</dd>
     <dt>Edges</dt>
-    <dd>An edge between two nodes represents the existence of at least one pair of submissions that have a similarity of at least {{ graph.min_similarity }}. Edge weights represent the amount of such pairs.</dd>
+    <dd>An edge between two nodes represents the existence of at least one pair of submissions that have a similarity higher than the specified minimum similarity. Edge weights represent the amount of such pairs.</dd>
   </dl>
-{% comment %}
-TODO align buttons and the input into one nice toolbar
-{% endcomment %}
-  <div class="slidecontainer">
-    <b>Minimum match count</b>
-    <input type="range" class="slider" id="min-match-count-range"
-           value="5" min="1" max="20" step="1">
-    <p id="min-match-count-range-value">5</p>
+
+  <div class="row">
+      <div class="col-md-6 build-args-ui">
+          <h4>Build parameters</h4>
+          <div class="slidecontainer">
+            <b>Minimum match count</b>
+            <input type="range" class="slider" id="min-match-count-range"
+                   value="5" min="1" max="20" step="1">
+            <p id="min-match-count-range-value">5</p>
+            <b>Minimum match similarity</b>
+            <input type="range" class="slider" id="min-similarity-range"
+                   value="0.95" min="0.00" max="1.00" step="0.01">
+            <p id="min-similarity-range-value">0.95</p>
+          </div>
+          <button id="build-graph-button" type="button" class="btn btn-outline-warning"
+                  autocomplete="off">
+            Build graph
+          </button>
+          <button id="invalidate-graph-button" type="button" class="btn btn-outline-warning"
+                  autocomplete="off">
+            Invalidate graph cache
+          </button>
+      </div>
+
+      <div class="col-md-6 filter-ui">
+          <h4>Graph control</h4>
+          <div class="slidecontainer">
+            <b>Filter minimum match count</b>
+            <input type="range" class="slider" id="min-match-count-range-filter"
+                   value="5" min="1" max="20" step="1">
+            <p id="min-match-count-range-value">5</p>
+          </div>
+          <button id="shuffle-layout-button" type="button" class="btn btn-outline-primary"
+                  autocomplete="off">
+            Refresh and shuffle graph layout
+          </button>
+          <button id="toggle-forceatlas-button" type="button" class="btn btn-outline-primary"
+                  data-toggle="button" aria-pressed="false" autocomplete="off">
+            Toggle Force Atlas 2 algorithm
+          </button>
+      </div>
   </div>
-  <button id="build-graph-button" type="button" class="btn btn-outline-warning"
-          autocomplete="off">
-    Invalidate graph cache and rebuild graph
-  </button>
-  <button id="shuffle-layout-button" type="button" class="btn btn-outline-primary"
-          autocomplete="off">
-    Refresh and shuffle graph layout
-  </button>
-  <button id="toggle-forceatlas-button" type="button" class="btn btn-outline-primary"
-          data-toggle="button" aria-pressed="false" autocomplete="off">
-    Toggle Force Atlas 2 algorithm
-  </button>
+
+  <div hidden class="progress">
+      <div class="progress-bar progress-bar-striped active" style="width: 100%"
+           role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+          <span class="message"></span>
+      </div>
+  </div>
 </div>
 
-{% if graph.is_empty %}
-<div class="alert alert-warning">
-  <p>No matching pairs with a similarity of at least {{ graph.min_similarity }} found.</p>
-</div>
-{% else %}
 <div id="pair-comparisons-summary-modal" class="modal" tabindex="-1" role="dialog">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
@@ -56,12 +77,11 @@ TODO align buttons and the input into one nice toolbar
     </div>
   </div>
 </div>
-{% endif %}
-
-{% endif %}
 
 <div id="graph-container"></div>
 
+{% csrf_token %}
 <script src="/static/graph/graph.js"></script>
+<script>buildGraphFromJSON("graph-json")</script>
 
 {% endblock %}

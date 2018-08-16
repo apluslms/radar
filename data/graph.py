@@ -1,5 +1,40 @@
 import collections
+import functools
+
 from django.urls import reverse
+from data.models import Course
+
+
+class LRU(collections.OrderedDict):
+    """Custom LRU cache inspired by https://bugs.python.org/msg292251"""
+
+    def __init__(self, func, maxsize=256):
+        self.maxsize = maxsize
+        self.func = func
+        functools.update_wrapper(self, func)
+
+    def __call__(self, *args):
+        if args in self:
+            graph = self[args]
+            self.move_to_end(args)
+            return graph
+        graph = self.func(*args)
+        if len(self) >= self.maxsize:
+            self.popitem(last=False)
+        self[args] = graph
+        return graph
+
+    def invalidate_all(self):
+        self.clear()
+
+    def invalidate_for_course(self, course_key):
+        # As long as the cache max size is relatively small, walking through all keys is hardly a performance disaster
+        course_entries = [key for key in self.keys() if key[0] == course_key]
+        for key in course_entries:
+            del self[key]
+
+    def is_cached(self, *args):
+        return args in self
 
 
 class Graph:
@@ -24,7 +59,10 @@ class Graph:
         }
 
 
-def generate_match_graph(course, min_similarity=0.95):
+@LRU
+def generate_match_graph(course_key, min_similarity, min_match_count):
+    """Constructs a graph as a dictionary from all comparisons with a minimum similarity on a given course."""
+    course = Course.objects.filter(key=course_key).first()
     graph = Graph()
     for comparison in course.all_student_pair_matches(min_similarity):
         student_a, student_b = comparison.submission_a.student.key, comparison.submission_b.student.key
@@ -39,3 +77,15 @@ def generate_match_graph(course, min_similarity=0.95):
         }
         graph.add_edge(student_a, student_b, edge_data)
     return graph.as_dict()
+
+
+# Cache interface
+
+def is_cached(course_key, *args):
+    return generate_match_graph.is_cached((course_key, ) + args)
+
+def invalidate_course_graphs(course):
+    generate_match_graph.invalidate_for_course(course.key)
+
+def invalidate_all_graphs():
+    generate_match_graph.invalidate_all()

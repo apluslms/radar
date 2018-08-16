@@ -9,6 +9,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from provider import aplus
 from data.models import Course, Comparison
+import data.graph as graph
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTokenizerForm
@@ -197,8 +198,8 @@ def configure_course(request, course_key=None, course=None):
 
 
 @access_resource
-def graph(request, course, course_key):
-    graph_data = course.similarity_graph_json
+def graph_ui(request, course, course_key):
+    """Course graph UI without the graph data."""
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
@@ -206,17 +207,23 @@ def graph(request, course, course_key):
             ("Graph", None)
         ),
         "course": course,
-        "graph": {
-            "min_similarity": 0.95,
-            "graph_json": graph_data,
-        },
     }
     return render(request, "review/graph.html", context)
 
 
 @access_resource
+def build_graph(request, course, course_key):
+    if not request.POST or "minSimilarity" not in request.POST or "minMatchCount" not in request.POST:
+        return HttpResponse("Graph build arguments 'minSimilarity' and 'minMatchCount' should be defined in the body of a POST request.", status=400)
+    min_similarity = request.POST["minSimilarity"]
+    min_match_count = request.POST["minMatchCount"]
+    graph_data = graph.generate_match_graph(course.key, min_similarity, min_match_count)
+    return JsonResponse(graph_data)
+
+
+@access_resource
 def invalidate_graph_cache(request, course, course_key):
-    course.invalidate_similarity_graph()
+    graph.invalidate_course_graphs(course)
     return HttpResponse("Graph cache invalidated")
 
 
