@@ -49,9 +49,6 @@ class Course(NamespacedApiObject):
     reviewers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="courses", blank=True, help_text="Reviewers for match analysis")
     archived = models.BooleanField(db_index=True, default=False)
     objects = CourseManager()
-    similarity_graph_json = models.TextField(default='[]',
-            help_text="Serialized graph showing similarity over all exercises of this course")
-    similarity_graph_expired = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["-created"]
@@ -114,11 +111,6 @@ class Course(NamespacedApiObject):
     def get_student(self, key_str):
         student, _ = self.students.get_or_create(key=URLKeyField.safe_version(key_str))
         return student
-
-    def invalidate_similarity_graph(self):
-        if not self.similarity_graph_expired:
-            self.similarity_graph_expired = True
-            self.save()
 
     def __str__(self):
         return "%s (%s)" % (self.name, self.created)
