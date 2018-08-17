@@ -213,11 +213,10 @@ def graph_ui(request, course, course_key):
 
 @access_resource
 def build_graph(request, course, course_key):
-    if not request.POST or "minSimilarity" not in request.POST or "minMatchCount" not in request.POST:
-        return HttpResponse("Graph build arguments 'minSimilarity' and 'minMatchCount' should be defined in the body of a POST request.", status=400)
+    if not request.POST or "minSimilarity" not in request.POST:
+        return HttpResponse("Graph build arguments must contain 'minSimilarity' in the body of a POST request.", status=400)
     min_similarity = request.POST["minSimilarity"]
-    min_match_count = request.POST["minMatchCount"]
-    graph_data = graph.generate_match_graph(course.key, min_similarity, min_match_count)
+    graph_data = graph.generate_match_graph(course.key, min_similarity)
     return JsonResponse(graph_data)
 
 

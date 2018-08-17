@@ -60,22 +60,27 @@ class Graph:
 
 
 @LRU
-def generate_match_graph(course_key, min_similarity, min_match_count):
+def generate_match_graph(course_key, min_similarity, unique_exercises=True):
     """Constructs a graph as a dictionary from all comparisons with a minimum similarity on a given course."""
     course = Course.objects.filter(key=course_key).first()
     graph = Graph()
-    for comparison in course.all_student_pair_matches(min_similarity):
-        student_a, student_b = comparison.submission_a.student.key, comparison.submission_b.student.key
-        exercise = comparison.submission_a.exercise
-        exercise_url = reverse("exercise", args=[course.key, exercise.key])
-        comparison_url = reverse("comparison", args=[course.key, exercise.key, student_a, student_b, comparison.id])
-        edge_data = {
-            "exercise_name": exercise.name,
-            "exercise_url": exercise_url,
-            "comparison_url": comparison_url,
-            "max_similarity": comparison.similarity,
-        }
-        graph.add_edge(student_a, student_b, edge_data)
+    # Get all comparisons for every student pair grouped by exercise
+    for exercise_comparisons in course.all_student_pair_matches(min_similarity):
+        if unique_exercises:
+            # Choose only one exercise, based on the maximum similarity
+            exercise_comparisons = exercise_comparisons.order_by("-similarity")[:1]
+        for comparison in exercise_comparisons:
+            student_a, student_b = comparison.submission_a.student.key, comparison.submission_b.student.key
+            exercise = comparison.submission_a.exercise
+            exercise_url = reverse("exercise", args=[course.key, exercise.key])
+            comparison_url = reverse("comparison", args=[course.key, exercise.key, student_a, student_b, comparison.id])
+            edge_data = {
+                "exercise_name": exercise.name,
+                "exercise_url": exercise_url,
+                "comparison_url": comparison_url,
+                "max_similarity": comparison.similarity,
+            }
+            graph.add_edge(student_a, student_b, edge_data)
     return graph.as_dict()
 
 

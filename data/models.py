@@ -80,7 +80,8 @@ class Course(NamespacedApiObject):
 
     def all_student_pair_matches(self, min_similarity):
         """
-        Iterate over all exercises and all student pairs on this course, and return matches with similarity over given threshold for each student pair and exercise.
+        Return non-empty QuerySets of Comparisons for each exercise and each student on this course.
+        Filter by minimum similarity.
         """
         for student in self.students.all():
             for exercise in self.exercises.all():
@@ -95,8 +96,8 @@ class Course(NamespacedApiObject):
                     # Exclude template comparisons
                     .exclude(submission_b__isnull=True)
                 )
-                for comparison in comparisons:
-                    yield comparison
+                if comparisons:
+                    yield comparisons
 
     def has_access(self, user):
         return user.is_staff or self.reviewers.filter(pk=user.pk).exists()
