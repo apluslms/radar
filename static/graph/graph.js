@@ -1,20 +1,62 @@
 var sigmaObject;
 var sigmaFilter;
-const forceAtlasConfig = {
-    // compute algorithm using a web worker
-    worker: true,
-    // running time optimization for large graphs
-    barnesHutOptimize: true,
-    // seems to increase the repulsion between nodes
-    outboundAttractionDistribution: true
-};
+var buildingGraph = false;
 
+// how _not_ to build user interfaces in js
+const shuffleLayoutButton = $("#shuffle-layout-button");
+const refreshGraphButton = $("#refresh-graph-button");
+const applyFilterButton = $("#apply-filter-graph-button");
+const buildGraphButton = $("#build-graph-button");
+const invalidateGraphButton = $("#invalidate-graph-button");
+const minMatchCountSlider = $("#min-match-count-range");
+const minMatchCountSliderValue = $("#min-match-count-range-value");
+const minSimilaritySlider = $("#min-similarity-range");
+const minSimilaritySliderValue = $("#min-similarity-range-value");
+const summaryModal = $("#pair-comparisons-summary-modal");
+const buildLoaderMessage = $("#build-loader-message");
 
-function applyMinEdgeSizeFilter(newMinEdgeSize) {
-    sigmaFilter
-        .undo('min-edge-size')
-        .edgesBy(e => e.size >= newMinEdgeSize, 'min-edge-size')
-        .apply();
+shuffleLayoutButton.on("click", _ => shuffleGraphLayout(sigmaObject));
+
+refreshGraphButton.on("click", _ => sigmaObject.refresh());
+
+applyFilterButton.on("click", _ => {
+    // Hide edges with weight less than the current min match count slider value
+    applyMinEdgeWeightFilter(minMatchCountSlider.val());
+    // Hide all nodes that have no edges after filtering
+    applyDisconnectedNodesFilter();
+});
+
+buildGraphButton.on("click", drawGraphAsync);
+
+invalidateGraphButton.on("click", _ => {
+    buildLoaderMessage.text("Invalidating server graph cache ...");
+    const csrfToken = $("input[name=csrfmiddlewaretoken]").val();
+    $.ajax({
+        url: "invalidate",
+        type: "POST",
+        dataType: "text",
+        success: _ => buildLoaderMessage.text("Server graph cache invalidated"),
+        error: console.error,
+        beforeSend: xhr => xhr.setRequestHeader("X-CSRFToken", csrfToken),
+    });
+});
+
+minMatchCountSlider.on("input", _ => {
+    minMatchCountSliderValue.text(parseInt(minMatchCountSlider.val()));
+});
+minSimilaritySlider.on("input", _ => {
+    minSimilaritySliderValue.text(parseFloat(minSimilaritySlider.val()));
+});
+
+function handleEdgeClick(event) {
+    const edge = event.data.edge;
+    summaryModal.find("h4.modal-title").text(
+            edge.source + " and " + edge.target + " have "
+            + edge.matchesData.length + " submission pair" + (edge.matchesData.length > 1 ? 's' : '')
+            + " with high similarity");
+    summaryModal.find("div.modal-body").html(arrayToHTML(edge.matchesData.map(matchToHTML)));
+    summaryModal.modal("toggle");
+    // TODO fire leave edge hover event to prevent edge highlighting from being stuck when returning from modal view
 }
 
 function applyMinEdgeWeightFilter(newMinEdgeWeight) {
@@ -32,59 +74,11 @@ function applyDisconnectedNodesFilter() {
 }
 
 function shuffleGraphLayout(s) {
-    s.killForceAtlas2();
     s.graph.nodes().forEach(n => {
         n.x = Math.random() - 0.5;
         n.y = Math.random() - 0.5;
     });
     s.refresh();
-}
-
-function drawGraph(graphData) {
-    let s = new sigma({
-        renderer: {
-            container: "graph-container",
-            type: 'canvas'
-        },
-        settings: {
-            minEdgeSize: 1,
-            maxEdgeSize: 10,
-            enableEdgeHovering: true,
-            defaultEdgeHoverColor: '#222',
-            edgeHoverExtremities: true,
-            edgeLabelSize: 'proportional',
-            edgeLabelSizePowRatio: 1.5,
-        }
-    });
-
-    graphData.nodes.forEach(node => {
-        s.graph.addNode({
-            id: node,
-            label: node,
-            size: 1,
-            color: '#444',
-        });
-    });
-    graphData.edges.forEach((edge, i) => {
-        const matchCount = edge.matches_in_exercises.length;
-        s.graph.addEdge({
-            id: 'e' + i,
-            source: edge.source,
-            target: edge.target,
-            size: matchCount * 10,
-            label: '' + matchCount,
-            color: '#ccc',
-            hover_color: '#222',
-            weight: matchCount,
-            matchesData: Array.from(edge.matches_in_exercises),
-        });
-    });
-
-    sigmaFilter = new sigma.plugins.filter(s);
-
-    shuffleGraphLayout(s);
-
-    return s;
 }
 
 function arrayToHTML(strings) {
@@ -100,80 +94,94 @@ function matchToHTML(match) {
     return arrayToHTML(elements);
 }
 
-var buildingGraph = false;
-
 function buildGraph(graphData) {
-    const shuffleLayoutButton = $("#shuffle-layout-button");
-    const forceAtlasButton = $("#toggle-forceatlas-button");
-    const buildGraphButton = $("#build-graph-button");
-    const minMatchCountSlider = $("#min-match-count-range");
-    const minMatchCountSliderValue = $("#min-match-count-range-value");
-    const minSimilaritySlider = $("#min-similarity-range");
-    const minSimilaritySliderValue = $("#min-similarity-value");
-    const summaryModal = $("#pair-comparisons-summary-modal");
-
-    function handleEdgeClick(event) {
-        const edge = event.data.edge;
-        summaryModal.find("h4.modal-title").text(edge.source + " and " + edge.target + " have " + edge.matchesData.length + " submission pairs with high similarity");
-        summaryModal.find("div.modal-body").html(arrayToHTML(edge.matchesData.map(matchToHTML)));
-        summaryModal.modal("toggle");
-        // TODO fire leave edge hover event to prevent edge highlighting from being stuck when returning from modal view
-    }
-
-    // Draw graph and assign resulting sigma.js object to global variable
-    sigmaObject = drawGraph(graphData);
-
-    sigmaObject.bind("clickEdge", handleEdgeClick);
-
-    shuffleLayoutButton.on("click", _ => {
-        shuffleGraphLayout(sigmaObject);
-        if (forceAtlasButton.hasClass("active")) {
-            // shuffleGraphLayout kills force atlas, fix inconsistent visual state
-            forceAtlasButton.button("toggle");
+    const s = new sigma({
+        renderer: {
+            container: "graph-container",
+            type: 'canvas'
+        },
+        settings: {
+            minEdgeSize: 1,
+            maxEdgeSize: 10,
+            enableEdgeHovering: true,
+            defaultEdgeHoverColor: '#444',
+            edgeHoverExtremities: true,
+            edgeLabelSize: 'proportional',
+            edgeLabelSizePowRatio: 1.5,
         }
     });
 
-    forceAtlasButton.on("click", _ => {
-        if (!sigmaObject.isForceAtlas2Running()) {
-            sigmaObject.startForceAtlas2(forceAtlasConfig);
-        } else {
-            sigmaObject.stopForceAtlas2();
-        }
-    });
-
-    buildGraphButton.on("click", _ => {
-        buildingGraph = true;
-        sigmaObject.killForceAtlas2();
-        // Assuming we are at graph, do POST to graph/build, with build args in body
-        const minSimilarity = minSimilaritySlider.val();
-        const minMatchCount = minMatchCountSlider.val();
-        const csrfToken = $("input[name=csrfmiddlewaretoken]").val();
-        $.ajax({
-            url: "build",
-            type: "POST",
-            data: {
-                minSimilarity: minSimilarity,
-                minMatchCount: minMatchCount,
-            },
-            dataType: "json",
-            success: buildGraph,
-            error: console.error,
-            beforeSend: xhr => xhr.setRequestHeader("X-CSRFToken", csrfToken),
+    graphData.nodes.forEach(node => {
+        s.graph.addNode({
+            id: node,
+            label: node,
+            size: 1,
+            color: '#444',
         });
     });
 
-    minMatchCountSlider.on("input", _ => {
-        const newMinSize = parseInt(minMatchCountSlider.val());
-        minMatchCountSliderValue.text(newMinSize);
-        applyMinEdgeWeightFilter(newMinSize);
-        applyDisconnectedNodesFilter();
+    graphData.edges.forEach((edge, i) => {
+        const matchCount = edge.matches_in_exercises.length;
+        s.graph.addEdge({
+            id: 'e' + i,
+            source: edge.source,
+            target: edge.target,
+            size: matchCount * 10,
+            label: '' + matchCount,
+            color: '#ccc',
+            hover_color: '#222',
+            weight: matchCount,
+            matchesData: Array.from(edge.matches_in_exercises),
+        });
     });
+
+    return s;
+}
+
+function drawGraph(graphData) {
+    // Draw graph and assign resulting sigma.js object to global variable
+    sigmaObject = buildGraph(graphData);
+    sigmaObject.refresh();
+    sigmaFilter = new sigma.plugins.filter(sigmaObject);
+
+    shuffleGraphLayout(sigmaObject);
+
+    sigmaObject.bind("clickEdge", handleEdgeClick);
 
     if (buildingGraph) {
         buildingGraph = false;
     }
+    buildLoaderMessage.text("");
 }
 
-function buildGraphFromJSON(elementID) {
-    return buildGraph(JSON.parse($("#" + elementID).text()));
+function drawGraphFromJSON(elementID) {
+    return drawGraph(JSON.parse($("#" + elementID).text()));
+}
+
+function drawGraphAsync() {
+    buildingGraph = true;
+    buildLoaderMessage.text("Building graph ...");
+    if (typeof sigmaObject !== "undefined") {
+        // Clear all active hover effects
+        sigmaObject.settings({enableEdgeHovering: false});
+        sigmaObject.refresh();
+        // Drop all edges and nodes
+        sigmaObject.graph.clear();
+        // Clear rendered graph from canvas
+        sigmaObject.refresh();
+    }
+    // Assuming we are at graph, do POST to graph/build, with build args in body
+    const minSimilarity = minSimilaritySlider.val();
+    const csrfToken = $("input[name=csrfmiddlewaretoken]").val();
+    $.ajax({
+        url: "build",
+        type: "POST",
+        data: {
+            minSimilarity: minSimilarity,
+        },
+        dataType: "json",
+        success: drawGraph,
+        error: console.error,
+        beforeSend: xhr => xhr.setRequestHeader("X-CSRFToken", csrfToken),
+    });
 }

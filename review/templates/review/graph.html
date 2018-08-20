@@ -19,10 +19,6 @@
       <div class="col-md-6 build-args-ui">
           <h4>Build parameters</h4>
           <div class="slidecontainer">
-            <b>Minimum match count</b>
-            <input type="range" class="slider" id="min-match-count-range"
-                   value="5" min="1" max="20" step="1">
-            <p id="min-match-count-range-value">5</p>
             <b>Minimum match similarity</b>
             <input type="range" class="slider" id="min-similarity-range"
                    value="0.95" min="0.00" max="1.00" step="0.01">
@@ -34,26 +30,38 @@
           </button>
           <button id="invalidate-graph-button" type="button" class="btn btn-outline-warning"
                   autocomplete="off">
-            Invalidate graph cache
+            Invalidate server graph cache
           </button>
+          <div id="build-loader-message">
+          </div>
       </div>
 
       <div class="col-md-6 filter-ui">
           <h4>Graph control</h4>
           <div class="slidecontainer">
             <b>Filter minimum match count</b>
-            <input type="range" class="slider" id="min-match-count-range-filter"
-                   value="5" min="1" max="20" step="1">
-            <p id="min-match-count-range-value">5</p>
+            <input type="range" class="slider" id="min-match-count-range"
+                   value="1" min="1" max="20" step="1">
+            <p id="min-match-count-range-value">1</p>
           </div>
-          <button id="shuffle-layout-button" type="button" class="btn btn-outline-primary"
-                  autocomplete="off">
-            Refresh and shuffle graph layout
+          <button id="apply-filter-graph-button" type="button" class="btn btn-outline-primary"
+                  aria-pressed="false" autocomplete="off">
+            Apply filter
           </button>
+          <button id="refresh-graph-button" type="button" class="btn btn-outline-primary"
+                  aria-pressed="false" autocomplete="off">
+            Refresh
+          </button>
+          <button id="shuffle-layout-button" type="button" class="btn btn-outline-primary"
+                  aria-pressed="false" autocomplete="off">
+            Shuffle graph layout
+          </button>
+          {% comment %}
           <button id="toggle-forceatlas-button" type="button" class="btn btn-outline-primary"
                   data-toggle="button" aria-pressed="false" autocomplete="off">
             Toggle Force Atlas 2 algorithm
           </button>
+          {% endcomment %}
       </div>
   </div>
 </div>
@@ -75,6 +83,10 @@
 
 {% csrf_token %}
 <script src="/static/graph/graph.js"></script>
-<script>buildGraphFromJSON("graph-json")</script>
+{% if graph.graph_json %}
+<script>drawGraphFromJSON("graph-json");</script>
+{% else %}
+<script>drawGraphAsync();</script>
+{% endif %}
 
 {% endblock %}
