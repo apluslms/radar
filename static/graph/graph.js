@@ -28,16 +28,21 @@ applyFilterButton.on("click", _ => {
 
 buildGraphButton.on("click", drawGraphAsync);
 
+// Add a X-CSRFToken header containing the Django generated CSRF token before sending requests
+function CSRFpreRequestCallback(xhr) {
+    const csrfToken = $("input[name=csrfmiddlewaretoken]").val();
+    xhr.setRequestHeader("X-CSRFToken", csrfToken);
+}
+
 invalidateGraphButton.on("click", _ => {
     buildLoaderMessage.text("Invalidating server graph cache ...");
-    const csrfToken = $("input[name=csrfmiddlewaretoken]").val();
     $.ajax({
         url: "invalidate",
         type: "POST",
         dataType: "text",
         success: _ => buildLoaderMessage.text("Server graph cache invalidated"),
         error: console.error,
-        beforeSend: xhr => xhr.setRequestHeader("X-CSRFToken", csrfToken),
+        beforeSend: CSRFpreRequestCallback,
     });
 });
 
@@ -172,7 +177,6 @@ function drawGraphAsync() {
     }
     // Assuming we are at graph, do POST to graph/build, with build args in body
     const minSimilarity = minSimilaritySlider.val();
-    const csrfToken = $("input[name=csrfmiddlewaretoken]").val();
     $.ajax({
         url: "build",
         type: "POST",
@@ -182,6 +186,6 @@ function drawGraphAsync() {
         dataType: "json",
         success: drawGraph,
         error: console.error,
-        beforeSend: xhr => xhr.setRequestHeader("X-CSRFToken", csrfToken),
+        beforeSend: CSRFpreRequestCallback,
     });
 }
