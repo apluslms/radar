@@ -153,6 +153,7 @@ REVIEWS = (
 
 MATCH_ALGORITHM = "matchlib.matchers.greedy_string_tiling"
 
+# Weigths are obsolete
 MATCH_ALGORITHMS = {
     "jplag_ext": {
         "description": "Greedy string tiling, longest matching substring",
