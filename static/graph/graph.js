@@ -45,12 +45,29 @@ minSimilaritySlider.on("input", _ => {
 });
 
 function handleEdgeClick(event) {
+    function arrayToHTML(strings) {
+        return "<ul>" + strings.map(s => "<li>" + s + "</li>").join("\n") + "</ul>";
+    }
+
+    function matchToHTML(match) {
+        const elements = [
+            "Exercise: <a href='" + match.exercise_url + "'>" + match.exercise_name + "</a>",
+            "Comparison view: <a href='" + match.comparison_url + "'>link</a>",
+            "Maximum similarity: " + match.max_similarity,
+        ];
+        return arrayToHTML(elements);
+    }
+
+    // Get graph edge that was clicked
     const edge = event.data.edge;
+    // Set modal title with match data from edge
     summaryModal.find("h4.modal-title").text(
             edge.source + " and " + edge.target + " have "
             + edge.matchesData.length + " submission pair" + (edge.matchesData.length > 1 ? 's' : '')
             + " with high similarity");
+    // Convert match list to HTML list element and put into modal body
     summaryModal.find("div.modal-body").html(arrayToHTML(edge.matchesData.map(matchToHTML)));
+    // Show modal
     summaryModal.modal("toggle");
     // TODO fire leave edge hover event to prevent edge highlighting from being stuck when returning from modal view
 }
@@ -64,8 +81,11 @@ function handleApplyFilterClick() {
 
 function applyMinEdgeWeightFilter(newMinEdgeWeight) {
     sigmaFilter
+        // Clear existing filters by key
         .undo('min-edge-weight')
+        // Include only edges with at least newMinEdgeWeight weights
         .edgesBy(e => e.weight >= newMinEdgeWeight, 'min-edge-weight')
+        // Apply filter to graph
         .apply();
 }
 
@@ -82,19 +102,6 @@ function shuffleGraphLayout(s) {
         n.y = Math.random() - 0.5;
     });
     s.refresh();
-}
-
-function arrayToHTML(strings) {
-    return "<ul>" + strings.map(s => "<li>" + s + "</li>").join("\n") + "</ul>";
-}
-
-function matchToHTML(match) {
-    const elements = [
-        "Exercise: <a href='" + match.exercise_url + "'>" + match.exercise_name + "</a>",
-        "Comparison view: <a href='" + match.comparison_url + "'>link</a>",
-        "Maximum similarity: " + match.max_similarity,
-    ];
-    return arrayToHTML(elements);
 }
 
 function buildGraph(graphData) {
@@ -161,6 +168,7 @@ function drawGraphFromJSON(elementID) {
     return drawGraph(JSON.parse($("#" + elementID).text()));
 }
 
+// Main method for requesting graph data from the server and building the SigmaJS object
 function drawGraphAsync() {
     buildingGraph = true;
     buildLoaderMessage.text("Building graph ...");
