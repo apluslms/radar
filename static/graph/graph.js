@@ -130,8 +130,14 @@ function buildGraph(graphData) {
         });
     });
 
+    // Compute the edge with the largest weight to update the max value of the filter slider
+    let maxMatchCount = 0;
+
     graphData.edges.forEach((edge, i) => {
         const matchCount = edge.matches_in_exercises.length;
+        if (matchCount > maxMatchCount) {
+            maxMatchCount = matchCount;
+        }
         s.graph.addEdge({
             id: 'e' + i,
             source: edge.source,
@@ -144,6 +150,8 @@ function buildGraph(graphData) {
             matchesData: Array.from(edge.matches_in_exercises),
         });
     });
+
+    minMatchCountSlider.attr("max", maxMatchCount + 1);
 
     return s;
 }
