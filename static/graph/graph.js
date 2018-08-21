@@ -16,16 +16,8 @@ const summaryModal = $("#pair-comparisons-summary-modal");
 const buildLoaderMessage = $("#build-loader-message");
 
 shuffleLayoutButton.on("click", _ => shuffleGraphLayout(sigmaObject));
-
 refreshGraphButton.on("click", _ => sigmaObject.refresh());
-
-applyFilterButton.on("click", _ => {
-    // Hide edges with weight less than the current min match count slider value
-    applyMinEdgeWeightFilter(minMatchCountSlider.val());
-    // Hide all nodes that have no edges after filtering
-    applyDisconnectedNodesFilter();
-});
-
+applyFilterButton.on("click", handleApplyFilterClick);
 buildGraphButton.on("click", drawGraphAsync);
 
 // Add a X-CSRFToken header containing the Django generated CSRF token before sending requests
@@ -33,7 +25,6 @@ function CSRFpreRequestCallback(xhr) {
     const csrfToken = $("input[name=csrfmiddlewaretoken]").val();
     xhr.setRequestHeader("X-CSRFToken", csrfToken);
 }
-
 invalidateGraphButton.on("click", _ => {
     buildLoaderMessage.text("Invalidating server graph cache ...");
     $.ajax({
@@ -62,6 +53,13 @@ function handleEdgeClick(event) {
     summaryModal.find("div.modal-body").html(arrayToHTML(edge.matchesData.map(matchToHTML)));
     summaryModal.modal("toggle");
     // TODO fire leave edge hover event to prevent edge highlighting from being stuck when returning from modal view
+}
+
+function handleApplyFilterClick() {
+    // Hide edges with weight less than the current min match count slider value
+    applyMinEdgeWeightFilter(minMatchCountSlider.val());
+    // Hide all nodes that have no edges after filtering
+    applyDisconnectedNodesFilter();
 }
 
 function applyMinEdgeWeightFilter(newMinEdgeWeight) {
@@ -184,7 +182,11 @@ function drawGraphAsync() {
             minSimilarity: minSimilarity,
         },
         dataType: "json",
-        success: drawGraph,
+        success: data => {
+            drawGraph(data);
+            // Apply default filter settings to graph
+            handleApplyFilterClick();
+        },
         error: console.error,
         beforeSend: CSRFpreRequestCallback,
     });
