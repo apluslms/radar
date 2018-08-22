@@ -11,6 +11,7 @@ import radar.config as config_loaders
 from matcher import matcher, tasks as matcher_tasks
 from provider import aplus
 from data.models import Course, Submission, Exercise, TaskError
+from data import graph
 from tokenizer import tokenizer
 
 
@@ -116,6 +117,9 @@ def create_submission(submission_key, course_key, submission_api_url):
     # Compute similarity of submitted tokens to exercise template tokens
     template_comparison = matcher.match_against_template(submission)
     template_comparison.save()
+
+    # Invalidate similarity graph
+    graph.invalidate_course_graphs(course)
 
     return submission.id
 
