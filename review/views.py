@@ -143,13 +143,16 @@ def submittable_exercises(exercises):
         if child_exercises:
             yield from submittable_exercises(child_exercises)
         elif "is_submittable" in exercise and exercise["is_submittable"]:
-            yield {
-               "name": exercise.get("display_name"),
-               "exercise_key": URLKeyField.safe_version(str(exercise["id"])),
-               "url": exercise.get("html_url"),
-               "tokenizer": "skip",
-               "minimum_match_tokens": 15,
-            }
+            # Patch a radar config into the exercise api dict
+            if "exercise_info" not in exercise:
+                exercise["exercise_info"] = {}
+            if "radar" not in exercise["exercise_info"]:
+                exercise["exercise_info"]["radar"] = {}
+            exercise["exercise_info"]["radar"]["tokenizer"] = "skip"
+            exercise["exercise_info"]["radar"]["minimum_match_tokens"] = 15
+            radar_config = aplus.get_radar_config(exercise)
+            if radar_config:
+                yield radar_config
 
 @access_resource
 def configure_course(request, course_key=None, course=None):
