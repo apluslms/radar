@@ -145,7 +145,7 @@ def submittable_exercises(exercises):
             yield from submittable_exercises(child_exercises)
         elif "is_submittable" in exercise and exercise["is_submittable"]:
             # Insert a radar config into the exercise api dict, while avoiding to overwrite exercise_info data
-            patched_exercise_info = dict(exercise.get("exercise_info", {}), radar={"tokenizer": "skip", "minimum_match_tokens": 15})
+            patched_exercise_info = dict(exercise["exercise_info"] or {}, radar={"tokenizer": "skip", "minimum_match_tokens": 15})
             exercise.add_data({"exercise_info": patched_exercise_info})
             radar_config = aplus.get_radar_config(exercise)
             if radar_config:
