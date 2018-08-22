@@ -143,14 +143,14 @@ def submittable_exercises(exercises):
         if child_exercises:
             yield from submittable_exercises(child_exercises)
         elif "is_submittable" in exercise and exercise["is_submittable"]:
-            # Patch a radar config into the exercise api dict
-            if "exercise_info" not in exercise:
-                exercise["exercise_info"] = {}
-            if "radar" not in exercise["exercise_info"]:
-                exercise["exercise_info"]["radar"] = {}
-            exercise["exercise_info"]["radar"]["tokenizer"] = "skip"
-            exercise["exercise_info"]["radar"]["minimum_match_tokens"] = 15
-            radar_config = aplus.get_radar_config(exercise)
+            # Create a radar config dict from api dict
+            config = {}
+            config["exercise_info"] = exercise.get("exercise_info", {})
+            config["exercise_info"]["radar"] = {
+                "tokenizer": "skip",
+                "minimum_match_tokens": 15,
+            }
+            radar_config = aplus.get_radar_config(config)
             if radar_config:
                 yield radar_config
 
