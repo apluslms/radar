@@ -132,6 +132,7 @@ def leafs_with_radar_config(exercises):
             if radar_config:
                 yield radar_config
 
+
 def submittable_exercises(exercises):
     """
     Return an iterator yielding dictionaries of leaf exercises that are submittable.
@@ -143,16 +144,13 @@ def submittable_exercises(exercises):
         if child_exercises:
             yield from submittable_exercises(child_exercises)
         elif "is_submittable" in exercise and exercise["is_submittable"]:
-            # Create a radar config dict from api dict
-            config = {}
-            config["exercise_info"] = exercise.get("exercise_info", {})
-            config["exercise_info"]["radar"] = {
-                "tokenizer": "skip",
-                "minimum_match_tokens": 15,
-            }
-            radar_config = aplus.get_radar_config(config)
+            # Insert a radar config into the exercise api dict, while avoiding to overwrite exercise_info data
+            patched_exercise_info = dict(exercise["exercise_info"], radar={"tokenizer": "skip", "minimum_match_tokens": 15})
+            exercise.add_data({"exercise_info": patched_exercise_info})
+            radar_config = aplus.get_radar_config(exercise)
             if radar_config:
                 yield radar_config
+
 
 @access_resource
 def configure_course(request, course_key=None, course=None):
