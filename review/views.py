@@ -8,8 +8,8 @@ from django.http.response import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
 from provider import aplus
-from data.models import Course, Comparison
-import data.graph as graph
+from data.models import Course, Comparison, URLKeyField
+from data import graph
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTokenizerForm
@@ -132,6 +132,24 @@ def leafs_with_radar_config(exercises):
             if radar_config:
                 yield radar_config
 
+def submittable_exercises(exercises):
+    """
+    Return an iterator yielding dictionaries of leaf exercises that are submittable.
+    """
+    if not exercises:
+        return
+    for exercise in exercises:
+        child_exercises = exercise.get("exercises")
+        if child_exercises:
+            yield from submittable_exercises(child_exercises)
+        elif "is_submittable" in exercise and exercise["is_submittable"]:
+            yield {
+               "name": exercise.get("display_name"),
+               "exercise_key": URLKeyField.safe_version(str(exercise["id"])),
+               "url": exercise.get("html_url"),
+               "tokenizer": "skip",
+               "minimum_match_tokens": 15,
+            }
 
 @access_resource
 def configure_course(request, course_key=None, course=None):
@@ -154,7 +172,9 @@ def configure_course(request, course_key=None, course=None):
         ],
         "errors": []
     }
-    if "retrieve_exercise_data" in request.POST:
+    p_config = provider_config(course.provider)
+    # an HTML POST request + template rendering abomination
+    if "provider-fetch-automatic" in request.POST or "provider-fetch-manual" in request.POST:
         client = request.user.get_api_client(course.namespace)
         if client is None:
             exercises = []
@@ -164,12 +184,13 @@ def configure_course(request, course_key=None, course=None):
             exercises = response.get("exercises", [])
         if not exercises:
             context["errors"].append("No exercises found for %s" % repr(course))
-        else:
+        elif "provider-fetch-automatic" in request.POST:
+            # Exercise API data is expected to contain Radar configurations
             # Partition all radar configs into unseen and existing exercises
             new_exercises, old_exercises = [], []
             for radar_config in leafs_with_radar_config(exercises):
                 radar_config["template_source"] = radar_config["get_template_source"]()
-                # Delete the closure for getting the template source, since lambdas are not JSON serializable
+                # No need for the template source getter anymore
                 del radar_config["get_template_source"]
                 if course.has_exercise(radar_config["exercise_key"]):
                     old_exercises.append(radar_config)
@@ -180,9 +201,26 @@ def configure_course(request, course_key=None, course=None):
                 "new": new_exercises,
                 "new_json": json.dumps(new_exercises),
             }
-    elif "create_exercises" in request.POST:
-        p_config = provider_config(course.provider)
-        exercises = json.loads(request.POST["exercises_json"])
+        elif "provider-fetch-manual" in request.POST:
+            # Exercise API data is not expected to contain Radar data, choose all submittable exercises
+            exercises_data = list(submittable_exercises(exercises))
+            context["exercises"] = {
+                "manual_config": True,
+                "new": exercises_data,
+                "tokenizer_choices": settings.TOKENIZER_CHOICES
+            }
+    elif "create_exercises" in request.POST or "overwrite_exercises" in request.POST:
+        if "create_exercises" in request.POST:
+            exercises = json.loads(request.POST["exercises_json"])
+        elif "overwrite_exercises" in request.POST:
+            checked = (key.split("-", 1)[0] for key in request.POST if key.endswith("enabled"))
+            exercises = (
+                {"exercise_key": exercise_key,
+                 "name": request.POST[exercise_key + "-name"],
+                 "tokenizer": request.POST[exercise_key + "-tokenizer"],
+                 "minimum_match_tokens": request.POST[exercise_key + "-min-match-tokens"]}
+                for exercise_key in checked
+            )
         # TODO gather list of invalid exercise data and render as errors
         for exercise_data in exercises:
             # Create an exercise instance into the database

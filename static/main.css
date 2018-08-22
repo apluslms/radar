@@ -25,8 +25,14 @@ table.comparison td small { display:block; font-size:x-small; white-space:nowrap
 table.comparison td.success { background-color:transparent !important; }
 table.comparison .glyphicon { text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white; }
 
-/* Batch config table */
-table.batch-config textarea { height: auto; }
+.provider-fetch-buttons ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.provider-fetch-buttons ul li {
+    padding-bottom: 1em;
+}
 
 /* Course histograms */
 ul.course-histograms {

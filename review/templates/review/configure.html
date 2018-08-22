@@ -3,7 +3,7 @@
 {% load bootstrap %}
 
 {% if errors %}
-<div class="container">
+<div>
 {% for error in errors %}
 <div class='alert alert-danger'>{{ error }}</div>
 {% endfor %}
@@ -32,10 +32,18 @@
 <form method="post">
   {% csrf_token %}
 
-  <div class="container">
-    <div class="well">
-      <button class="btn btn-primary" type="submit" name="retrieve_exercise_data">Retrieve exercise data</button>
-      Retrieve all exercises from A+ that contain Radar configurations
+  <div>
+    <div class="provider-fetch-buttons">
+        <ul>
+            <li>
+                <button class="btn btn-default" type="submit" name="provider-fetch-automatic">Automatic</button>
+                Retrieve all exercises containing pre-configured Radar data from the data provider
+            </li>
+            <li>
+                <button class="btn btn-danger" type="submit" name="provider-fetch-manual">Manual</button>
+                Retrieve all submittable exercises from the data provider and configure by hand
+            </li>
+        </ul>
     </div>
     {% if create_exercises_success %}
     <div class="alert alert-success">
@@ -45,73 +53,116 @@
 
   </div>
 
-  {% if exercises %}
+    {% if exercises %}
     {% if exercises.new_json %}
     {# For posting back exactly the same data as being shown to the user #}
     <input type="hidden" value="{{ exercises.new_json }}" name="exercises_json">
     {% endif %}
 
-    <div class="container new-exercise-data-container">
+    {% if not exercises.manual_config %}
+    {% comment %}
+    Automatic configuration, show non-editable table of new config data which is to be applied and old, existing data
+    {% endcomment %}
 
-    {% if exercises.new %}
-    <h4>New exercise data</h4>
-    <table class="table table-condensed table-striped config-table">
-      <tr>
-        <th>A+ exercise key</th>
-        <th>Name</th>
-        <th>Exercise template</th>
-        <th>Tokenizer</th>
-        <th>Min. match tokens</th>
-      </tr>
-      {% for exercise in exercises.new %}
-      <tr>
-        <td>{{ exercise.exercise_key }}</td>
-        <td>{{ exercise.name }}</td>
-        <td>{{ exercise.template_source|length }} characters</td> {# this could be a link that opens a bootstrap modal with the template contents in a pre well #}
-        <td>{{ exercise.tokenizer }}</td>
-        <td>{{ exercise.minimum_match_tokens }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-    <div class="well">
-      <button class="btn btn-warning" type="submit" name="create_exercises">Create and compare all</button>
-      Queue all submissions to all exercises listed above for tokenization and comparison.
-      Please note that this may require a significant amount of time.
+    <div class="new-exercise-data-container">
+        {% if exercises.new %}
+        <h4>New exercise data</h4>
+        <table class="table table-condensed table-striped config-table">
+          <tr>
+            <th>A+ exercise key</th>
+            <th>Name</th>
+            <th>Exercise template</th>
+            <th>Tokenizer</th>
+            <th>Min. match tokens</th>
+          </tr>
+          {% for exercise in exercises.new %}
+          <tr>
+            <td>{{ exercise.exercise_key }}</td>
+            <td>{{ exercise.name }}</td>
+            <td>{{ exercise.template_source|length }} characters</td> {# this could be a link that opens a bootstrap modal with the template contents in a pre well #}
+            <td>{{ exercise.tokenizer }}</td>
+            <td>{{ exercise.minimum_match_tokens }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        <div class="well">
+          <button class="btn btn-warning" type="submit" name="create_exercises">Create and compare all</button>
+          Queue all submissions to all exercises listed above for tokenization and comparison.
+          Please note that this may require a significant amount of time.
+        </div>
+        {% else %}
+        <p><b>No new exercises found.</b></p>
+        {% endif %}
     </div>
+
+    <div class="old-exercise-data-container">
+        {% if exercises.old %}
+        <h4>Existing exercises</h4>
+        <table class="table table-condensed table-striped config-table">
+            <tr>
+                <th>A+ exercise key</th>
+                <th>Name</th>
+                <th>Exercise template</th>
+                <th>Tokenizer</th>
+                <th>Min. match tokens</th>
+            </tr>
+            {% for exercise in exercises.old %}
+            <tr>
+                <td>{{ exercise.exercise_key }}</td>
+                <td>{{ exercise.name }}</td>
+                <td>{{ exercise.template_source|length }} characters</td> {# this could be a link that opens a bootstrap modal with the template contents in a pre well #}
+                <td>{{ exercise.tokenizer }}</td>
+                <td>{{ exercise.minimum_match_tokens }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p><b>No old exercises found.</b></p>
+        {% endif %}
+    </div>
+
     {% else %}
-    <p><b>No new exercises found.</b></p>
-    {% endif %}
-
+    {% comment %}
+    Manual configuration, show editable table of config data
+    {% endcomment %}
+    <div class="new-exercise-data-container">
+        <h4>Manual configuration overwrite</h4>
+        <table class="table table-condensed table-striped config-table">
+            <tr>
+                <th>A+ exercise key</th>
+                <th>Name</th>
+                <th>Tokenizer</th>
+                <th>Min. match tokens</th>
+                <th>Include into Radar</th>
+            </tr>
+            {% for exercise in exercises.new %}
+            <tr>
+                <td>{{ exercise.exercise_key }}</td>
+                <td>{{ exercise.name }}<input hidden name="{{ exercise.exercise_key}}-name" value="{{ exercise.name }}"/></td>
+                <td>
+                    <select name="{{ exercise.exercise_key }}-tokenizer">
+                        {% for key, display_name in exercises.tokenizer_choices %}
+                        <option value="{{ key }}">{{ display_name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <input name="{{ exercise.exercise_key }}-min-match-tokens" type="number" min="1" value="{{ exercise.minimum_match_tokens }}"/>
+                </td>
+                <td>
+                    <input name="{{ exercise.exercise_key }}-enabled" type="checkbox"/>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        <div class="well">
+          <button class="btn btn-danger" type="submit" name="overwrite_exercises">Overwrite and compare all</button>
+          Queue all submissions to all exercises listed above for tokenization and comparison.
+          This will clear all exercises and submissions for this course instance in Radar.
+        </div>
     </div>
-
-    <div class="container old-exercise-data-container">
-
-    {% if exercises.old %}
-    <h4>Existing exercises</h4>
-    <table class="table config-table">
-      <tr>
-        <th>A+ exercise key</th>
-        <th>Name</th>
-        <th>Exercise template</th>
-        <th>Tokenizer</th>
-        <th>Min. match tokens</th>
-      </tr>
-      {% for exercise in exercises.old %}
-      <tr>
-        <td>{{ exercise.exercise_key }}</td>
-        <td>{{ exercise.name }}</td>
-        <td>{{ exercise.template_source|length }} characters</td> {# this could be a link that opens a bootstrap modal with the template contents in a pre well #}
-        <td>{{ exercise.tokenizer }}</td>
-        <td>{{ exercise.minimum_match_tokens }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-    {% else %}
-    <p><b>No old exercises found.</b></p>
     {% endif %}
-
-    </div>
-  {% endif %}
+    {% endif %}
 </form>
 {% endif %}
 

@@ -222,12 +222,12 @@ class Exercise(models.Model):
     def set_from_config(self, config):
         self.name = config["name"]
         self.key = config["exercise_key"]
-        tokens, _ = tokenize_source(
-            config["template_source"],
-            tokenizer_config(config["tokenizer"])
-        )
-        # files.put_text(self, ".template", config["template"])
-        self.template_tokens = tokens
+        if "template_source" in config:
+            tokens, _ = tokenize_source(
+                config["template_source"],
+                tokenizer_config(config["tokenizer"])
+            )
+            self.template_tokens = tokens
         if config["tokenizer"] != self.course.tokenizer:
             self.override_tokenizer = config["tokenizer"]
         if config["minimum_match_tokens"] != self.course.minimum_match_tokens:
