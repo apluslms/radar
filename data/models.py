@@ -103,7 +103,7 @@ class Course(NamespacedApiObject):
         return user.is_staff or self.reviewers.filter(pk=user.pk).exists()
 
     def has_exercise(self, key_str):
-        return self.exercises.filter(key=URLKeyField.safe_version(key_str)).count() > 0
+        return self.exercises.filter(key=URLKeyField.safe_version(key_str)).exists()
 
     def get_exercise(self, key_str):
         exercise, _ = self.exercises.get_or_create(key=URLKeyField.safe_version(key_str))

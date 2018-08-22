@@ -54,9 +54,10 @@ def create_submission(submission_key, course_key, submission_api_url):
     exercise_data = data["exercise"]
     exercise_name = exercise_data["display_name"]
 
-    # Check if exercise is configured for Radar, if not, skip to next.
+    # Check if exercise is configured for Radar
+    # If not, and there is no manually configured exercise in the database, skip
     radar_config = aplus.get_radar_config(exercise_data)
-    if radar_config is None:
+    if radar_config is None and not course.has_exercise(str(exercise_data["id"])):
         return
 
     # Get or create exercise configuration
