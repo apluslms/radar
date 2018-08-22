@@ -41,5 +41,3 @@ class ExerciseTokenizerForm(forms.Form):
                 if new_min_match_tokens != exercise.course.minimum_match_tokens
                 else None)
         exercise.save()
-
-
