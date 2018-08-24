@@ -8,4 +8,4 @@ cachetools==2.0.1
 git+https://github.com/raphendyr/raphendyr-django-essentials.git@1.2.1
 git+https://github.com/Aalto-LeTech/a-plus-client.git@0862cac947b9c33f133680416ba5749cb7990b26
 python-memcached==1.59
-git+https://github.com/Aalto-LeTech/greedy-string-tiling.git@v0.7.0
+git+https://github.com/Aalto-LeTech/greedy-string-tiling.git@v0.10.0
