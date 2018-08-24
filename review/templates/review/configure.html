@@ -40,7 +40,7 @@
                 Retrieve all exercises containing pre-configured Radar data from the data provider
             </li>
             <li>
-                <button class="btn btn-danger" type="submit" name="provider-fetch-manual">Manual</button>
+                <button class="btn btn-warning" type="submit" name="provider-fetch-manual">Manual</button>
                 Retrieve all submittable exercises from the data provider and configure by hand
             </li>
         </ul>
@@ -156,7 +156,7 @@
             {% endfor %}
         </table>
         <div class="well">
-          <button class="btn btn-danger" type="submit" name="overwrite_exercises">Overwrite and compare all</button>
+          <button class="btn btn-warning" type="submit" name="overwrite_exercises">Overwrite and compare all</button>
           Queue all submissions to all exercises listed above for tokenization and comparison.
           This will clear all exercises and submissions for this course instance in Radar.
         </div>

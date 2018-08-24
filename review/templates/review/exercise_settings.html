@@ -42,7 +42,7 @@
 
 <form method="post" class="well">
 	<div class="alert alert-danger">
-		<p>Delete exercise from Radar. Also deletes all submissions and comparisons related to this exercise.</p>
+		<p>Delete exercise from Radar. Also deletes all submissions and comparisons related to this exercise. Cannot be undone.</p>
 	</div>
 	{% csrf_token %}
 	<button type="submit" name="delete_exercise" class="btn btn-danger">Delete</button>
