@@ -71,6 +71,8 @@ def generate_match_graph(course_key, min_similarity, unique_exercises=True):
             exercise_comparisons = exercise_comparisons.order_by("-similarity")[:1]
         for comparison in exercise_comparisons:
             student_a, student_b = comparison.submission_a.student.key, comparison.submission_b.student.key
+            if student_a == student_b:
+                continue
             exercise = comparison.submission_a.exercise
             exercise_url = reverse("exercise", args=[course.key, exercise.key])
             comparison_url = reverse("comparison", args=[course.key, exercise.key, student_a, student_b, comparison.id])
