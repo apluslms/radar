@@ -1,3 +1,5 @@
+# NOTE: This module is no longer used
+
 import hashlib
 import logging
 from matcher.matcher import TokenMatchSet, TokenMatch

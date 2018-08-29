@@ -26,22 +26,13 @@ Optional
 * Esprima 4.0 (for JavaScript tokenizer)
 * Write access to ``submission_files/`` (By default, submission files are downloaded when needed and stay only in main memory)
 
-When using the compiled matcher algorithm ``matcher.jplag_ext``:
-
-* CMake 3.5
-* C++14 compliant compiler
-
-If you do not want to compile the extension, you can replace ``matcher.jplag_ext`` with an semantically identical Python-implementation ``matcher.jplag``.
-``jplag_ext`` will start to outperform ``jplag`` when the sizes of compared strings exceed about 10 KB.
-
 Directory structure
 -------------------
 
 * ``accounts/`` Django app: user models that have A+ API access
 * ``data/`` Django app: models, commands and cron
-* ``extensions/`` CPython extensions
 * ``ltilogin/`` Django app: handling user creation on first login using LTI access
-* ``matcher/`` Algorithms for matching token strings
+* ``matcher/`` Task definitions for matching token string
 * ``provider/`` Data integrations for different sources
 * ``radar/`` Django main
 * ``review/`` Django app: reviewer interface
