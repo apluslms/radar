@@ -5,6 +5,7 @@ Automatic similarity analysis for source code and other tokenizable data.
 
 Accepts HTTP hook requests that record new data submissions, which are then fetched from some provider API.
 Recorded submissions will be processed asynchronously using Celery.
+Submission sources are matched using the [greedy string tiling](https://github.com/Aalto-LeTech/greedy-string-tiling) library, which also provides a simple Celery interface.
 
 Similarity matches will form submission groups for easy evaluation of the cases.
 Views are provided to follow submitters over series of exercises.
