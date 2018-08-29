@@ -31,19 +31,8 @@ When using the compiled matcher algorithm ``matcher.jplag_ext``:
 * CMake 3.5
 * C++14 compliant compiler
 
-If you do not want to compile the extension, you can replace ``matcher.jplag_ext`` with an semantically identical Python-implementation ``matcher.jplag`` by updating the ``settings.MATCH_ALGORITHMS`` dict with:
-
-::
-
-    "jplag": {
-        "description": "Greedy string tiling, longest matching substring",
-        "callable": "matcher.jplag.match",
-        "tokenized_input": True,
-        "weight": 1.0
-    }
-
+If you do not want to compile the extension, you can replace ``matcher.jplag_ext`` with an semantically identical Python-implementation ``matcher.jplag``.
 ``jplag_ext`` will start to outperform ``jplag`` when the sizes of compared strings exceed about 10 KB.
-If you know you will mostly be comparing relatively large exercise submissions, e.g. longer than 500 lines of code, it might be a good idea to use the compiled matcher algorithm ``jplag_ext``.
 
 Directory structure
 -------------------
