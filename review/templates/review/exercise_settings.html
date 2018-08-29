@@ -33,7 +33,7 @@
 	<div class="alert alert-warning">
 		<p>This function will clear all current comparisons and submissions from the database.
 		The submissions will be gradually reloaded from the provider and then tokenized and matched.
-		The amount of time required is a bit more than in "Clear and re-compare", since all submissions are first loaded from the provider API, tokenized from scratch, and then compared.</p>
+		The amount of time required is slightly more than in "Clear and re-compare", since all submissions are first loaded from the provider API, tokenized from scratch, and then compared.</p>
 	</div>
 	{% csrf_token %}
 	<button type="submit" name="provider_reload" class="btn btn-warning">Clear and reload</button>
@@ -42,7 +42,9 @@
 
 <form method="post" class="well">
 	<div class="alert alert-danger">
-		<p>Delete exercise from Radar. Also deletes all submissions and comparisons related to this exercise. Cannot be undone.</p>
+		<p>Delete exercise, all its submissions, and all comparisons those submissions participate in.
+        Cannot be undone.
+        Does not delete anything from the data provider, i.e. you can re-fetch the exercise and its submissions using the course configure view.</p>
 	</div>
 	{% csrf_token %}
 	<button type="submit" name="delete_exercise" class="btn btn-danger">Delete</button>
