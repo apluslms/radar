@@ -1,4 +1,3 @@
-from django.db import transaction
 from django.conf import settings
 import celery
 from celery.utils.log import get_task_logger
@@ -80,7 +79,6 @@ def match_all_new_submissions_to_exercise(exercise_id):
 
 
 @celery.shared_task(ignore_result=True)
-@transaction.atomic # Issue a single DB transaction after this task finishes, instead of autocommiting on every change
 def handle_match_results(matches):
     """
     Create Comparison instances from matchlib results and update max similarities of the submission pairs.
