@@ -64,7 +64,11 @@ def create_submission(submission_key, course_key, submission_api_url):
     exercise = course.get_exercise(str(exercise_data["id"]))
     if exercise.name == "unknown":
         # Get template source
-        radar_config["template_source"] = radar_config["get_template_source"]()
+        try:
+            radar_config["template_source"] = radar_config["get_template_source"]()
+        except Exception as e:
+            write_error("Error while attempting to get template source for submission %s\n%s" % (submission_key, str(e)))
+            radar_config["template_source"] = ''
         exercise.set_from_config(radar_config)
         exercise.save()
 
