@@ -17,6 +17,7 @@ from review.forms import ExerciseForm, ExerciseTokenizerForm
 
 logger = logging.getLogger("radar.review")
 
+class APIAuthException(BaseException): pass
 
 @login_required
 def index(request):
@@ -177,12 +178,16 @@ def configure_course(request, course_key=None, course=None):
     # an HTML POST request + template rendering abomination
     if "provider-fetch-automatic" in request.POST or "provider-fetch-manual" in request.POST:
         client = request.user.get_api_client(course.namespace)
-        if client is None:
+        try:
+            if client is None:
+                raise APIAuthException
+            response = client.load_data(course.url)
+            if response is None:
+                raise APIAuthException
+            exercises = response.get("exercises", [])
+        except APIAuthException:
             exercises = []
             context["errors"].append("This user does not have correct credentials to use the API of %s" % repr(course))
-        else:
-            response = client.load_data(course.url)
-            exercises = response.get("exercises", [])
         if not exercises:
             context["errors"].append("No exercises found for %s" % repr(course))
         elif "provider-fetch-automatic" in request.POST:
