@@ -36,8 +36,8 @@ def create_and_match(submission_key, course_key, submission_api_url):
 
 # This task should not ignore its result since it is needed for synchronization when using celery.chord
 # Highly I/O bound task, recommended to be consumed by several workers
-@celery.shared_task(ignore_result=False)
-def create_submission(submission_key, course_key, submission_api_url):
+@celery.shared_task(bind=True, ignore_result=False, max_retries=15)
+def create_submission(task, submission_key, course_key, submission_api_url):
     """
     Fetch submission data for a new submission with provider key submission_key from a given API url, create new submission, and tokenize submission content.
     Return submission id (int) on success and None if skipped.
@@ -50,7 +50,15 @@ def create_submission(submission_key, course_key, submission_api_url):
 
     # We need someone with a token to the A+ API.
     api_client = aplus.get_api_client(course)
+    # Request data from provider API
     data = api_client.load_data(submission_api_url)
+
+    if not data:
+        # API returned nothing, retry later
+        retry_delay = 5*3**min(task.request.retries, 4)*60 # :05, :15, :45, 2:15, 6:45, 6:45, ...
+        logger.error("API returned nothing for submission {}, retrying in {} seconds".format(submission_key, retry_delay))
+        raise task.retry(countdown=retry_delay)
+
     exercise_data = data["exercise"]
     exercise_name = exercise_data["display_name"]
 
