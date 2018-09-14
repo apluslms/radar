@@ -89,6 +89,11 @@ def request_template_content(url):
         return ''
 
 
+# FIXME the A+ API does not support fetching submission data containing information about which language was enabled when a submission was posted
+# i18n for exercise templates are encoded into the urls, e.g. as:
+# "|en:<external url to template in english>|fi:<external url to template in finnish>|"
+# Therefore, if i18n exercise template urls are found,
+# we use a heuristic to first select the english template and if not available, the finnish template, and if not available, fail miserably
 def load_exercise_template_from_api_data(exercise_data):
     """
     Do a GET request for each exercise template url in exercise, and return the template source of response, concatenated with newlines.
@@ -97,9 +102,24 @@ def load_exercise_template_from_api_data(exercise_data):
     # a single exercise.
     # However, in most cases 'templates' will hold just one url.
     source = ""
-    template_urls = exercise_data.get("templates", None)
-    if template_urls:
-        template_data = (request_template_content(url) for url in template_urls.split(" ") if url)
+    template_urls_str = exercise_data.get("templates", None)
+    if template_urls_str:
+        template_urls = template_urls_str.split(" ")
+        parsed_urls = []
+        for template_url in template_urls:
+            if template_url.startswith("|"):
+                # i18n urls
+                lang_prefixes = ("|en:", "|fi:")
+                for lang_prefix in lang_prefixes:
+                    if lang_prefix in template_url:
+                        template_url = template_url.split(lang_prefix, 1)[1]
+                        template_url = template_url.split("|", 1)[0]
+                        break
+                else:
+                    raise AplusProviderError("Unknown exercise template url format: {}, expected i18n urls but did not find any language prefixes from '{}'. Complete url was: {}".format(template_url, lang_prefixes, template_urls_str))
+            if template_url:
+                parsed_urls.append(template_url)
+        template_data = (request_template_content(url) for url in parsed_urls)
         # Join all non-empty templates into a single string, separated by newlines.
         # If there is only one non-empty template in template_data,
         # this will simply evaluate to that template, with no extra newline.
