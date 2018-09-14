@@ -26,7 +26,7 @@ def get_submission_text(submission, config):
     logger.debug("Doing GET for each submission file URL for submission %s", submission)
     files_data = {}
     for d in data["files"]:
-        response = api_client.do_get(d["url"])
+        response = api_client.do_get(d["url"], timeout=(3.2, 30))
         if len(response.content) > settings.SUBMISSION_BYTES_LIMIT:
             logger.error(
                 "Failed GET from %s: response content size %d bytes exceeds limit %d",
@@ -40,7 +40,3 @@ def get_submission_text(submission, config):
     if not files_data:
         return None
     return files.join_files(files_data, tokenizer_config(submission.exercise.tokenizer))
-
-
-
-
