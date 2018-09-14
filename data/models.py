@@ -407,6 +407,7 @@ class TaskError(models.Model):
     """
     created = models.DateTimeField(auto_now_add=True)
     package = models.CharField(max_length=100, default='-empty-')
+    namespace = models.CharField(max_length=200, default='-empty-')
     error_string = models.TextField()
 
     class Meta:

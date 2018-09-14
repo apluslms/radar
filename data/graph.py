@@ -27,6 +27,7 @@ class LRU(collections.OrderedDict):
     def invalidate_all(self):
         self.clear()
 
+    # FIXME this method should have a mutex if several celery workers invalidate concurrently
     def invalidate_for_course(self, course_key):
         # As long as the cache max size is relatively small, walking through all keys is hardly a performance disaster
         course_entries = [key for key in self.keys() if key[0] == course_key]

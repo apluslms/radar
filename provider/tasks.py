@@ -45,7 +45,7 @@ def create_submission(submission_key, course_key, submission_api_url):
     course = Course.objects.get(key=course_key)
     if Submission.objects.filter(key=submission_key).exists():
         # raise ProviderTaskError("Submission with key %s already exists, will not create a duplicate." % submission_key)
-        write_error("Submission with key %s already exists, will not create a duplicate." % submission_key)
+        write_error("Submission with key %s already exists, will not create a duplicate." % submission_key, "create_submission")
         return
 
     # We need someone with a token to the A+ API.
@@ -67,7 +67,7 @@ def create_submission(submission_key, course_key, submission_api_url):
         try:
             radar_config["template_source"] = radar_config["get_template_source"]()
         except Exception as e:
-            write_error("Error while attempting to get template source for submission %s\n%s" % (submission_key, str(e)))
+            write_error("Error while attempting to get template source for submission %s\n%s" % (submission_key, str(e)), "create_submission")
             radar_config["template_source"] = ''
         exercise.set_from_config(radar_config)
         exercise.save()
@@ -97,7 +97,7 @@ def create_submission(submission_key, course_key, submission_api_url):
         # raise ProviderTaskError("Failed to get submission text for submission %s" % submission)
         submission.invalid = True
         submission.save()
-        write_error("Failed to get submission text for submission %s" % submission)
+        write_error("Failed to get submission text for submission %s" % submission, "create_submission")
         return
 
     tokens, json_indexes = tokenizer.tokenize_submission(
@@ -109,7 +109,7 @@ def create_submission(submission_key, course_key, submission_api_url):
         # raise ProviderTaskError("Tokenizer returned an empty token string for submission %s, will not save submission" % submission_key)
         submission.invalid = True
         submission.save()
-        write_error("Tokenizer returned an empty token string for submission %s, will not save submission" % submission_key)
+        write_error("Tokenizer returned an empty token string for submission %s, will not save submission" % submission_key, "create_submission")
         return
     submission.tokens = tokens
     submission.indexes_json = json_indexes
@@ -139,7 +139,7 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
     submissions_data = api_client.load_data(submissions_api_url)
     if submissions_data is None:
         # raise ProviderTaskError("Invalid submissions data returned from %s for exercise %s: expected an iterable but got None" % (submissions_api_url, exercise))
-        write_error("Invalid submissions data returned from %s for exercise %s: expected an iterable but got None" % (submissions_api_url, exercise))
+        write_error("Invalid submissions data returned from %s for exercise %s: expected an iterable but got None" % (submissions_api_url, exercise), "reload_exercise_submissions")
         return
     # We got new submissions data from the provider, delete all current submissions to this exercise
     exercise.submissions.all().delete()
@@ -156,9 +156,9 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
 
 @celery.shared_task
 def task_error_handler(task_id, *args, **kwargs):
-    write_error("Failed celery task {}".format(task_id))
+    write_error("Failed celery task {}".format(task_id), "task_error_handler")
 
 
-def write_error(message):
+def write_error(message, namespace):
     logger.error(message)
-    TaskError(package="provider", error_string=message).save()
+    TaskError(package="provider", namespace=namespace, error_string=message).save()

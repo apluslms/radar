@@ -41,7 +41,7 @@ def match_new_submission(submission_id):
     """
     if submission_id is None:
         # If this task is chained and the preceding task failed, it will pass None as id
-        write_error("Cannot match submission with id None")
+        write_error("Cannot match submission with id None", "match_new_submission")
         return
     submission = Submission.objects.get(pk=submission_id)
     logger.info("Matching new submission %d", submission_id)
@@ -102,6 +102,6 @@ def handle_match_results(matches):
         matcher.update_submission(b, similarity)
 
 
-def write_error(message):
+def write_error(message, namespace):
     logger.error(message)
-    TaskError(package="matcher", error_string=message).save()
+    TaskError(package="matcher", namespace=namespace, error_string=message).save()
