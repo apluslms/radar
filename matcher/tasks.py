@@ -89,10 +89,11 @@ def handle_match_results(matches):
     similarity_key = meta.index("similarity")
     matches_json_key = meta.index("match_indexes")
     for match in matches["results"]:
-        if match[id_a_key] == match[id_b_key]:
-            continue
         a = Submission.objects.get(pk=match[id_a_key])
         b = Submission.objects.get(pk=match[id_b_key])
+        if a == b or a.student == b.student:
+            # Self comparison
+            continue
         similarity = match[similarity_key]
         if similarity > settings.MATCH_STORE_MIN_SIMILARITY:
             matches_json = match[matches_json_key]
