@@ -2,46 +2,81 @@
 {% block content %}
 
 <p>
-	<a href="{% url 'course_histograms' course_key=course.key %}" class="btn btn-default btn-xs">
-		<span class="glyphicon glyphicon-stats"></span> Exercise histograms
-	</a>
-	<a href="{% url 'marked_submissions' course_key=course.key %}" class="btn btn-default btn-xs">
-		<span class="glyphicon glyphicon-flag"></span> Marked submissions
-	</a>
-	<a href="{% url 'configure_course' course_key=course.key %}" class="btn btn-default btn-xs">
-		<span class="glyphicon glyphicon-cog"></span> Configure
-	</a>
-	<a href="{% url 'graph_ui' course_key=course.key %}" class="btn btn-default btn-xs">
-		<span class="glyphicon glyphicon-eye-open"></span> Graph view
-	</a>
+    <a href="{% url 'course_histograms' course_key=course.key %}" class="btn btn-default btn-xs">
+        <span class="glyphicon glyphicon-stats"></span> Exercise histograms
+    </a>
+    <a href="{% url 'marked_submissions' course_key=course.key %}" class="btn btn-default btn-xs">
+        <span class="glyphicon glyphicon-flag"></span> Marked submissions
+    </a>
+    <a href="{% url 'configure_course' course_key=course.key %}" class="btn btn-default btn-xs">
+        <span class="glyphicon glyphicon-cog"></span> Configure
+    </a>
+    <a href="{% url 'graph_ui' course_key=course.key %}" class="btn btn-default btn-xs">
+        <span class="glyphicon glyphicon-eye-open"></span> Graph view
+    </a>
 </p>
 
+{% with unmatched=num_exercises_with_unassigned_submissions %}
+{% if unmatched %}
+<div class="alert alert-info">
+    <p>{{ unmatched }} exercise{% if unmatched == 1 %} has{% else %}s have{% endif %} new submissions with no workers assigned.</p>
+</div>
+{% endif %}
+{% endwith %}
 
-<table class="table">
-	<tr>
-		<th>Exercise</th>
-		<th>Created</th>
-		<th>Students</th>
-		<th>Submissions</th>
-		<th>Template</th>
-		<th>Min. match</th>
-		<th>Tokenizer</th>
-		<th></th>
-		<th></th>
-	</tr>
-	{% for exercise in exercises %}
-	<tr{% if exercise.paused %} class="paused"{% endif %}>
-		<td><a href="{% url 'exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }}</a></td>
-		<td>{{ exercise.created|date:"Y-m-d" }}{% if exercise.paused %}, matching paused{% endif %}</td>
-		<td>{{ exercise.student_count }}</td>
-		<td>{{ exercise.submissions.count }} ({{ exercise.valid_matched_submissions.count }} matched, {{ exercise.invalid_submissions.count }} invalid)</td>
-		<td>{{ exercise.template_length }} tokens</td>
-		<td>{{ exercise.minimum_match_tokens }} tokens</td>
-		<td>{{ exercise.tokenizer_name }}</td>
-		<td><a href="{% url 'exercise_settings' course_key=course.key exercise_key=exercise.key %}" class="btn btn-default btn-xs">
-			<span class="glyphicon glyphicon-wrench"></span> Settings</a></td>
-	</tr>
-	{% endfor %}
+{% for exercise in exercises %}
+{% with hours=exercise.hours_since_oldest_pending_match %}
+{% if hours > 24 %}
+<div class="alert {% if hours > 168 %}alert-danger{% else %}alert-warning{% endif %}">
+    <p><code>{{ exercise.name }}</code> has a pending match that has been waiting for <strong>{{ exercise.oldest_pending_match_str }}</strong> for results from matching.</p>
+    <p>Consider reloading all submissions for <code>{{ exercise.name }}</code>. Do this by pressing the settings button for the exercise and then "Clear and reload".</p>
+</div>
+{% endif %}
+{% endwith %}
+{% endfor %}
+
+<table id="exercises-table" class="table table-striped tablesorter">
+    <thead>
+    <tr>
+        <th title="A+ exercise">Exercise</th>
+        <th title="Total amount of files submitted to an exercise">Submissions</th>
+        <th title="Submissions currently being matched and waiting for results">Pending</th>
+        <th title="Submissions not yet matched and waiting for actions">Unassigned</th>
+        <th title="Submissions that cannot be matched, e.g. non-plain text data.">Invalid</th>
+        <th title="Unique A+ users who have submitted at least one file to an exercise">Unique submitters</th>
+        <th title="Language used for tokenizing submission file contents">Tokenizer</th>
+        <th title="Amount of tokens in the exercise template that has been tokenized with the exercise tokenizer. Zero if no template has been defined">Template</th>
+        <th title="Minimum amount of matching tokens required for two submissions to be considered a match">Min. match</th>
+        <th title="When the exercise was first imported to Radar">Created</th>
+        <th></th>
+    </tr>
+    </thead>
+    {% for exercise in exercises %}
+    <tr class="{% if exercise.paused %}paused {% endif %}">
+        <td><a href="{% url 'exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }}</a></td>
+        <td>{{ exercise.submissions.count }}</td>
+        {% with hours=exercise.hours_since_oldest_pending_match %}
+        {% if hours > 24 %}
+        <td class="{% if hours > 168 %}danger{% else %}warning{% endif %}"><strong>{{ exercise.submissions_currently_matching.count }}</strong></td>
+        {% else %}
+        <td>{{ exercise.submissions_currently_matching.count }}</td>
+        {% endif %}
+        {% endwith %}
+        {% if exercise.has_unassigned_submissions %}
+        <td class="info"><strong>{{ exercise.valid_unmatched_submissions.count }}</strong></td>
+        {% else %}
+        <td>{{ exercise.valid_unmatched_submissions.count }}</td>
+        {% endif %}
+        <td>{{ exercise.invalid_submissions.count }}</td>
+        <td>{{ exercise.student_count }}</td>
+        <td>{{ exercise.tokenizer_name }}</td>
+        <td>{{ exercise.template_length }} tokens</td>
+        <td>{{ exercise.minimum_match_tokens }} tokens</td>
+        <td>{{ exercise.created|date:"Y-m-d" }}{% if exercise.paused %}, matching paused{% endif %}</td>
+        <td><a href="{% url 'exercise_settings' course_key=course.key exercise_key=exercise.key %}" class="btn btn-default btn-xs">
+            <span class="glyphicon glyphicon-wrench"></span> Settings</a></td>
+    </tr>
+    {% endfor %}
 </table>
 
 {% endblock %}

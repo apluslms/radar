@@ -27,9 +27,9 @@ def hook(request, course, config):
     sid = _detect_submission_id(request)
     if sid is None:
         raise AplusProviderError("Received invalid request to A+ submission hook: invalid submission id.")
-    # Queue submission for asynchronous handling
+    # Create submission asynchronously but do not match
     submission_url = config["host"] + API_SUBMISSION_URL % { "sid": sid }
-    tasks.create_and_match(sid, course.key, submission_url)
+    tasks.create_submission.delay(sid, course.key, submission_url)
 
 
 def reload(exercise, config):

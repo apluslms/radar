@@ -32,7 +32,8 @@ def course(request, course_key=None, course=None):
     return render(request, "review/course.html", {
         "hierarchy": ((settings.APP_NAME, reverse("index")), (course.name, None)),
         "course": course,
-        "exercises": course.exercises.all()
+        "exercises": course.exercises.all(),
+        "num_exercises_with_unassigned_submissions": sum(e.has_unassigned_submissions for e in course.exercises.all())
     })
 
 

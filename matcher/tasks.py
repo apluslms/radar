@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.conf import settings
 import celery
 from celery.utils.log import get_task_logger
@@ -74,6 +75,9 @@ def match_all_new_submissions_to_exercise(exercise_id):
         (config, compare_list),
         immutable=True
     )
+    # Set a non-None timestamp of the current UTC time to every unmatched, valid submission
+    exercise.valid_unmatched_submissions.update(matching_start_time=timezone.now())
+    # Match all, then handle results when all matches are available
     celery.chain(match_all_task, handle_match_results.s())()
 
 
@@ -91,8 +95,7 @@ def handle_match_results(matches):
     for match in matches["results"]:
         a = Submission.objects.get(pk=match[id_a_key])
         b = Submission.objects.get(pk=match[id_b_key])
-        if a == b or a.student == b.student:
-            # Self comparison
+        if a == b:
             continue
         similarity = match[similarity_key]
         if similarity > settings.MATCH_STORE_MIN_SIMILARITY:

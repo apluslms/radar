@@ -21,7 +21,11 @@ def top_marks(length, top):
 
 
 def update_submission(submission, similarity):
+    """
+    After matching a submission, update all flags and set new max similarity if the resulting similarity is highest so far.
+    """
     submission.matched = True
+    submission.matching_start_time = None
     submission.invalid = False
     if submission.max_similarity < similarity:
         submission.max_similarity = similarity

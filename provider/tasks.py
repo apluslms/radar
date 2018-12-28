@@ -7,6 +7,8 @@ import hashlib
 import celery
 from celery.utils.log import get_task_logger
 
+import requests
+
 import radar.config as config_loaders
 from matcher import matcher, tasks as matcher_tasks
 from provider import aplus
@@ -18,25 +20,26 @@ from tokenizer import tokenizer
 logger = get_task_logger(__name__)
 
 
-# class ProviderTaskError(Exception):
-#     pass
+class ProviderAPIError(Exception):
+    pass
 
 
-def create_and_match(submission_key, course_key, submission_api_url):
-    """
-    Convenience function for chaining create_submission with matcher.tasks.match_new_submission.
-    """
-    # Make celery signatures from tasks
-    create = create_submission.si(submission_key, course_key, submission_api_url)
-    match = matcher_tasks.match_new_submission.s()
-    # Spawn two tasks to run sequentially:
-    # First one creates a new submission and passes the created id to the second one, which matches the submission
-    celery.chain(create, match)()
+# WARNING, do not use. Matching everything on every submission is a great way to completely jam the worker queue.
+# def create_and_match(submission_key, course_key, submission_api_url):
+#     """
+#     Convenience function for chaining create_submission with matcher.tasks.match_new_submission.
+#     """
+#     # Make celery signatures from tasks
+#     create = create_submission.si(submission_key, course_key, submission_api_url)
+#     match = matcher_tasks.match_new_submission.s()
+#     # Spawn two tasks to run sequentially:
+#     # First one creates a new submission and passes the created id to the second one, which matches the submission
+#     celery.chain(create, match)()
 
 
 # This task should not ignore its result since it is needed for synchronization when using celery.chord
 # Highly I/O bound task, recommended to be consumed by several workers
-@celery.shared_task(bind=True, ignore_result=False, max_retries=15)
+@celery.shared_task(bind=True, ignore_result=False, max_retries=6)
 def create_submission(task, submission_key, course_key, submission_api_url):
     """
     Fetch submission data for a new submission with provider key submission_key from a given API url, create new submission, and tokenize submission content.
@@ -51,7 +54,11 @@ def create_submission(task, submission_key, course_key, submission_api_url):
     # We need someone with a token to the A+ API.
     api_client = aplus.get_api_client(course)
     # Request data from provider API
-    data = api_client.load_data(submission_api_url)
+    try:
+        data = api_client.load_data(submission_api_url)
+    except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as err:
+        logger.exception("Unable to read data from the API.")
+        data = None
 
     if not data:
         # API returned nothing, retry later
