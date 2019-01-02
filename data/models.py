@@ -74,6 +74,10 @@ class Course(NamespacedApiObject):
     def marked_submissions(self):
         return Submission.objects.filter(exercise__course=self, comparison__review__gte=5)
 
+    @property
+    def exercises_with_unmatched_submissions(self):
+        return [e for e in self.exercises.all() if e.has_unassigned_submissions]
+
     def all_comparisons(self, min_similarity):
         return (Comparison.objects
                 .filter(submission_a__exercise__course=self)

@@ -16,7 +16,7 @@
     </a>
 </p>
 
-{% with unmatched=num_exercises_with_unassigned_submissions %}
+{% with unmatched=course.exercises_with_unmatched_submissions|length %}
 {% if unmatched %}
 <div class="alert alert-info">
     <p>{{ unmatched }} exercise{% if unmatched == 1 %} has{% else %}s have{% endif %} new submissions that have not yet been matched to existing, matched submissions.</p>

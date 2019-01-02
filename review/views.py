@@ -29,20 +29,20 @@ def index(request):
 
 @access_resource
 def course(request, course_key=None, course=None):
-    # The user can click "Match all" on an exercise that has unmatched submissions.
-    # This will queue all unmatched submissions for matching
-    if request.method == "POST" and "match-all-unmatched-for-exercise" in request.POST:
-        exercise = course.exercises.get(key=request.POST["exercise_key"])
-        # Recompare all submissions only if there are new ones
-        if exercise.has_unassigned_submissions:
-            p_config = provider_config(course.provider)
-            recompare = configured_function(p_config, "recompare")
-            recompare(exercise, p_config)
+    if request.method == "POST":
+        # The user can click "Match all" on an exercise that has unmatched submissions.
+        # This will queue all submissions for recomparison
+        if "match-all-unmatched-for-exercise" in request.POST:
+            exercise = course.exercises.get(key=request.POST["exercise_key"])
+            # Recompare all submissions only if there are new ones
+            if exercise.has_unassigned_submissions:
+                p_config = provider_config(course.provider)
+                recompare = configured_function(p_config, "recompare")
+                recompare(exercise, p_config)
     context = {
         "hierarchy": ((settings.APP_NAME, reverse("index")), (course.name, None)),
         "course": course,
         "exercises": course.exercises.all(),
-        "num_exercises_with_unassigned_submissions": sum(e.has_unassigned_submissions for e in course.exercises.all())
     }
     return render(request, "review/course.html", context)
 
