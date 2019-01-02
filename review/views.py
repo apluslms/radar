@@ -8,11 +8,11 @@ from django.http.response import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
 from provider import aplus
-from data.models import Course, Comparison, URLKeyField
+from data.models import Course, Comparison
 from data import graph
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
-from review.forms import ExerciseForm, ExerciseTokenizerForm
+from review.forms import ExerciseForm, ExerciseTemplateForm
 
 
 logger = logging.getLogger("radar.review")
@@ -282,39 +282,43 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
         ),
         "course": course,
         "exercise": exercise,
-        "provider_reload": "full_reload" in p_config
+        "provider_reload": "full_reload" in p_config,
+        "change_success": set(),
     }
     if request.method == "POST":
-        form = ExerciseForm(request.POST)
-        form_tokenizer = ExerciseTokenizerForm(request.POST)
         if "save" in request.POST:
+            form = ExerciseForm(request.POST)
             if form.is_valid():
                 form.save(exercise)
-                return redirect("course", course_key=course.key)
-        elif "save_and_clear" in request.POST:
-            if form_tokenizer.is_valid():
-                form_tokenizer.save(exercise)
-                configured_function(p_config, "recompare")(exercise, p_config)
-                return redirect("course", course_key=course.key)
+                context["change_success"].add("save")
+        elif "override_template" in request.POST:
+            form_template = ExerciseTemplateForm(request.POST)
+            if form_template.is_valid():
+                form_template.save(exercise, request.POST.get("template_source"))
+                context["change_success"].add("override_template")
+        elif "clear_and_recompare" in request.POST:
+            configured_function(p_config, "recompare")(exercise, p_config)
+            context["change_success"].add("clear_and_recompare")
         elif "provider_reload" in request.POST:
-            full_reload = configured_function(p_config, "full_reload")
-            full_reload(exercise, p_config)
-            return redirect("course", course_key=course.key)
+            configured_function(p_config, "full_reload")(exercise, p_config)
+            context["change_success"].add("provider_reload")
         elif "delete_exercise" in request.POST:
             exercise.delete()
             return redirect("course", course_key=course.key)
+    template_source = aplus.load_exercise_template(exercise, p_config)
+    if exercise.template_tokens and not template_source:
+        context["template_source_error"] = True
+        context["template_tokens"] = exercise.template_tokens
+        context["template_source"] = ''
     else:
-        context["form"] = ExerciseForm({
-            "name": exercise.name,
-            "paused": exercise.paused
-        })
-        template_source = aplus.load_exercise_template(exercise, p_config)
-        if exercise.template_tokens and not template_source:
-            context["template_source_error"] = True
-            context["template_tokens"] = exercise.template_tokens
-        context["form_tokenizer"] = ExerciseTokenizerForm({
-            "tokenizer": exercise.tokenizer,
-            "minimum_match_tokens": exercise.minimum_match_tokens,
-            "template": template_source,
-        })
+        context["template_source"] = template_source
+    context["form"] = ExerciseForm({
+        "name": exercise.name,
+        "paused": exercise.paused,
+        "tokenizer": exercise.tokenizer,
+        "minimum_match_tokens": exercise.minimum_match_tokens,
+    })
+    context["form_template"] = ExerciseTemplateForm({
+        "template": template_source,
+    })
     return render(request, "review/exercise_settings.html", context)

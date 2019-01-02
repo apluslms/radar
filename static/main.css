@@ -91,3 +91,13 @@ pre.sample-highlight { display:inline-block; }
     list-style: none;
     padding-left: 0;
 }
+
+#load-progress {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.settings-success {
+    margin-top: 10px;
+    margin-bottom: 0;
+}
