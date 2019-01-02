@@ -19,7 +19,7 @@
 {% with unmatched=num_exercises_with_unassigned_submissions %}
 {% if unmatched %}
 <div class="alert alert-info">
-    <p>{{ unmatched }} exercise{% if unmatched == 1 %} has{% else %}s have{% endif %} new submissions with no workers assigned.</p>
+    <p>{{ unmatched }} exercise{% if unmatched == 1 %} has{% else %}s have{% endif %} new submissions that have not yet been matched to existing, matched submissions.</p>
 </div>
 {% endif %}
 {% endwith %}
@@ -41,8 +41,8 @@
         <th title="A+ exercise">Exercise</th>
         <th title="Total amount of files submitted to an exercise">Submissions</th>
         <th title="Submissions currently being matched and waiting for results">Pending</th>
-        <th title="Submissions not yet matched and waiting for actions">Unassigned</th>
-        <th title="Submissions that cannot be matched, e.g. non-plain text data.">Invalid</th>
+        <th title="Submissions not yet matched and waiting for actions">Not matched</th>
+        <th title="Submissions that cannot be matched, e.g. non-text such as images or binaries.">Invalid</th>
         <th title="Unique A+ users who have submitted at least one file to an exercise">Unique submitters</th>
         <th title="Language used for tokenizing submission file contents">Tokenizer</th>
         <th title="Amount of tokens in the exercise template that has been tokenized with the exercise tokenizer. Zero if no template has been defined">Template</th>
@@ -57,13 +57,23 @@
         <td>{{ exercise.submissions.count }}</td>
         {% with hours=exercise.hours_since_oldest_pending_match %}
         {% if hours > 24 %}
-        <td class="{% if hours > 168 %}danger{% else %}warning{% endif %}"><strong>{{ exercise.submissions_currently_matching.count }}</strong></td>
+        <td class="{% if hours > 168 %}danger{% else %}warning{% endif %}">
+            <strong>{{ exercise.submissions_currently_matching.count }}</strong>
+        </td>
         {% else %}
         <td>{{ exercise.submissions_currently_matching.count }}</td>
         {% endif %}
         {% endwith %}
         {% if exercise.has_unassigned_submissions %}
-        <td class="info"><strong>{{ exercise.valid_unmatched_submissions.count }}</strong></td>
+        <td class="info">
+            <strong>{{ exercise.valid_unmatched_submissions.count }}</strong>
+            {% comment %} post back the key of the exercise that should be rematched {% endcomment %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" value="{{ exercise.key }}" name="exercise_key">
+                <button class="btn btn-default btn-xs" type="submit" name="match-all-unmatched-for-exercise"><span class="glyphicon glyphicon-refresh"></span> Match all</a>
+            </form>
+        </td>
         {% else %}
         <td>{{ exercise.valid_unmatched_submissions.count }}</td>
         {% endif %}

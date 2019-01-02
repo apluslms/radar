@@ -131,6 +131,7 @@ class Exercise(models.Model):
     override_minimum_match_tokens = models.IntegerField(blank=True, null=True)
     template_tokens = models.TextField(blank=True, default="")
     paused = models.BooleanField(default=False)
+    matching_start_time = models.DateTimeField(blank=True, null=True, default=None, help_text="If not None, then a timestamp of when all submissions to this exercise started matching. If None, then this exercise is not currently waiting for results from matching.")
 
     class Meta:
         unique_together = ("course", "key")
@@ -174,7 +175,7 @@ class Exercise(models.Model):
 
     @property
     def submissions_currently_matching(self):
-        return self.valid_submissions.filter(matched=False, matching_start_time__isnull=False)
+        return self.valid_submissions.filter(matched=False, matching_start_time__isnull=False, matching_start_time=self.matching_start_time)
 
     @property
     def has_unassigned_submissions(self):
@@ -204,9 +205,9 @@ class Exercise(models.Model):
 
     @property
     def submissions_max_similarity(self):
-        return self.valid_matched_submissions.values("student__id")\
-            .annotate(m=models.Max('max_similarity')).order_by('-m')\
-            .values_list('m', flat=True)
+        return (self.valid_matched_submissions.values("student__id")
+                .annotate(m=models.Max('max_similarity')).order_by('-m')
+                .values_list('m', flat=True))
 
     @property
     def submissions_max_similarity_json(self):
@@ -273,7 +274,18 @@ class Exercise(models.Model):
         Delete all Comparison instances for valid, matched submissions.
         """
         Comparison.objects.clean_for_exercise(self)
-        self.submissions.update(max_similarity=0, matched=False)
+        self.submissions.update(max_similarity=0, matched=False, matching_start_time=None)
+        self.matching_start_time = None
+        self.save()
+
+    def set_matches_pending_timestamp_to_now(self):
+        """
+        Set a non-None timestamp of the current UTC time to every unmatched, valid submission to signify matching has started.
+        """
+        now = timezone.now()
+        self.matching_start_time = now
+        self.valid_unmatched_submissions.update(matching_start_time=now)
+        self.save()
 
     def __str__(self):
         return "%s/%s (%s)" % (self.course.name, self.name, self.created)

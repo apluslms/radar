@@ -29,13 +29,13 @@ def update_submission(submission, similarity):
     submission.invalid = False
     if submission.max_similarity < similarity:
         submission.max_similarity = similarity
-    if submission.max_similarity > settings.AUTO_PAUSE_MEAN:
-        subs = submission.exercise.valid_matched_submissions
-        if subs.count() > settings.AUTO_PAUSE_COUNT:
-            avg = subs.aggregate(max_sim=Avg("max_similarity"))
-            if avg["max_sim"] > settings.AUTO_PAUSE_MEAN:
-                submission.exercise.paused = True
-                submission.exercise.save()
+    # if submission.max_similarity > settings.AUTO_PAUSE_MEAN:
+    #     subs = submission.exercise.valid_matched_submissions
+    #     if subs.count() > settings.AUTO_PAUSE_COUNT:
+    #         avg = subs.aggregate(max_sim=Avg("max_similarity"))
+    #         if avg["max_sim"] > settings.AUTO_PAUSE_MEAN:
+    #             submission.exercise.paused = True
+    #             submission.exercise.save()
     submission.save()
 
 

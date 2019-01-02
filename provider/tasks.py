@@ -24,19 +24,6 @@ class ProviderAPIError(Exception):
     pass
 
 
-# WARNING, do not use. Matching everything on every submission is a great way to completely jam the worker queue.
-# def create_and_match(submission_key, course_key, submission_api_url):
-#     """
-#     Convenience function for chaining create_submission with matcher.tasks.match_new_submission.
-#     """
-#     # Make celery signatures from tasks
-#     create = create_submission.si(submission_key, course_key, submission_api_url)
-#     match = matcher_tasks.match_new_submission.s()
-#     # Spawn two tasks to run sequentially:
-#     # First one creates a new submission and passes the created id to the second one, which matches the submission
-#     celery.chain(create, match)()
-
-
 # This task should not ignore its result since it is needed for synchronization when using celery.chord
 # Highly I/O bound task, recommended to be consumed by several workers
 @celery.shared_task(bind=True, ignore_result=False, max_retries=6)
@@ -130,6 +117,7 @@ def create_submission(task, submission_key, course_key, submission_api_url):
     submission.indexes_json = json_indexes
 
     # Compute checksum of submitted source code for finding exact character matches quickly
+    # This line will not be reached if submission_text contains data not encodable in utf-8, since it is checked in tokenizer.tokenize_submission
     submission_hash = hashlib.md5(submission_text.encode("utf-8"))
     submission.source_checksum = submission_hash.hexdigest()
     submission.save()
