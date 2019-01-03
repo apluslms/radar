@@ -99,8 +99,8 @@ If some change was made by posting any of the forms below, the change_success se
     {% csrf_token %}
     <h4>Reloading and recomparing all submissions</h4>
     <p>This function will clear all current comparisons and submissions from the database.
-    The submissions will be gradually reloaded from the provider and then tokenized and matched.
-    The amount of time required is slightly more than in <strong>Recompare all</strong>, since all submissions are first loaded from the provider API, tokenized from scratch, and then compared.</p>
+    The submissions will be gradually reloaded from the provider and then tokenized and matched.</p>
+    <p>The amount of time required is slightly more than in <strong>Recompare all</strong>, since all submissions are first loaded from the provider API, tokenized from scratch, and then compared.</p>
     <button type="submit" name="provider_reload" class="btn btn-primary">Clear, reload and recompare all</button>
 </form>
 {% endif %}
