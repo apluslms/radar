@@ -1,9 +1,17 @@
 from django.conf.urls import url
 
 from review.views import (
-    index, course, course_histograms, marked_submissions,
-    configure_course, exercise, exercise_settings, comparison,
-    graph_ui, build_graph, invalidate_graph_cache,
+    build_graph,
+    comparison,
+    configure_course,
+    course,
+    course_histograms,
+    exercise,
+    exercise_settings,
+    graph_ui,
+    index,
+    invalidate_graph_cache,
+    marked_submissions,
 )
 
 
