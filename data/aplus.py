@@ -26,17 +26,25 @@ def get_submission_text(submission, config):
     logger.debug("Doing GET for each submission file URL for submission %s", submission)
     files_data = {}
     for d in data["files"]:
-        response = api_client.do_get(d["url"], timeout=(3.2, 30))
-        if len(response.content) > settings.SUBMISSION_BYTES_LIMIT:
-            logger.error(
-                "Failed GET from %s: response content size %d bytes exceeds limit %d",
-                d["url"],
-                len(response.content),
-                settings.SUBMISSION_BYTES_LIMIT
-            )
-            continue
-        response.encoding = "utf-8"
-        files_data[d["filename"]] = response.text
+        # Stream over contents of submission file 'd' in chunks
+        # Stop streaming if the file is too large
+        response = api_client.do_get(d["url"], timeout=(3.2, 18), stream=True)
+        if response.encoding is None:
+            response.encoding = "utf-8"
+        chunks = []
+        total_length = 0
+        for chunk in response.iter_content(chunk_size=512, decode_unicode=True):
+            total_length += len(chunk)
+            if total_length > settings.SUBMISSION_BYTES_LIMIT:
+                logger.error(
+                    "Failed GET from %s: response content size exceeded limit %d during streaming of submission file",
+                    d["url"],
+                    settings.SUBMISSION_BYTES_LIMIT
+                )
+                break
+            chunks.append(chunk)
+        else:
+            files_data[d["filename"]] = ''.join(chunks)
     if not files_data:
         return None
     return files.join_files(files_data, tokenizer_config(submission.exercise.tokenizer))

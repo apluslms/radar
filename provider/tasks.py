@@ -47,6 +47,8 @@ def create_submission(task, submission_key, course_key, submission_api_url):
         logger.exception("Unable to read data from the API.")
         data = None
 
+    del api_client
+
     if not data:
         # API returned nothing, retry later
         retry_delay = 5*3**min(task.request.retries, 4)*60 # :05, :15, :45, 2:15, 6:45, 6:45, ...
@@ -54,7 +56,6 @@ def create_submission(task, submission_key, course_key, submission_api_url):
         raise task.retry(countdown=retry_delay)
 
     exercise_data = data["exercise"]
-    exercise_name = exercise_data["display_name"]
 
     # Check if exercise is configured for Radar
     # If not, and there is no manually configured exercise in the database, skip
@@ -73,6 +74,8 @@ def create_submission(task, submission_key, course_key, submission_api_url):
             radar_config["template_source"] = ''
         exercise.set_from_config(radar_config)
         exercise.save()
+
+    del radar_config
 
     # A+ allows more than one submitter for a single submission
     # TODO: if there are more than one unique submitters,
