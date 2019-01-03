@@ -50,6 +50,16 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.memcached.MemcachedCache",
         "LOCATION": "127.0.0.1:11211",
     },
+    # Exercise template sources are not stored in the database, but fetched from the provider API each time before the exercise settings view is rendered.
+    # This cache stores the fetched templates for 1 hour.
+    "exercise_templates": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": "/var/tmp/django_cache",
+        "TIMEOUT": 3600,
+        "OPTIONS": {
+            "MAX_ENTRIES": 100,
+        },
+    },
 }
 
 # Short name and display name of available tokenizers.

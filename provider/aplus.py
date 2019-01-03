@@ -1,6 +1,8 @@
 import logging
 import requests
 
+from django.core.cache import caches as django_caches
+
 from data.models import URLKeyField
 from provider import tasks
 import matcher.tasks as matcher_tasks
@@ -129,16 +131,25 @@ def load_exercise_template_from_api_data(exercise_data):
     return source
 
 
-def load_exercise_template(exercise, config):
+def load_exercise_template(exercise, config, invalidate_cache=False):
     """
     Get the exercise template source from the A+ API for an Exercise object and return it as a string.
     """
+    template_cache = django_caches["exercise_templates"]
+    template_source = template_cache.get(exercise.key)
+    if template_source is not None:
+        if invalidate_cache:
+            template_cache.delete(exercise.key)
+        else:
+            return template_source
     exercise_url = config["host"] + API_EXERCISE_URL % {"eid": exercise.key}
     data = get_api_client(exercise.course).load_data(exercise_url)
     if data is None:
         logger.error("A+ API returned None when loading from %s", exercise_url)
         return ""
-    return load_exercise_template_from_api_data(data)
+    template_source = load_exercise_template_from_api_data(data)
+    template_cache.set(exercise.key, template_source)
+    return template_source
 
 
 def get_radar_config(exercise_data):
