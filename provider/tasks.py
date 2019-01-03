@@ -26,7 +26,7 @@ class ProviderAPIError(Exception):
 
 # This task should not ignore its result since it is needed for synchronization when using celery.chord
 # Highly I/O bound task, recommended to be consumed by several workers
-@celery.shared_task(bind=True, ignore_result=False, max_retries=6)
+@celery.shared_task(bind=True, ignore_result=False)
 def create_submission(task, submission_key, course_key, submission_api_url):
     """
     Fetch submission data for a new submission with provider key submission_key from a given API url, create new submission, and tokenize submission content.
@@ -50,10 +50,8 @@ def create_submission(task, submission_key, course_key, submission_api_url):
     del api_client
 
     if not data:
-        # API returned nothing, retry later
-        retry_delay = 5*3**min(task.request.retries, 4)*60 # :05, :15, :45, 2:15, 6:45, 6:45, ...
-        logger.error("API returned nothing for submission {}, retrying in {} seconds".format(submission_key, retry_delay))
-        raise task.retry(countdown=retry_delay)
+        logger.error("API returned nothing for submission %s, skipping submission", submission_key)
+        return
 
     exercise_data = data["exercise"]
 
