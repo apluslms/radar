@@ -5,6 +5,11 @@ from radar.config import tokenizer_config
 from tokenizer.tokenizer import tokenize_source
 
 
+class DeleteExerciseFrom(forms.Form):
+    # Required is false to enable deletion of exercises with empty names
+    name = forms.CharField(label="Name", max_length=128, required=False)
+
+
 class ExerciseForm(forms.Form):
     name = forms.CharField(label="Name", max_length=128)
     paused = forms.BooleanField(label="Pause matching submissions", required=False)
@@ -31,14 +36,13 @@ class ExerciseTemplateForm(forms.Form):
         help_text="Anything to be excluded from the submission comparison"
     )
 
-    def save(self, exercise, original_template):
+    def save(self, exercise):
         submitted_template = self.cleaned_data["template"]
-        if original_template != submitted_template:
-            tokenizer = exercise.override_tokenizer or exercise.course.tokenizer
-            tokens, _ = tokenize_source(
-                submitted_template,
-                tokenizer_config(tokenizer)
-            )
-            if exercise.template_tokens != tokens:
-                exercise.template_tokens = tokens
+        tokenizer = exercise.override_tokenizer or exercise.course.tokenizer
+        tokens, _ = tokenize_source(
+            submitted_template,
+            tokenizer_config(tokenizer)
+        )
+        if exercise.template_tokens != tokens:
+            exercise.template_tokens = tokens
         exercise.save()

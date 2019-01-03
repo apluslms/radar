@@ -97,7 +97,10 @@ pre.sample-highlight { display:inline-block; }
     margin-bottom: 20px;
 }
 
-.settings-success {
-    margin-top: 10px;
-    margin-bottom: 0;
+/* Use same width as form.well */
+.settings-success,
+.settings-failure {
+    max-width: 50em;
+    margin-left: auto;
+    margin-right: auto;
 }

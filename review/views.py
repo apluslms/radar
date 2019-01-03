@@ -12,7 +12,7 @@ from data.models import Course, Comparison
 from data import graph
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
-from review.forms import ExerciseForm, ExerciseTemplateForm
+from review.forms import ExerciseForm, ExerciseTemplateForm, DeleteExerciseFrom
 
 
 logger = logging.getLogger("radar.review")
@@ -294,6 +294,7 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
         "exercise": exercise,
         "provider_reload": "full_reload" in p_config,
         "change_success": set(),
+        "change_failure": {},
     }
     if request.method == "POST":
         if "save" in request.POST:
@@ -304,7 +305,7 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
         elif "override_template" in request.POST:
             form_template = ExerciseTemplateForm(request.POST)
             if form_template.is_valid():
-                form_template.save(exercise, request.POST.get("template_source"))
+                form_template.save(exercise)
                 context["change_success"].add("override_template")
         elif "clear_and_recompare" in request.POST:
             configured_function(p_config, "recompare")(exercise, p_config)
@@ -313,8 +314,12 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
             configured_function(p_config, "full_reload")(exercise, p_config)
             context["change_success"].add("provider_reload")
         elif "delete_exercise" in request.POST:
-            exercise.delete()
-            return redirect("course", course_key=course.key)
+            form = DeleteExerciseFrom(request.POST)
+            if form.is_valid() and form.cleaned_data["name"] == exercise.name:
+                exercise.delete()
+                return redirect("course", course_key=course.key)
+            else:
+                context["change_failure"]["delete_exercise"] = form.cleaned_data["name"]
     template_source = aplus.load_exercise_template(exercise, p_config)
     if exercise.template_tokens and not template_source:
         context["template_source_error"] = True
@@ -330,5 +335,8 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
     })
     context["form_template"] = ExerciseTemplateForm({
         "template": template_source,
+    })
+    context["form_delete_exercise"] = DeleteExerciseFrom({
+        "name": ''
     })
     return render(request, "review/exercise_settings.html", context)

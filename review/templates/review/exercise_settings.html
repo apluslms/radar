@@ -2,86 +2,121 @@
 {% block content %}
 {% load bootstrap %}
 
+{% comment %}
+If some change was made by posting any of the forms below, the change_success set will contain the name of the button used to submit the form.
+{% endcomment %}
+{% if change_success %}
+<div class="settings-success">
+    {% if "provider_reload" in change_success %}
+    <div class="alert alert-success">
+        <p><strong>All submissions and matches cleared</strong></p>
+        <p>Submissions will now be gradually reloaded from the data provider and then compared for matches.</p>
+    </div>
+    {% endif %}
+
+    {% if "clear_and_recompare" in change_success %}
+    <div class="alert alert-success">
+        <p><strong>All matches cleared</strong></p>
+        <p>Submissions will now be recompared for matches.</p>
+    </div>
+    {% endif %}
+
+    {% if "override_template" in change_success %}
+    <div class="alert alert-success">
+        <p><strong>Exercise template overwritten</strong></p>
+        <p>Consider recomparing all submissions if you want to exclude the template contents from all matches.</p>
+    </div>
+    {% endif %}
+
+    {% if "save" in change_success %}
+    <div class="alert alert-success">
+        <p><strong>Exercise settings saved</strong></p>
+        <p>Consider recomparing all submissions if you changed the tokenizer or the minimum match token count. Otherwise, if there are existing matches, the changes will not affect them.</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% if change_failure %}
+<div class="settings-failure">
+    {% if "delete_exercise" in change_failure %}
+    <div class="alert alert-danger">
+        <p><strong>Got exercise name '{{ change_failure.delete_exercise }}' as input but it does not match the name of this exercise</strong></p>
+        <p>To delete an exercise, fill in the name of the exercise next to the delete button.</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+
+
 <form method="post" class="well">
     <h4>Exercise settings</h4>
     {% csrf_token %}
     {{ form|bootstrap }}
-    <p>It is not recommended to change these settings manually.
-    Preferably, you should add all Radar settings directly into the configuration files for each exercise, which will then propagate automatically through the API of the data provider (e.g. A+).
-    </p>
-    <p>If you change the tokenizer or template, it will affect the similarity results of all submissions.
-    After saving the changes, click <strong>Recompare all</strong> below to recompute all matches.
+    <p>
+    It is not recommended to change these settings manually.
+    Preferably, you should add all Radar settings directly into the configuration files for each exercise and import the whole course from the configure page on the course front page in Radar.
+    Then, these settings will be configured automatically through the API of the data provider (e.g. A+).
     </p>
     <button type="submit" name="save" class="btn btn-primary">Save</button>
-    {% if "save" in change_success %}
-    <div class="alert alert-success settings-success">
-        Exercise settings saved. Consider recomparing all submissions if you changed the tokenizer or the minimum match token count.
-    </div>
-    {% endif %}
 </form>
 
 <form method="post" class="well">
+    {% csrf_token %}
     <h4>Exercise template</h4>
-    {% comment %}
-    the template source is not stored in radar, but fetched from the provider api before this form is shown and then included into the template render context
-    {% endcomment %}
-    <input type="hidden" value="{{ template_source }}" name="template_source">
+    <p>
+    The exercise template will be tokenized using the tokenizer specified for this exercise.
+    The resulting syntax tokens will be stored but the input template source will be <strong>discarded</strong>.
+    Therefore, it is not recommended to input the template from here.
+    Preferably, you should specify the template in the exercise configuration file, which allows Radar to fetch the template source from the data provider (e.g. A+).
+    </p>
+    </p>
     {% if template_source_error %}
-    <div class="alert alert-danger">
+    <div class="alert alert-warning">
+        <p><strong>Warning</strong></p>
         <p>The exercise has a template consisting of the tokens: <code>{{ template_tokens }}</code>, but the original template source could not be retrieved using the data provider API.
         If you save this template now, the tokenized template will be overwritten with an empty template.
         This will not prevent from matching submissions, but would likely lead to an increase in the amount of matches, since also template code is included in the matches.</p>
     </div>
     {% endif %}
-    {% csrf_token %}
     {{ form_template|bootstrap }}
     <button type="submit" name="override_template" class="btn btn-primary">Save</button>
-    {% if "override_template" in change_success %}
-    <div class="alert alert-success settings-success">
-        Exercise template overwritten.
-    </div>
-    {% endif %}
 </form>
 
 
 <form method="post" class="well">
+    {% csrf_token %}
     <h4>Recomparing all submissions</h4>
     <p>This function will clear all existing matches and similarity results from the database.
     Every possible pair of submissions are then compared for similarities.
     The amount of time required will increase proportional to (n**2)/2, where n is the amount of submissions.</p>
     <p>This will not clear submitted data from the database. Use <strong>Clear and reload</strong> if you want to reload all submissions from the provider API.</p>
-    {% csrf_token %}
-    <button type="submit" name="clear_and_recompare" class="btn btn-warning">Recompare all</button>
-    {% if "clear_and_recompare" in change_success %}
-    <div class="alert alert-success settings-success">
-        All match results cleared. All submissions queued for comparison.
-    </div>
-    {% endif %}
+    <button type="submit" name="clear_and_recompare" class="btn btn-primary">Recompare all</button>
 </form>
 
 {% if provider_reload %}
 <form method="post" class="well">
+    {% csrf_token %}
     <h4>Reloading and recomparing all submissions</h4>
     <p>This function will clear all current comparisons and submissions from the database.
     The submissions will be gradually reloaded from the provider and then tokenized and matched.
     The amount of time required is slightly more than in <strong>Recompare all</strong>, since all submissions are first loaded from the provider API, tokenized from scratch, and then compared.</p>
-    {% csrf_token %}
-    <button type="submit" name="provider_reload" class="btn btn-warning">Clear, reload and recompare all</button>
-    {% if "provider_reload" in change_success %}
-    <div class="alert alert-success settings-success">
-        All submissions and match results cleared. All submissions queued for reloading from the data provider and then for comparison.
-    </div>
-    {% endif %}
+    <button type="submit" name="provider_reload" class="btn btn-primary">Clear, reload and recompare all</button>
 </form>
 {% endif %}
 
 <form method="post" class="well">
+    {% csrf_token %}
     <p>Delete this exercise, all its submissions, and all comparisons those submissions participate in from the Radar database.
     </p>
     <p>
     This does not delete anything from the data provider.
-    In other words, if you delete this exercise and it still exists in e.g. A+, you can re-fetch the exercise and its submissions using the course configure view.</p>
-    {% csrf_token %}
+    In other words, if you delete this exercise and it still exists in e.g. A+, you can re-fetch the exercise and its submissions using the course configure view.
+    </p>
+    <p>
+    <strong>Type the name of this exercise to confirm deletion.</strong>
+    {{ form_delete_exercise.name }}
+    </p>
     <button type="submit" name="delete_exercise" class="btn btn-danger">Delete</button>
 </form>
 
