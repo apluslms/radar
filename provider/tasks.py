@@ -147,6 +147,8 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
         return
     # We got new submissions data from the provider, delete all current submissions to this exercise
     exercise.submissions.all().delete()
+    # Overwrite timestamp for new matching task
+    exercise.touch_all_timestamps()
     # For every submission in the list of submissions returned from the submission API:
     #   - create submission from scratch with create_submission
     #   - set timestamp of created submission to exercise timestamp
