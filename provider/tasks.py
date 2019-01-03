@@ -146,15 +146,21 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
         return
     # We got new submissions data from the provider, delete all current submissions to this exercise
     exercise.submissions.all().delete()
-    # Create a group of immutable task signatures for creating each submission from api data
-    tasks_create_submissions = (
-        create_submission.si(submission["id"], exercise.course.key, submission["url"]).on_error(task_error_handler.s())
+    # For every submission in the list of submissions returned from the submission API:
+    #   - create submission from scratch with create_submission
+    #   - set timestamp of created submission to exercise timestamp
+    tasks_create_and_prepare_submissions = (
+        celery.chain(
+            create_submission.si(submission["id"], exercise.course.key, submission["url"]).on_error(task_error_handler.s()),
+            # This task is not immutable, i.e. it accepts the return value from create_submission as its first argument
+            matcher_tasks.set_timestamp.s(exercise.matching_start_time)
+        )
         for submission in submissions_data
     )
     # Callback task that matches all submissions to the exercise we are reloading
     task_match_exercise = matcher_tasks.match_all_new_submissions_to_exercise.si(exercise_id)
     # Create all submissions in parallel in independent tasks, synchronize, and match all submissions sequentially in a single task
-    celery.chord(tasks_create_submissions)(task_match_exercise)
+    celery.chord(tasks_create_and_prepare_submissions)(task_match_exercise)
 
 
 @celery.shared_task

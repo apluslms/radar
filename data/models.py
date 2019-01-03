@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import re
@@ -5,7 +6,6 @@ import re
 from django.conf import settings
 from django.core.exceptions import ValidationError, FieldError
 from django.db import models
-from django.utils import timezone
 
 from aplus_client.django.models import NamespacedApiObject
 from radar.config import choice_name, tokenizer_config
@@ -135,7 +135,7 @@ class Exercise(models.Model):
     override_minimum_match_tokens = models.IntegerField(blank=True, null=True)
     template_tokens = models.TextField(blank=True, default="")
     paused = models.BooleanField(default=False)
-    matching_start_time = models.DateTimeField(blank=True, null=True, default=None, help_text="If not None, then a timestamp of when all submissions to this exercise started matching. If None, then this exercise is not currently waiting for results from matching.")
+    matching_start_time = models.CharField(max_length=50, blank=True, null=True, default=None, help_text="If not None, then an isoformat timestamp which should match to all incoming matching results. If None or does not match incoming results, then these results will be ignored.")
 
     class Meta:
         unique_together = ("course", "key")
@@ -184,28 +184,6 @@ class Exercise(models.Model):
     @property
     def has_unassigned_submissions(self):
         return self.valid_unmatched_submissions.exists()
-
-    @property
-    def timedelta_since_oldest_pending_match(self):
-        oldest = self.submissions_currently_matching.aggregate(m=models.Min("matching_start_time"))["m"]
-        return (timezone.now() - oldest) if oldest else timezone.timedelta(0)
-
-    @property
-    def hours_since_oldest_pending_match(self):
-        return self.timedelta_since_oldest_pending_match.total_seconds()/(60**2)
-
-    @property
-    def oldest_pending_match_str(self):
-        def pluralize(n, name):
-            return "{:d} {:s}{:s}".format(n, name, '' if n == 1 else 's')
-        oldest_delta = self.timedelta_since_oldest_pending_match
-        days, hours = oldest_delta.days, round(oldest_delta.seconds/(60**2))
-        if days == 0 and hours > 0:
-            return pluralize(hours, "hour")
-        if days > 0 and hours == 0:
-            return pluralize(days, "day")
-        else:
-            return pluralize(days, "day") + ', ' + pluralize(hours, "hour")
 
     @property
     def submissions_max_similarity(self):
@@ -282,11 +260,11 @@ class Exercise(models.Model):
         self.matching_start_time = None
         self.save()
 
-    def set_matches_pending_timestamp_to_now(self):
+    def touch_all_timestamps(self):
         """
-        Set a non-None timestamp of the current UTC time to every unmatched, valid submission to signify matching has started.
+        Update timestamp of this exercise and all its submissions to show we are expecting matching results with that timestamp to these submissions.
         """
-        now = timezone.now()
+        now = datetime.datetime.utcnow().isoformat()
         self.matching_start_time = now
         self.valid_unmatched_submissions.update(matching_start_time=now)
         self.save()
@@ -336,7 +314,7 @@ class Submission(models.Model):
             help_text="Maximum average similarity.")
     matched = models.BooleanField(default=False, help_text="Is this Submission waiting to be matched")
     invalid = models.BooleanField(default=False, help_text="Is this Submission invalid in a way it cannot be matched")
-    matching_start_time = models.DateTimeField(blank=True, null=True, default=None, help_text="If not None, then this submission is currently being matched and waiting for results. None if submission is not currently being matched.")
+    matching_start_time = models.CharField(max_length=50, blank=True, null=True, default=None, help_text="If not None, then this submission is currently being matched and waiting for results. None if submission is not currently being matched.")
 
     @property
     def submissions_to_compare(self):

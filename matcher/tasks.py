@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.utils.dateparse import parse_datetime
+
 import celery
 from celery.utils.log import get_task_logger
 
@@ -12,14 +14,14 @@ from data.models import Exercise, Submission, TaskError, Comparison
 logger = get_task_logger(__name__)
 
 
-def match_exercise(exercise):
+@celery.shared_task
+def match_exercise(exercise_id):
     """
-    Put tasks on the queue for matching all submissions to exercise.
+    Match all valid, yet unmatched submissions for a given exercise.
     """
-    if exercise.matching_start_time:
-        logger.error("Exercise %s currently has submissions that are being matched, wait for their completion or clear all submissions")
-        return
-    submission_ids = (s.id for s in exercise.valid_unmatched_submissions)
+    exercise = Exercise.objects.get(pk=exercise_id)
+    # Select all submissions that match the timestamp of this exercise
+    submission_ids = (s.id for s in exercise.submissions_currently_matching)
     match_all_to_template = (match_against_template.si(sid) for sid in submission_ids)
     match_all_to_each_other = match_all_new_submissions_to_exercise.si(exercise.id)
     # For all submissions:
@@ -39,34 +41,48 @@ def match_against_template(submission_id):
     submission = Submission.objects.get(pk=submission_id)
     template_comparison = matcher.match_against_template(submission)
     template_comparison.save()
+    return submission_id
+
+
+@celery.shared_task
+def set_timestamp(submission_id, timestamp):
+    """
+    Set given timestamp to a submission.
+    """
+    if submission_id is not None:
+        submission = Submission.objects.get(pk=submission_id)
+        submission.matching_start_time = timestamp
+        submission.save()
+    else:
+        logger.error("Will not set timestamp %s for submission with id None", timestamp)
+    # Even if the id is None, we still want to propagate this error to the next task
+    return submission_id
 
 
 @celery.shared_task(ignore_result=True)
 def match_all_new_submissions_to_exercise(exercise_id):
     """
     Match all submissions to Exercise with a given id.
-    The Exercise and all submissions will have their matching_start_time timestamps synchronized, which allows checking which submissions got results after matching finishes.
+    The exercise and all its submissions must have their matching_start_time timestamps synchronized before this task is started, otherwise this does nothing.
     Also matches every submission to the exercise template.
     The resulting matching task is JSON serializable and can be consumed by any deployed matchlib instance.
     """
     logger.info("Matching all submissions to exercise with id %d", exercise_id)
     exercise = Exercise.objects.get(pk=exercise_id)
-    if exercise.matching_start_time is not None:
-        logger.warning("Exercise %s is already expecting results. This will override the timestamp and start a new matching task. If the old task returns with results, those results are discarded.", exercise)
-    exercise.set_matches_pending_timestamp_to_now()
+    if exercise.matching_start_time is None:
+        logger.error("Exercise %s has a None matching_start_time timestamp. E.g. the exercise does not expect results.")
+        return
     config = {
         "minimum_match_length": exercise.course.minimum_match_tokens,
         "minimum_similarity": settings.MATCH_STORE_MIN_SIMILARITY,
         "similarity_precision": settings.SIMILARITY_PRECISION,
         "exercise_id": exercise_id,
-        # If this timestamp does not match exercise.matching_start_time when the results return, all results will be discarded
-        "matching_start_time": exercise.matching_start_time.isoformat(),
+        # This timestamp is used as a checksum of expected results when the results come in
+        "matching_start_time": exercise.matching_start_time,
     }
+    # JSON serializable list of submissions
     compare_list = [s.as_dict() for s in exercise.submissions_currently_matching]
-    match_all_task = match_all_combinations.signature(
-        (config, compare_list),
-        immutable=True
-    )
+    match_all_task = match_all_combinations.si(config, compare_list)
     # Match all, then handle results when all matches are available
     celery.chain(match_all_task, handle_match_results.s())()
 
@@ -84,11 +100,11 @@ def handle_match_results(matches):
         logger.error("Exercise %s is not expecting match results", exercise)
         return
     logger.info("Exercise %s is expecting match results for %d submissions", exercise, expected_result_count)
-    if exercise.matching_start_time.isoformat() != matches["config"]["matching_start_time"]:
-        logger.error(
+    if exercise.matching_start_time != matches["config"]["matching_start_time"]:
+        logger.warning(
             "Exercise %s is expecting match results with timestamp %s, but results have timestamp %s. Discarding this list of results.",
             exercise,
-            exercise.matching_start_time.isoformat(),
+            exercise.matching_start_time,
             matches["config"]["matching_start_time"]
         )
         return
