@@ -4,8 +4,7 @@ var buildingGraph = false;
 
 // how _not_ to build user interfaces in js
 const shuffleLayoutButton = $("#shuffle-layout-button");
-const refreshGraphButton = $("#refresh-graph-button");
-const applyFilterButton = $("#apply-filter-graph-button");
+const refreshButton = $("#refresh-graph-button");
 const buildGraphButton = $("#build-graph-button");
 const invalidateGraphButton = $("#invalidate-graph-button");
 const minMatchCountSlider = $("#min-match-count-range");
@@ -13,12 +12,21 @@ const minMatchCountSliderValue = $("#min-match-count-range-value");
 const minSimilaritySlider = $("#min-similarity-range");
 const minSimilaritySliderValue = $("#min-similarity-range-value");
 const summaryModal = $("#pair-comparisons-summary-modal");
-const buildLoaderMessage = $("#build-loader-message");
+const progressBarContainer = $("#load-progress");
 
 shuffleLayoutButton.on("click", _ => shuffleGraphLayout(sigmaObject));
-refreshGraphButton.on("click", _ => sigmaObject.refresh());
-applyFilterButton.on("click", handleApplyFilterClick);
+refreshButton.on("click", handleRefreshClick);
 buildGraphButton.on("click", drawGraphAsync);
+
+function startLoader(message) {
+    progressBarContainer.children(".progress-bar").children("span.loader-message").text(message);
+    progressBarContainer.show();
+}
+
+function stopLoader() {
+    progressBarContainer.children(".progress-bar").children("span.loader-message").text('');
+    progressBarContainer.hide();
+}
 
 // Add a X-CSRFToken header containing the Django generated CSRF token before sending requests
 function CSRFpreRequestCallback(xhr) {
@@ -26,12 +34,12 @@ function CSRFpreRequestCallback(xhr) {
     xhr.setRequestHeader("X-CSRFToken", csrfToken);
 }
 invalidateGraphButton.on("click", _ => {
-    buildLoaderMessage.text("Invalidating server graph cache ...");
+    startLoader("Invalidating server graph cache");
     $.ajax({
         url: "invalidate",
         type: "POST",
         dataType: "text",
-        success: _ => buildLoaderMessage.text("Server graph cache invalidated"),
+        success: _ => stopLoader(),
         error: console.error,
         beforeSend: CSRFpreRequestCallback,
     });
@@ -72,11 +80,15 @@ function handleEdgeClick(event) {
     // TODO fire leave edge hover event to prevent edge highlighting from being stuck when returning from modal view
 }
 
-function handleApplyFilterClick() {
+function handleRefreshClick() {
+    startLoader("Updating graph");
     // Hide edges with weight less than the current min match count slider value
     applyMinEdgeWeightFilter(minMatchCountSlider.val());
     // Hide all nodes that have no edges after filtering
     applyDisconnectedNodesFilter();
+    // Refresh graph rendering
+    sigmaObject.refresh();
+    stopLoader();
 }
 
 function applyMinEdgeWeightFilter(newMinEdgeWeight) {
@@ -169,7 +181,7 @@ function drawGraph(graphData) {
     if (buildingGraph) {
         buildingGraph = false;
     }
-    buildLoaderMessage.text("");
+    stopLoader();
 }
 
 function drawGraphFromJSON(elementID) {
@@ -179,7 +191,7 @@ function drawGraphFromJSON(elementID) {
 // Main method for requesting graph data from the server and building the SigmaJS object
 function drawGraphAsync() {
     buildingGraph = true;
-    buildLoaderMessage.text("Building graph ...");
+    startLoader("Building graph");
     if (typeof sigmaObject !== "undefined") {
         // Clear all active hover effects
         sigmaObject.settings({enableEdgeHovering: false});
@@ -201,7 +213,7 @@ function drawGraphAsync() {
         success: data => {
             drawGraph(data);
             // Apply default filter settings to graph
-            handleApplyFilterClick();
+            handleRefreshClick();
         },
         error: console.error,
         beforeSend: CSRFpreRequestCallback,
