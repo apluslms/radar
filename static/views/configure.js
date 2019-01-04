@@ -32,6 +32,9 @@ $(function() {
         }
 
         function pollSuccess(newTaskState) {
+            if (taskState.ready === "true") {
+                return;
+            }
             taskState = newTaskState;
             if (taskState.ready === "true") {
                 stopLoader();
@@ -61,7 +64,7 @@ $(function() {
     }
 
     function beginPolling(configType) {
-        if (taskState.task_id !== null) {
+        if (taskState.task_id) {
             console.error("Data retrieval already pending");
             return;
         }
