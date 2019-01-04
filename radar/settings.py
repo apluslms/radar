@@ -111,14 +111,19 @@ TOKENIZERS = {
 PROVIDER_CHOICES = (("a+", "A+"), ("filesystem", "File system"))
 PROVIDERS = {
     "a+": {
+        # For creating new submissions that were POSTed from the provider
         "hook": "provider.aplus.hook",
+        # Deletes all submissions and matches, then reloads everything from the API and compares all reloaded submissions
         "full_reload": "provider.aplus.reload",
+        # Deletes matches, then compares all existing submissions
         "recompare": "provider.aplus.recompare",
+        # Retrieves the contents of a submission from the provider API
         "get_submission_text": "data.aplus.get_submission_text",
         # Override these in local settings
         "host": "http://localhost:8000",
         "token": "asd123",
     },
+    # Obsolete and not implemented
     "filesystem": {
         "hook": "provider.filesystem.hook",
         "cron": "provider.filesystem.cron",
@@ -307,14 +312,6 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_BROKER_URL = "amqp://localhost:5672"
 # celery.chord tasks (used by matcher.tasks.match_submissions) are not supported with the RPC backend, therefore we use Memcached
 CELERY_RESULT_BACKEND = "cache+memcached://127.0.0.1:11211/"
-
-# Schedule for periodic tasks
-CELERY_BEAT_SCHEDULE = {
-    "update_all_similarity_graphs": {
-        "task": "data.tasks.update_all_similarity_graphs",
-        "schedule": 60 * 60, # Run once per hour
-    }
-}
 
 from r_django_essentials.conf import update_settings_from_module
 

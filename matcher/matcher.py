@@ -1,7 +1,6 @@
 import logging
 
 from django.conf import settings
-from django.db.models import Avg
 
 from matchlib.util import TokenMatch
 
@@ -29,6 +28,9 @@ def update_submission(submission, similarity):
     submission.invalid = False
     if submission.max_similarity < similarity:
         submission.max_similarity = similarity
+    submission.save()
+
+    # We don't need auto pause anymore because all matching tasks are started manually
     # if submission.max_similarity > settings.AUTO_PAUSE_MEAN:
     #     subs = submission.exercise.valid_matched_submissions
     #     if subs.count() > settings.AUTO_PAUSE_COUNT:
@@ -36,14 +38,13 @@ def update_submission(submission, similarity):
     #         if avg["max_sim"] > settings.AUTO_PAUSE_MEAN:
     #             submission.exercise.paused = True
     #             submission.exercise.save()
-    submission.save()
 
 
 def match_against_template(submission):
     """
     Match submission against the exercise template.
     """
-    logger.info("Match %s vs template", submission.student.key)
+    logger.debug("Match %s vs template", submission.student.key)
     # Template comparisons are defined as Comparison objects where the other (b) submission is null
     comparison = Comparison(submission_a=submission, submission_b=None, similarity=0.0, matches_json="[]")
 

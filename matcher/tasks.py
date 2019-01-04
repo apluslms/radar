@@ -129,12 +129,17 @@ def handle_match_results(matches):
         matcher.update_submission(a, similarity)
         matcher.update_submission(b, similarity)
     logger.info("Match results processed for %d submissions", len(submissions_updated))
+    if len(submissions_updated) < expected_result_count:
+        num_missing = expected_result_count - len(submissions_updated)
+        if "minimum_similarity" in matches["config"]:
+            logger.info("Assuming missing %d submissions had a similarity lower than %.2f", num_missing, matches["config"]["minimum_similarity"])
+        else:
+            logger.warning("Missing %d submissions which had no similarity results, but no minimum similarity threshold for filtering was found in the configuration")
     # Set zero max similarity for all submissions that were not in results but were expecting results
-    no_result_count = (exercise.submissions
+    (exercise.submissions
         .filter(matching_start_time__isnull=False)
         .filter(matching_start_time=exercise.matching_start_time)
         .update(max_similarity=0, matched=True, matching_start_time=None))
-    logger.info("No match results for %d submissions", no_result_count)
     exercise.matching_start_time = None
     exercise.save()
 

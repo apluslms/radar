@@ -51,13 +51,13 @@ If some change was made by posting any of the forms below, the change_success se
 
 <form method="post" class="well">
     <h4>Exercise settings</h4>
-    {% csrf_token %}
-    {{ form|bootstrap }}
     <p>
     It is not recommended to change these settings manually.
     Preferably, you should add all Radar settings directly into the configuration files for each exercise and import the whole course from the configure page on the course front page in Radar.
     Then, these settings will be configured automatically through the API of the data provider (e.g. A+).
     </p>
+    {% csrf_token %}
+    {{ form|bootstrap }}
     <button type="submit" name="save" class="btn btn-primary">Save</button>
 </form>
 
@@ -67,8 +67,7 @@ If some change was made by posting any of the forms below, the change_success se
     <p>
     The exercise template will be tokenized using the tokenizer specified for this exercise.
     The resulting syntax tokens will be stored but the input template source will be <strong>discarded</strong>.
-    Therefore, it is not recommended to input the template from here.
-    Preferably, you should specify the template in the exercise configuration file, which allows Radar to fetch the template source from the data provider (e.g. A+).
+    For easier configuration, it is recommended to specify the template in the exercise configuration file, which allows Radar to fetch the template source from the data provider (e.g. A+).
     </p>
     </p>
     {% if template_source_error %}
@@ -90,8 +89,8 @@ If some change was made by posting any of the forms below, the change_success se
     <p>This function will clear all existing matches and similarity results from the database.
     Every possible pair of submissions are then compared for similarities.
     The amount of time required will increase proportional to (n**2)/2, where n is the amount of submissions.</p>
-    <p>This will not clear submitted data from the database. Use <strong>Clear and reload</strong> if you want to reload all submissions from the provider API.</p>
-    <button type="submit" name="clear_and_recompare" class="btn btn-primary">Recompare all</button>
+    <p>This will <strong>not</strong> clear submitted data from the database. Use <strong>Clear, reload and recompare all</strong> if you want to reload all submissions from the provider API, before matching them.</p>
+    <button type="submit" name="clear_and_recompare" class="btn btn-primary"><span class="glyphicon glyphicon-refresh"></span> Recompare all</button>
 </form>
 
 {% if provider_reload %}
@@ -101,7 +100,7 @@ If some change was made by posting any of the forms below, the change_success se
     <p>This function will clear all current comparisons and submissions from the database.
     The submissions will be gradually reloaded from the provider and then tokenized and matched.</p>
     <p>The amount of time required is slightly more than in <strong>Recompare all</strong>, since all submissions are first loaded from the provider API, tokenized from scratch, and then compared.</p>
-    <button type="submit" name="provider_reload" class="btn btn-primary">Clear, reload and recompare all</button>
+    <button type="submit" name="provider_reload" class="btn btn-primary"><span class="glyphicon glyphicon-refresh"></span> Clear, reload and recompare all</button>
 </form>
 {% endif %}
 

@@ -201,7 +201,7 @@ function drawGraphAsync() {
         // Clear rendered graph from canvas
         sigmaObject.refresh();
     }
-    // Assuming we are at graph, do POST to graph/build, with build args in body
+    // Assuming we are at the graph view url 'graph', do POST to graph/build, with build args in body
     const minSimilarity = minSimilaritySlider.val();
     $.ajax({
         url: "build",
