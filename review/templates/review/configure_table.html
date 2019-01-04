@@ -1,0 +1,126 @@
+{% if errors %}
+<div class="settings-failure">
+{% for error in errors %}
+<div class='alert alert-danger'>{{ error }}</div>
+{% endfor %}
+</div>
+
+{% else %}
+
+{% if config_type == "automatic" %}
+<div class="well new-exercise-data-container">
+    {% if exercises.new %}
+    <h4>New exercise data</h4>
+    <table class="table table-condensed table-striped config-table">
+        <tr>
+            <th>A+ exercise key</th>
+            <th>Name</th>
+            <th>Exercise template</th>
+            <th>Tokenizer</th>
+            <th>Min. match tokens</th>
+        </tr>
+        {% for exercise in exercises.new %}
+        <tr>
+            <td>{{ exercise.exercise_key }}</td>
+            <td>{{ exercise.name }}</td>
+            {% if exercise.template_source %}
+            <td><textarea rows='1' readonly>{{ exercise.template_source|escape }}</textarea></td>
+            {% else %}
+            <td>None</td>
+            {% endif %}
+            <td>{{ exercise.tokenizer }}</td>
+            <td>{{ exercise.minimum_match_tokens }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <form method="post" class="well">
+        {% csrf_token %}
+        {# Embed the list of exercises shown in the table above to be POSTed back as-is #}
+        <input hidden value="{{ exercises.new_json }}" name="exercises-json">
+        <p>Queue all submissions to all exercises listed above for tokenization and comparison.</p>
+        <button class="btn btn-primary" type="submit" name="create-exercises">Create and compare all</button>
+    </form>
+    {% else %}
+    <div class="alert alert-info">
+        <p>All retrieved exercises already exist in Radar.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% if exercises.old %}
+<div class="well old-exercise-data-container">
+    <h4>Existing exercises</h4>
+    <table class="table table-condensed table-striped config-table">
+        <tr>
+            <th>A+ exercise key</th>
+            <th>Name</th>
+            <th>Exercise template</th>
+            <th>Tokenizer</th>
+            <th>Min. match tokens</th>
+        </tr>
+        {% for exercise in exercises.old %}
+        <tr>
+            <td>{{ exercise.exercise_key }}</td>
+            <td>{{ exercise.name }}</td>
+            {% if exercise.template_source %}
+            <td><textarea rows='1' readonly>{{ exercise.template_source|escape }}</textarea></td>
+            {% else %}
+            <td>None</td>
+            {% endif %}
+            <td>{{ exercise.tokenizer }}</td>
+            <td>{{ exercise.minimum_match_tokens }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %} {# {% if exercises.old %} #}
+
+{% endif %} {# {% if config_type == "automatic" %} #}
+
+
+{% if config_type == "manual" %}
+<div class="well new-exercise-data-container">
+    <h4>Manual configuration overwrite</h4>
+    <form method="post">
+        {% csrf_token %}
+        <table class="table table-condensed table-striped config-table">
+            <tr>
+                <th>A+ exercise key</th>
+                <th>Name</th>
+                <th>Exercise template</th>
+                <th>Tokenizer</th>
+                <th>Min. match tokens</th>
+                <th>Include into Radar</th>
+            </tr>
+            {% for exercise in exercises.new %}
+            <tr>
+                <td>{{ exercise.exercise_key }}</td>
+                <td>{{ exercise.name }}<input hidden name="{{ exercise.exercise_key}}-name" value="{{ exercise.name }}"/></td>
+                <td>
+                    <textarea rows='1' name="{{ exercise.exercise_key }}-template-source">{{ exercise.template_source|escape }}</textarea>
+                </td>
+                <td>
+                    <select name="{{ exercise.exercise_key }}-tokenizer">
+                        {% for key, display_name in exercises.tokenizer_choices %}
+                        <option value="{{ key }}">{{ display_name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <input name="{{ exercise.exercise_key }}-min-match-tokens" type="number" min="1" value="{{ exercise.minimum_match_tokens }}"/>
+                </td>
+                <td>
+                    <input name="{{ exercise.exercise_key }}-enabled" type="checkbox"/>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        <p>Queue all submissions to all exercises listed above for tokenization and comparison.
+        This will clear all exercises and submissions for this course instance in Radar.
+        If an exercise with a matching key exists in Radar, then the new exercise from this list will <strong>overwrite</strong> that existing exercise.</p>
+        <button class="btn btn-warning" type="submit" name="overwrite-exercises">Overwrite and compare all</button>
+    </form>
+</div>
+{% endif %} {# {% if config_type == "manual" %} #}
+
+{% endif %} {# {% if errors %} #}

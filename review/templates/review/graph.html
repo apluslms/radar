@@ -1,11 +1,16 @@
 {% extends 'base.html' %}
-{% block content %}
 
-{% if graph.graph_json %}
-<pre hidden id="graph-json">{{ graph.graph_json }}</pre>
-{% else %}
-<pre hidden id="graph-json">{"nodes": [], "edges": []}</pre>
-{% endif %}
+{% block head_includes %}
+{% load static %}
+<script src="{% static 'graph/sigma.min.js' %}"></script>
+<script src="{% static 'graph/sigma.layout.forceAtlas2.min.js' %}"></script>
+<script src="{% static 'graph/sigma.plugins.filter.min.js' %}"></script>
+<script src="{% static 'graph/sigma.renderers.edgeLabels.min.js' %}"></script>
+<script src="{% static 'graph/graph.js' %}"></script>
+{% endblock head_includes %}
+
+{% block content %}
+{% csrf_token %}
 
 <div class="graph-ui">
   <dl>
@@ -75,12 +80,11 @@
 
 <div id="graph-container"></div>
 
-{% csrf_token %}
-<script src="/static/graph/graph.js"></script>
 {% if graph.graph_json %}
-<script>drawGraphFromJSON("graph-json");</script>
+<pre> {{ graph.graph_json|safe }} </pre>
+<script>$(_ => drawGraphFromJSON('{{ graph.graph_json|safe }}'));</script>
 {% else %}
-<script>drawGraphAsync();</script>
+<script>$(drawGraphAsync);</script>
 {% endif %}
 
 {% endblock %}

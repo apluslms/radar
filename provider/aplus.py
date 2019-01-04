@@ -173,6 +173,49 @@ def get_radar_config(exercise_data):
     return data
 
 
+def leafs_with_radar_config(exercises):
+    """
+    Return an iterator yielding dictionaries of leaf exercises that have Radar configurations.
+    """
+    if not exercises:
+        return
+    for exercise in exercises:
+        child_exercises = exercise.get("exercises")
+        if child_exercises:
+            yield from leafs_with_radar_config(child_exercises)
+        else:
+            radar_config = get_radar_config(exercise)
+            if radar_config:
+                yield radar_config
+
+
+def submittable_exercises(exercises):
+    """
+    Return an iterator yielding dictionaries of leaf exercises that are submittable.
+    """
+    if not exercises:
+        return
+    for exercise in exercises:
+        child_exercises = exercise.get("exercises")
+        if child_exercises:
+            yield from submittable_exercises(child_exercises)
+        elif "is_submittable" in exercise and exercise["is_submittable"]:
+            yield exercise
+
+
+def async_api_read(request, course, has_radar_config):
+    """
+    Queue an read of all exercises on a given course from the A+ REST API.
+    Return an id for the celery.result.AsyncResult that was queued.
+    """
+    async_task = tasks.get_full_course_config.delay(request.user.id, course.id, has_radar_config)
+    return async_task.id
+
+
+def recompare_all_unmatched(course):
+    tasks.recompare_all_unmatched.delay(course.id)
+
+
 def _decode_students(students):
     return [
         u["student_id"] if u["student_id"] else u["username"]

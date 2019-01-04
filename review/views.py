@@ -4,11 +4,13 @@ import json
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
-from django.http.response import JsonResponse, HttpResponse
+from django.http.response import JsonResponse, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template import loader as template_loader
+import celery
 
 from provider import aplus
-from data.models import Course, Comparison
+from data.models import Course, Comparison, Exercise
 from data import graph
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
@@ -16,8 +18,6 @@ from review.forms import ExerciseForm, ExerciseTemplateForm, DeleteExerciseFrom
 
 
 logger = logging.getLogger("radar.review")
-
-class APIAuthException(BaseException): pass
 
 @login_required
 def index(request):
@@ -29,21 +29,16 @@ def index(request):
 
 @access_resource
 def course(request, course_key=None, course=None):
-    if request.method == "POST":
-        # The user can click "Match all" on an exercise that has unmatched submissions.
-        # This will queue all submissions for recomparison
-        if "match-all-unmatched-for-exercise" in request.POST:
-            exercise = course.exercises.get(key=request.POST["exercise_key"])
-            # Recompare all submissions only if there are new ones
-            if exercise.has_unassigned_submissions:
-                p_config = provider_config(course.provider)
-                recompare = configured_function(p_config, "recompare")
-                recompare(exercise, p_config)
     context = {
         "hierarchy": ((settings.APP_NAME, reverse("index")), (course.name, None)),
         "course": course,
         "exercises": course.exercises.all(),
     }
+    if request.method == "POST":
+        # The user can click "Match all unmatched" for a shortcut to match all unmatched submissions for every exercise
+        if "match-all-unmatched-for-exercises" in request.POST:
+            aplus.recompare_all_unmatched(course)
+            return redirect("course", course_key=course.key)
     return render(request, "review/course.html", context)
 
 
@@ -129,41 +124,6 @@ def marked_submissions(request, course_key=None, course=None):
     })
 
 
-def leafs_with_radar_config(exercises):
-    """
-    Return an iterator yielding dictionaries of leaf exercises that have Radar configurations.
-    """
-    if not exercises:
-        return
-    for exercise in exercises:
-        child_exercises = exercise.get("exercises")
-        if child_exercises:
-            yield from leafs_with_radar_config(child_exercises)
-        else:
-            radar_config = aplus.get_radar_config(exercise)
-            if radar_config:
-                yield radar_config
-
-
-def submittable_exercises(exercises):
-    """
-    Return an iterator yielding dictionaries of leaf exercises that are submittable.
-    """
-    if not exercises:
-        return
-    for exercise in exercises:
-        child_exercises = exercise.get("exercises")
-        if child_exercises:
-            yield from submittable_exercises(child_exercises)
-        elif "is_submittable" in exercise and exercise["is_submittable"]:
-            # Insert a radar config into the exercise api dict, while avoiding to overwrite exercise_info data
-            patched_exercise_info = dict(exercise["exercise_info"] or {}, radar={"tokenizer": "skip", "minimum_match_tokens": 15})
-            exercise.add_data({"exercise_info": patched_exercise_info})
-            radar_config = aplus.get_radar_config(exercise)
-            if radar_config:
-                yield radar_config
-
-
 @access_resource
 def configure_course(request, course_key=None, course=None):
     context = {
@@ -173,83 +133,115 @@ def configure_course(request, course_key=None, course=None):
         "course": course,
         "provider_data": [
             {
-                "name": 'Submission hook',
-                "description": 'Data providers should make POST-requests, containing submission IDs, to this path',
+                "name": course.provider_name,
+                "description": "All submission data are retrieved from this system",
+                "path": settings.PROVIDERS[course.provider].get("host", "UNKNOWN"),
+            },
+            {
+                "name": "Submission hook",
+                "description": "Data providers should POST the IDs of new submissions to this path in order to have them automatically downloaded by Radar",
                 "path": reverse("hook_submission", kwargs={"course_key": course.key}),
             },
             {
-                "name": 'LTI login',
-                "description": 'Login requests using the LTI-protocol should be made to this path',
+                "name": "LTI login",
+                "description": "Login requests using the LTI-protocol should be made to this path",
                 "path": reverse("lti_login"),
             },
         ],
-        "errors": []
+        "errors": [],
     }
+
+    # The state of the API read task is contained in this dict
+    pending_api_read = {
+        "task_id": None,
+        "poll_URL": reverse("configure_course", kwargs={"course_key": course.key}),
+        "ready": False,
+        "poll_interval_seconds": 5,
+        "config_type": "automatic"
+    }
+
+    if request.method == "GET":
+        if "true" in request.GET.get("success", ''):
+            # All done, show success message
+            context["change_success"] = True
+        pending_api_read["json"] = json.dumps(pending_api_read)
+        context["pending_api_read"] = pending_api_read
+        return render(request, "review/configure.html", context)
+
+    if request.method != "POST":
+        return HttpResponseBadRequest()
+
     p_config = provider_config(course.provider)
-    # an HTML POST request + template rendering abomination
-    if "provider-fetch-automatic" in request.POST or "provider-fetch-manual" in request.POST:
-        client = request.user.get_api_client(course.namespace)
-        try:
-            if client is None:
-                raise APIAuthException
-            response = client.load_data(course.url)
-            if response is None:
-                raise APIAuthException
-            exercises = response.get("exercises", [])
-        except APIAuthException:
-            exercises = []
-            context["errors"].append("This user does not have correct credentials to use the API of %s" % repr(course))
-        if not exercises:
-            context["errors"].append("No exercises found for %s" % repr(course))
-        elif "provider-fetch-automatic" in request.POST:
-            # Exercise API data is expected to contain Radar configurations
-            # Partition all radar configs into unseen and existing exercises
-            new_exercises, old_exercises = [], []
-            for radar_config in leafs_with_radar_config(exercises):
-                radar_config["template_source"] = radar_config["get_template_source"]()
-                # No need for the template source getter anymore
-                del radar_config["get_template_source"]
-                if course.has_exercise(radar_config["exercise_key"]):
-                    old_exercises.append(radar_config)
-                else:
-                    new_exercises.append(radar_config)
-            context["exercises"] = {
-                "old": old_exercises,
-                "new": new_exercises,
-                "new_json": json.dumps(new_exercises),
-            }
-        elif "provider-fetch-manual" in request.POST:
-            # Exercise API data is not expected to contain Radar data, choose all submittable exercises
-            exercises_data = list(submittable_exercises(exercises))
-            context["exercises"] = {
-                "manual_config": True,
-                "new": exercises_data,
-                "tokenizer_choices": settings.TOKENIZER_CHOICES
-            }
-    elif "create_exercises" in request.POST or "overwrite_exercises" in request.POST:
-        if "create_exercises" in request.POST:
-            exercises = json.loads(request.POST["exercises_json"])
-        elif "overwrite_exercises" in request.POST:
-            checked = (key.split("-", 1)[0] for key in request.POST if key.endswith("enabled"))
+
+    logger.info(request.POST)
+
+    if "create-exercises" in request.POST or "overwrite-exercises" in request.POST:
+        # API data has been fetched in a previous step, now the user wants to add exercises that were shown in the table
+        if "create-exercises" in request.POST:
+            # Pre-configured, read-only table
+            exercises = json.loads(request.POST["exercises-json"])
+            for exercise_data in exercises:
+                logger.info("create config %s", exercise_data["name"])
+                key_str = str(exercise_data["exercise_key"])
+                exercise = course.get_exercise(key_str)
+                exercise.set_from_config(exercise_data)
+                exercise.save()
+                # Queue fetch and match for all submissions for this exercise
+                full_reload = configured_function(p_config, "full_reload")
+                full_reload(exercise, p_config)
+        elif "overwrite-exercises" in request.POST:
+            # Manual configuration, editable table, overwrite existing
+            checked_rows = (key.split("-", 1)[0] for key in request.POST if key.endswith("enabled"))
             exercises = (
                 {"exercise_key": exercise_key,
                  "name": request.POST[exercise_key + "-name"],
+                 "template_source": request.POST.get(exercise_key + "-template-source", ''),
                  "tokenizer": request.POST[exercise_key + "-tokenizer"],
                  "minimum_match_tokens": request.POST[exercise_key + "-min-match-tokens"]}
-                for exercise_key in checked
+                for exercise_key in checked_rows
             )
-        # TODO gather list of invalid exercise data and render as errors
-        for exercise_data in exercises:
-            # Create an exercise instance into the database
-            key_str = str(exercise_data["exercise_key"])
-            exercise = course.get_exercise(key_str)
-            exercise.set_from_config(exercise_data)
-            exercise.save()
-            # Queue fetching all submissions for this exercise
-            full_reload = configured_function(p_config, "full_reload")
-            full_reload(exercise, p_config)
-        context["create_exercises_success"] = True
-    return render(request, "review/configure.html", context)
+            for exercise_data in exercises:
+                logger.info("overwrite config %s", exercise_data["name"])
+                key = str(exercise_data["exercise_key"])
+                course.exercises.filter(key=key).delete()
+                exercise = course.get_exercise(key)
+                exercise.set_from_config(exercise_data)
+                exercise.save()
+                full_reload = configured_function(p_config, "full_reload")
+                full_reload(exercise, p_config)
+        return redirect(reverse("configure_course", kwargs={"course_key": course.key}) + "?success=true")
+
+    if not request.is_ajax():
+        return HttpResponseBadRequest("Unknown POST request")
+
+    pending_api_read = request.POST.dict()
+    logger.info(pending_api_read)
+
+    if pending_api_read["task_id"]:
+        # Task is pending, check state and return result if ready
+        async_result = celery.result.AsyncResult(pending_api_read["task_id"])
+        if async_result.ready():
+            pending_api_read["ready"] = True
+            pending_api_read["task_id"] = None
+            if async_result.state == "SUCCESS":
+                exercise_data = async_result.get()
+                async_result.forget()
+                config_table = template_loader.get_template("review/configure_table.html")
+                exercise_data["config_type"] = pending_api_read["config_type"]
+                pending_api_read["resultHTML"] = config_table.render(exercise_data, request)
+            else:
+                pending_api_read["resultHTML"] = ''
+        return JsonResponse(pending_api_read)
+
+    if "true" in pending_api_read["ready"]:
+        # The client might be polling a few times even after it has received the results
+        return JsonResponse(pending_api_read)
+
+    # Put full read of provider API on task queue and store the task id for tracking
+    has_radar_config = pending_api_read["config_type"] == "automatic"
+    async_api_read = configured_function(p_config, "async_api_read")
+    pending_api_read["task_id"] = async_api_read(request, course, has_radar_config)
+    return JsonResponse(pending_api_read)
 
 
 @access_resource

@@ -6,25 +6,26 @@
 If some change was made by posting any of the forms below, the change_success set will contain the name of the button used to submit the form.
 {% endcomment %}
 {% if change_success %}
-<div class="settings-success">
+<div class="messages-success">
     {% if "provider_reload" in change_success %}
     <div class="alert alert-success">
         <p><strong>All submissions and matches cleared</strong></p>
-        <p>Submissions will now be gradually reloaded from the data provider and then compared for matches.</p>
+        <p>All submissions to this exercise will now be gradually reloaded from the data provider and then compared for matches.</p>
+        <p>New submissions will temporarly show as 'Not matched' in the course view, but will be matched once the initial processing finishes.</p>
     </div>
     {% endif %}
 
     {% if "clear_and_recompare" in change_success %}
     <div class="alert alert-success">
         <p><strong>All matches cleared</strong></p>
-        <p>Submissions will now be recompared for matches.</p>
+        <p>All existing submissions to this exercise will now be recompared for matches.</p>
     </div>
     {% endif %}
 
     {% if "override_template" in change_success %}
     <div class="alert alert-success">
         <p><strong>Exercise template overwritten</strong></p>
-        <p>Consider recomparing all submissions if you want to exclude the template contents from all matches.</p>
+        <p>Consider recomparing all submissions if you want to exclude the recently updated template contents from all matches.</p>
     </div>
     {% endif %}
 
@@ -37,7 +38,7 @@ If some change was made by posting any of the forms below, the change_success se
 </div>
 {% endif %}
 {% if change_failure %}
-<div class="settings-failure">
+<div class="messages-failure">
     {% if "delete_exercise" in change_failure %}
     <div class="alert alert-danger">
         <p><strong>Got exercise name '{{ change_failure.delete_exercise }}' as input but it does not match the name of this exercise</strong></p>

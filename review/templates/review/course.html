@@ -18,9 +18,10 @@
 
 {% with unmatched=course.exercises_with_unmatched_submissions|length %}
 {% if unmatched %}
-<div class="alert alert-info">
-    <p>{{ unmatched }} exercise{% if unmatched == 1 %} has{% else %}s have{% endif %} new submissions that have not yet been matched to existing, matched submissions.</p>
-</div>
+<form method="post">
+    {% csrf_token %}
+    <button class="btn btn-primary" type="submit" name="match-all-unmatched-for-exercises"><span class="glyphicon glyphicon-refresh"></span> Recompare all exercises with unmatched submissions</button>
+</form>
 {% endif %}
 {% endwith %}
 
@@ -51,12 +52,6 @@
         {% if exercise.has_unassigned_submissions %}
         <td class="info">
             <strong>{{ exercise.valid_unmatched_submissions.count }}</strong>
-            {% comment %} post back the key of the exercise that should be rematched {% endcomment %}
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" value="{{ exercise.key }}" name="exercise_key">
-                <button class="btn btn-default btn-xs" type="submit" name="match-all-unmatched-for-exercise"><span class="glyphicon glyphicon-refresh"></span> Match all</a>
-            </form>
         </td>
         {% else %}
         <td>{{ exercise.valid_unmatched_submissions.count }}</td>

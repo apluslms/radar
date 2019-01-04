@@ -119,6 +119,8 @@ PROVIDERS = {
         "recompare": "provider.aplus.recompare",
         # Retrieves the contents of a submission from the provider API
         "get_submission_text": "data.aplus.get_submission_text",
+        # Queues a read to the provider API that fetches all exercises in a course
+        "async_api_read": "provider.aplus.async_api_read",
         # Override these in local settings
         "host": "http://localhost:8000",
         "token": "asd123",

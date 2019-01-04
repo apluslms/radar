@@ -1,175 +1,75 @@
 {% extends 'base.html' %}
+{% block head_includes %}
+{% load static %}
+<script src="{% static 'views/configure.js' %}"></script>
+{% endblock head_includes %}
+
 {% block content %}
 {% load bootstrap %}
 
-{% if errors %}
-<div>
-{% for error in errors %}
-<div class='alert alert-danger'>{{ error }}</div>
-{% endfor %}
-</div>
-{% else %}
-
-<h4>Provider data</h4>
-<table class="table table-condensed table-striped">
-    <tr>
-        <th>Name</th>
-        <th>Description</th>
-        <th>Path</th>
-    </tr>
-    {% for data in provider_data %}
-    <tr>
-        <td>{{ data.name }}</td>
-        <td>{{ data.description }}</td>
-        <td><a href="{{ data.path }}">{{ data.path }}</a></td>
-    </tr>
-    {% endfor %}
-</table>
-
-
-<h4>Exercise configuration</h4>
-
-<p>
-Retrieve exercise data from the provider API and queue exercise submissions for analysis.
-Retrieving data does not modify the Radar database.
-You will have a chance to review the data before committing the changes.
-</p>
-
-<form method="post">
-  {% csrf_token %}
-
-  <div>
-    <div class="provider-fetch-buttons">
-        <ul>
-            <li>
-                <button class="btn btn-default" type="submit" name="provider-fetch-automatic">Automatic</button>
-                Retrieve all exercises containing pre-configured Radar data from the data provider
-            </li>
-            <li>
-                <button class="btn btn-warning" type="submit" name="provider-fetch-manual">Manual</button>
-                Retrieve all submittable exercises from the data provider and configure by hand
-            </li>
-        </ul>
-    </div>
-    {% if create_exercises_success %}
+{% if change_success %}
+<div class="messages-success">
     <div class="alert alert-success">
-      <p>All exercises added to Radar and their submissions queued for comparison.</p>
+        <p><strong>Import complete</strong></p>
+        <p>All submissions to this exercise will now be gradually reloaded from the data provider and then compared for matches.
+        New submissions will temporarly show as 'Not matched' in the course view, but will be matched once the initial processing finishes.</p>
     </div>
-    {% endif %}
-
-  </div>
-
-    {% if exercises %}
-    {% if exercises.new_json %}
-    {# For posting back exactly the same data as being shown to the user #}
-    <input type="hidden" value="{{ exercises.new_json }}" name="exercises_json">
-    {% endif %}
-
-    {% if not exercises.manual_config %}
-    {% comment %}
-    Automatic configuration, show non-editable table of new config data which is to be applied and old, existing data
-    {% endcomment %}
-
-    <div class="new-exercise-data-container">
-        {% if exercises.new %}
-        <h4>New exercise data</h4>
-        <table class="table table-condensed table-striped config-table">
-          <tr>
-            <th>A+ exercise key</th>
-            <th>Name</th>
-            <th>Exercise template</th>
-            <th>Tokenizer</th>
-            <th>Min. match tokens</th>
-          </tr>
-          {% for exercise in exercises.new %}
-          <tr>
-            <td>{{ exercise.exercise_key }}</td>
-            <td>{{ exercise.name }}</td>
-            <td>{{ exercise.template_source|length }} characters</td> {# this could be a link that opens a bootstrap modal with the template contents in a pre well #}
-            <td>{{ exercise.tokenizer }}</td>
-            <td>{{ exercise.minimum_match_tokens }}</td>
-          </tr>
-          {% endfor %}
-        </table>
-        <div class="well">
-          <button class="btn btn-warning" type="submit" name="create_exercises">Create and compare all</button>
-          Queue all submissions to all exercises listed above for tokenization and comparison.
-          Please note that this may require a significant amount of time.
-        </div>
-        {% else %}
-        <p><b>No new exercises found.</b></p>
-        {% endif %}
-    </div>
-
-    <div class="old-exercise-data-container">
-        {% if exercises.old %}
-        <h4>Existing exercises</h4>
-        <table class="table table-condensed table-striped config-table">
-            <tr>
-                <th>A+ exercise key</th>
-                <th>Name</th>
-                <th>Exercise template</th>
-                <th>Tokenizer</th>
-                <th>Min. match tokens</th>
-            </tr>
-            {% for exercise in exercises.old %}
-            <tr>
-                <td>{{ exercise.exercise_key }}</td>
-                <td>{{ exercise.name }}</td>
-                <td>{{ exercise.template_source|length }} characters</td> {# this could be a link that opens a bootstrap modal with the template contents in a pre well #}
-                <td>{{ exercise.tokenizer }}</td>
-                <td>{{ exercise.minimum_match_tokens }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-        {% else %}
-        <p><b>No old exercises found.</b></p>
-        {% endif %}
-    </div>
-
-    {% else %}
-    {% comment %}
-    Manual configuration, show editable table of config data
-    {% endcomment %}
-    <div class="new-exercise-data-container">
-        <h4>Manual configuration overwrite</h4>
-        <table class="table table-condensed table-striped config-table">
-            <tr>
-                <th>A+ exercise key</th>
-                <th>Name</th>
-                <th>Tokenizer</th>
-                <th>Min. match tokens</th>
-                <th>Include into Radar</th>
-            </tr>
-            {% for exercise in exercises.new %}
-            <tr>
-                <td>{{ exercise.exercise_key }}</td>
-                <td>{{ exercise.name }}<input hidden name="{{ exercise.exercise_key}}-name" value="{{ exercise.name }}"/></td>
-                <td>
-                    <select name="{{ exercise.exercise_key }}-tokenizer">
-                        {% for key, display_name in exercises.tokenizer_choices %}
-                        <option value="{{ key }}">{{ display_name }}</option>
-                        {% endfor %}
-                    </select>
-                </td>
-                <td>
-                    <input name="{{ exercise.exercise_key }}-min-match-tokens" type="number" min="1" value="{{ exercise.minimum_match_tokens }}"/>
-                </td>
-                <td>
-                    <input name="{{ exercise.exercise_key }}-enabled" type="checkbox"/>
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
-        <div class="well">
-          <button class="btn btn-warning" type="submit" name="overwrite_exercises">Overwrite and compare all</button>
-          Queue all submissions to all exercises listed above for tokenization and comparison.
-          This will clear all exercises and submissions for this course instance in Radar.
-        </div>
-    </div>
-    {% endif %}
-    {% endif %}
-</form>
+</div>
 {% endif %}
 
-{% endblock %}
+<div class='well data-fetch'>
+    <h3>Exercise configuration</h3>
+    <p>
+    Here you can retrieve exercise data from the provider API and select which submissions Radar should compare for similarity.
+    After retrieving data for an exercise and adding it to Radar, the exercise will remain 'connected' to the provider API, and every file submitted to that exercise will automatically be recorded here.
+    Also, if the exercise has existing submissions in the provider, all those submissions will be matched after all data has been retrieved.
+    Note that after importing exercise data using this tool, if a file is submitted to an exercise, that file will <strong>not</strong> be matched automatically to all existing files.
+    However, all exercises with new submissions can be rematched using a single button on the course front page.
+    Therefore, it is recommended to wait that all or most submissions to an exercise have been submitted, before rematching all submissions to that exercise.
+    </p>
+    <p>
+    You will have a chance to review the data before committing any changes.
+    Simply retrieving the data does not modify the Radar database.
+    </p>
+
+    <table class="table table-condensed table-striped">
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Path</th>
+        </tr>
+        {% for data in provider_data %}
+        <tr>
+            <td>{{ data.name }}</td>
+            <td>{{ data.description }}</td>
+            <td><a href="{{ data.path }}">{{ data.path }}</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div hidden id="load-progress" class="progress">
+        <div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%">
+            <span class="loader-message"></span>
+        </div>
+    </div>
+</div>
+
+<div class="well data-fetch">
+    {% csrf_token %}
+    <p>If all exercises, that you want to use Radar for, have Radar settings in their configuration files at the data provider, use this to fetch those settings through the provider API.</p>
+    <button class="btn btn-primary" name="provider-fetch-automatic">Retrieve pre-configured Radar data</button>
+</div>
+
+<div class="well data-fetch">
+    {% csrf_token %}
+    <p>If exercises have not been configured for Radar, use this to fetch all submittable exercises from the data provider, and then pick manually what you want to add to Radar.</p>
+    <p>It is recommended to pre-configure all Radar settings in the exercise configuration files  in the course material instead of using this option.</p>
+    <button class="btn btn-default" name="provider-fetch-manual">Retrieve submittable exercises and pick manually</button>
+</div>
+
+<script id="pending-api-read" type="application/json">{{ pending_api_read.json|safe }}</script>
+
+{# Table rendered by the server after the async API read requested by the client completes #}
+<div id="exercise-config-table"></div>
+
+{% endblock content %}

@@ -1,7 +1,12 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h4>{{ exercise.name }}</h4>
+<h4>
+    {{ exercise.name }}
+    <a href="{% url 'exercise_settings' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xs">
+        <span class="glyphicon glyphicon-wrench"></span> Settings
+    </a>
+</h4>
 <h4>Similarity distribution of matches</h4>
 <div class="histogram"></div>
 

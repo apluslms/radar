@@ -6,8 +6,20 @@ pre.json { display:none; }
 
 header ul.breadcrumb { margin:7px 0; }
 
-form.well { max-width:50em; margin-left:auto; margin-right:auto; }
-form.well h4 { margin:0 0 15px 0; color:#777; }
+form.well,
+.messages-success,
+.messages-failure,
+.data-fetch {
+    margin-left: auto;
+    margin-right: auto;
+}
+form.well h4,
+.messages-success h4,
+.messages-failure h4,
+.data-fetch h4 {
+    margin:0 0 15px 0;
+    color:#777;
+}
 
 li.paused, tr.paused { opacity: 0.4; }
 
@@ -24,15 +36,6 @@ table.comparison td .similarity { font-style:oblique; }
 table.comparison td small { display:block; font-size:x-small; white-space:nowrap; }
 table.comparison td.success { background-color:transparent !important; }
 table.comparison .glyphicon { text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white; }
-
-.provider-fetch-buttons ul {
-    list-style: none;
-    padding-left: 0;
-}
-
-.provider-fetch-buttons ul li {
-    padding-bottom: 1em;
-}
 
 /* Course histograms */
 ul.course-histograms {
@@ -92,15 +95,10 @@ pre.sample-highlight { display:inline-block; }
     padding-left: 0;
 }
 
-#load-progress {
+.progress {
     margin-top: 20px;
     margin-bottom: 20px;
 }
 
-/* Use same width as form.well */
-.settings-success,
-.settings-failure {
-    max-width: 50em;
-    margin-left: auto;
-    margin-right: auto;
-}
+#execise-config-table {
+    margin-top: 4em;

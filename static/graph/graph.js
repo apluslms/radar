@@ -1,22 +1,56 @@
+// Graph state
 var sigmaObject;
 var sigmaFilter;
 var buildingGraph = false;
 
-// how _not_ to build user interfaces in js
-const shuffleLayoutButton = $("#shuffle-layout-button");
-const refreshButton = $("#refresh-graph-button");
-const buildGraphButton = $("#build-graph-button");
-const invalidateGraphButton = $("#invalidate-graph-button");
-const minMatchCountSlider = $("#min-match-count-range");
-const minMatchCountSliderValue = $("#min-match-count-range-value");
-const minSimilaritySlider = $("#min-similarity-range");
-const minSimilaritySliderValue = $("#min-similarity-range-value");
-const summaryModal = $("#pair-comparisons-summary-modal");
-const progressBarContainer = $("#load-progress");
+// UI
+var shuffleLayoutButton;
+var refreshButton;
+var buildGraphButton;
+var invalidateGraphButton;
+var minMatchCountSlider;
+var minMatchCountSliderValue;
+var minSimilaritySlider;
+var minSimilaritySliderValue;
+var summaryModal;
+var progressBarContainer;
 
-shuffleLayoutButton.on("click", _ => shuffleGraphLayout(sigmaObject));
-refreshButton.on("click", handleRefreshClick);
-buildGraphButton.on("click", drawGraphAsync);
+function initializeUI() {
+    shuffleLayoutButton = $("#shuffle-layout-button");
+    refreshButton = $("#refresh-graph-button");
+    buildGraphButton = $("#build-graph-button");
+    invalidateGraphButton = $("#invalidate-graph-button");
+    minMatchCountSlider = $("#min-match-count-range");
+    minMatchCountSliderValue = $("#min-match-count-range-value");
+    minSimilaritySlider = $("#min-similarity-range");
+    minSimilaritySliderValue = $("#min-similarity-range-value");
+    summaryModal = $("#pair-comparisons-summary-modal");
+    progressBarContainer = $("#load-progress");
+
+    shuffleLayoutButton.on("click", _ => shuffleGraphLayout(sigmaObject));
+    refreshButton.on("click", handleRefreshClick);
+    buildGraphButton.on("click", drawGraphAsync);
+
+    minMatchCountSlider.on("input", _ => {
+        minMatchCountSliderValue.text(parseInt(minMatchCountSlider.val()));
+    });
+    minSimilaritySlider.on("input", _ => {
+        minSimilaritySliderValue.text(parseFloat(minSimilaritySlider.val()));
+    });
+
+    invalidateGraphButton.on("click", _ => {
+        startLoader("Invalidating server graph cache");
+        $.ajax({
+            url: "invalidate",
+            type: "POST",
+            dataType: "text",
+            success: _ => stopLoader(),
+            error: console.error,
+            beforeSend: CSRFpreRequestCallback,
+        });
+    });
+
+}
 
 function startLoader(message) {
     progressBarContainer.children(".progress-bar").children("span.loader-message").text(message);
@@ -33,24 +67,6 @@ function CSRFpreRequestCallback(xhr) {
     const csrfToken = $("input[name=csrfmiddlewaretoken]").val();
     xhr.setRequestHeader("X-CSRFToken", csrfToken);
 }
-invalidateGraphButton.on("click", _ => {
-    startLoader("Invalidating server graph cache");
-    $.ajax({
-        url: "invalidate",
-        type: "POST",
-        dataType: "text",
-        success: _ => stopLoader(),
-        error: console.error,
-        beforeSend: CSRFpreRequestCallback,
-    });
-});
-
-minMatchCountSlider.on("input", _ => {
-    minMatchCountSliderValue.text(parseInt(minMatchCountSlider.val()));
-});
-minSimilaritySlider.on("input", _ => {
-    minSimilaritySliderValue.text(parseFloat(minSimilaritySlider.val()));
-});
 
 function handleEdgeClick(event) {
     function arrayToHTML(strings) {
@@ -184,8 +200,8 @@ function drawGraph(graphData) {
     stopLoader();
 }
 
-function drawGraphFromJSON(elementID) {
-    return drawGraph(JSON.parse($("#" + elementID).text()));
+function drawGraphFromJSON(dataString) {
+    return drawGraph(JSON.parse(dataString));
 }
 
 // Main method for requesting graph data from the server and building the SigmaJS object
@@ -219,3 +235,5 @@ function drawGraphAsync() {
         beforeSend: CSRFpreRequestCallback,
     });
 }
+
+$(initializeUI);

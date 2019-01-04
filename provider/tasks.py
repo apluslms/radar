@@ -3,24 +3,30 @@ Celery tasks for asynchronous submission processing.
 Contains some hard-coded A+ specific stuff that should be generalized.
 """
 import hashlib
+import json
 
+from django.conf import settings
 import celery
 from celery.utils.log import get_task_logger
 
 import requests
 
-import radar.config as config_loaders
+from accounts.models import RadarUser
+from data import graph
+from data.models import Course, Submission, Exercise, TaskError
 from matcher import matcher, tasks as matcher_tasks
 from provider import aplus
-from data.models import Course, Submission, Exercise, TaskError
-from data import graph
 from tokenizer import tokenizer
+import radar.config as config_loaders
 
 
 logger = get_task_logger(__name__)
 
 
 class ProviderAPIError(Exception):
+    pass
+
+class APIAuthException(ProviderAPIError):
     pass
 
 
@@ -149,24 +155,114 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
     exercise.submissions.all().delete()
     # Overwrite timestamp for new matching task
     exercise.touch_all_timestamps()
-    # For every submission in the list of submissions returned from the submission API:
-    #   - create submission from scratch with create_submission
-    #   - set timestamp of created submission to exercise timestamp
-    tasks_create_and_prepare_submissions = (
-        celery.chain(
-            create_submission.si(submission["id"], exercise.course.key, submission["url"]).on_error(task_error_handler.s()),
-            # This task is not immutable, i.e. it accepts the return value from create_submission as its first argument
-            matcher_tasks.set_timestamp.s(exercise.matching_start_time)
-        )
-        for submission in submissions_data
-    )
-    # Callback task that matches all submissions to the exercise we are reloading
-    task_match_exercise = matcher_tasks.match_all_new_submissions_to_exercise.si(exercise_id)
-    # Create all submissions in parallel in independent tasks, synchronize, and match all submissions sequentially in a single task
-    celery.chord(tasks_create_and_prepare_submissions)(task_match_exercise)
+    # Create every submission and set timestamp
+    # This is quite slow due to the io latency of create_submission
+    # The latency used to be hidden by using more than one celery worker for create_submission, but this requires synchronization with celery.chord or group
+    for submission in submissions_data:
+        submission_id = create_submission(submission["id"], exercise.course.key, submission["url"])
+        if not submission_id:
+            # Creating the submission failed
+            continue
+        matcher_tasks.set_timestamp(submission_id, exercise.matching_start_time)
+    # All submissions created, now match them
+    matcher_tasks.match_all_new_submissions_to_exercise.delay(exercise_id)
+
+    # result backends must be cleaned up of tombstones from completed tasks that do not ignore their results
+    # this must be implemented somehow to use chords
+
+    # # For every submission in the list of submissions returned from the submission API:
+    # #   - create submission from scratch with create_submission
+    # #   - set timestamp of created submission to exercise timestamp
+    # tasks_create_and_prepare_submissions = (
+    #     celery.chain(
+    #         create_submission.si(submission["id"], exercise.course.key, submission["url"]).on_error(task_error_handler.s()),
+    #         # This task is not immutable, i.e. it accepts the return value from create_submission as its first argument
+    #         matcher_tasks.set_timestamp.s(exercise.matching_start_time)
+    #     )
+    #     for submission in submissions_data
+    # )
+    # # Callback task that matches all submissions to the exercise we are reloading
+    # task_match_exercise = matcher_tasks.match_all_new_submissions_to_exercise.si(exercise_id)
+    # # Create all submissions in parallel in independent tasks, synchronize, and match all submissions sequentially in a single task
+    # celery.chord(tasks_create_and_prepare_submissions)(task_match_exercise)
 
 
 @celery.shared_task
+def get_full_course_config(api_user_id, course_id, has_radar_config=True):
+    """
+    Perform full traversal of the exercises list of a course in the A+ API.
+    The API access token of a RadarUser with the given id will be used for access.
+    If has_radar_config is given and False, all submittable exercises will be retireved.
+    Else, only exercises defined with Radar configuration data will be retrieved.
+    """
+    result = {}
+    course = Course.objects.get(pk=course_id)
+    api_user = RadarUser.objects.get(pk=api_user_id)
+    p_config = config_loaders.provider_config(course.provider)
+    client = api_user.get_api_client(course.namespace)
+
+    try:
+        if client is None:
+            raise APIAuthException
+        response = client.load_data(course.url)
+        if response is None:
+            raise APIAuthException
+        exercises = response.get("exercises", [])
+    except APIAuthException:
+        exercises = []
+        result["errors"].append("This user does not have correct credentials to use the API of %s" % repr(course))
+
+    if not exercises:
+        result["errors"].append("No exercises found for %s" % repr(course))
+
+    if has_radar_config:
+        # Exercise API data is expected to contain Radar configurations
+        # Partition all radar configs into unseen and existing exercises
+        new_exercises, old_exercises = [], []
+        for radar_config in aplus.leafs_with_radar_config(exercises):
+            radar_config["template_source"] = radar_config["get_template_source"]()
+            # We got the template and lambdas are not serializable so we delete the getter
+            del radar_config["get_template_source"]
+            if course.has_exercise(radar_config["exercise_key"]):
+                old_exercises.append(radar_config)
+            else:
+                new_exercises.append(radar_config)
+        result["exercises"] = {
+            "old": old_exercises,
+            "new": new_exercises,
+            "new_json": json.dumps(new_exercises),
+        }
+    else:
+        # Exercise API data is not expected to contain Radar data, choose all submittable exercises and patch them with a default Radar config
+        new_exercises = []
+        # Note that the type of 'exercise' is AplusApiDict
+        for exercise in aplus.submittable_exercises(exercises):
+            # Avoid overwriting exercise_info if it is defined
+            patched_exercise_info = dict(exercise["exercise_info"] or {}, radar={"tokenizer": "skip", "minimum_match_tokens": 15})
+            exercise.add_data({"exercise_info": patched_exercise_info})
+            radar_config = aplus.get_radar_config(exercise)
+            if radar_config:
+                radar_config["template_source"] = radar_config["get_template_source"]()
+                del radar_config["get_template_source"]
+                new_exercises.append(radar_config)
+        result["exercises"] = {
+            "new": new_exercises,
+            "tokenizer_choices": settings.TOKENIZER_CHOICES
+        }
+
+    return result
+
+
+@celery.shared_task(ignore_result=True)
+def recompare_all_unmatched(course_id):
+    course = Course.objects.get(pk=course_id)
+    p_config = config_loaders.provider_config(course.provider)
+    recompare = config_loaders.configured_function(p_config, "recompare")
+    for exercise in course.exercises_with_unmatched_submissions:
+        recompare(exercise, p_config)
+
+
+@celery.shared_task(ignore_result=True)
 def task_error_handler(task_id, *args, **kwargs):
     write_error("Failed celery task {}".format(task_id), "task_error_handler")
 
