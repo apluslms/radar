@@ -207,7 +207,7 @@ def configure_course(request, course_key=None, course=None):
     if not request.is_ajax():
         return HttpResponseBadRequest("Unknown POST request")
 
-    pending_api_read = json.loads(request.body)
+    pending_api_read = json.loads(request.body.decode("utf-8"))
 
     if pending_api_read["task_id"]:
         # Task is pending, check state and return result if ready
@@ -256,7 +256,7 @@ def build_graph(request, course, course_key):
     if request.method != "POST" or not request.is_ajax():
         return HttpResponseBadRequest()
 
-    task_state = json.loads(request.body)
+    task_state = json.loads(request.body.decode("utf-8"))
 
     if task_state["task_id"]:
         # Task is pending, check state and return result if ready
