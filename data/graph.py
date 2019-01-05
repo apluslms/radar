@@ -59,4 +59,8 @@ def generate_match_graph(course_key, min_similarity, unique_exercises=True):
             }
             graph.add_edge(student_a, student_b, edge_data)
     # Return a JSON serializable graph with the min similarity that was used
-    return dict(graph.as_dict(), min_similarity=format(min_similarity, ".2f"))
+    result = dict(graph.as_dict(), min_similarity=format(min_similarity, ".2f"))
+    # Cache graph definition
+    course.similarity_graph_json = json.dumps(result)
+    course.save()
+    return result

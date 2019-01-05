@@ -265,12 +265,8 @@ def build_graph(request, course, course_key):
             task_state["ready"] = True
             task_state["task_id"] = None
             if async_result.state == "SUCCESS":
-                graph_data = async_result.get()
-                # Cache graph definition
-                course.similarity_graph_json = json.dumps(graph_data)
-                course.save()
+                task_state["graph_data"] = async_result.get()
                 async_result.forget()
-                task_state["graph_data"] = graph_data
             else:
                 task_state["graph_data"] = {}
     elif not task_state["ready"]:
