@@ -133,9 +133,6 @@ def create_submission(task, submission_key, course_key, submission_api_url):
     template_comparison = matcher.match_against_template(submission)
     template_comparison.save()
 
-    # Invalidate similarity graph
-    graph.invalidate_course_graphs(course)
-
     return submission.id
 
 

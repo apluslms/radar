@@ -217,23 +217,62 @@ function drawGraphAsync() {
         // Clear rendered graph from canvas
         sigmaObject.refresh();
     }
-    // Assuming we are at the graph view url 'graph', do POST to graph/build, with build args in body
-    const minSimilarity = minSimilaritySlider.val();
-    $.ajax({
-        url: "build",
-        type: "POST",
-        data: {
-            minSimilarity: minSimilarity,
-        },
-        dataType: "json",
-        success: data => {
-            drawGraph(data);
-            // Apply default filter settings to graph
-            handleRefreshClick();
-        },
-        error: console.error,
-        beforeSend: CSRFpreRequestCallback,
-    });
+
+    let taskState = {
+        task_id: '',
+        ready: false,
+        min_similarity: minSimilaritySlider.val(),
+    };
+
+    let pollIndex = 0;
+    const pollSeconds = [1, 1, 1, 2, 2, 4, 4, 10, 30];
+
+    function pollSuccess(newTaskState) {
+        if (taskState.ready) {
+            console.log('already completed');
+            return;
+        }
+        taskState = newTaskState;
+        console.log(taskState);
+        if (taskState.ready) {
+            pollIndex = 0;
+            const graphDef = taskState.graph_data;
+            if (graphDef.nodes && graphDef.edges) {
+                drawGraph(graphDef);
+                // Apply default filter settings to graph
+                handleRefreshClick();
+            } else {
+                console.error("Server completed the data retrieval but returned an invalid graph definition object.");
+            }
+        } else {
+            setTimeout(pollGraphData, 1000 * pollSeconds[pollIndex]);
+            pollIndex = Math.min(pollSeconds.length - 1, pollIndex + 1);
+        }
+    }
+
+    function pollError(response) {
+        console.error("Failed to poll for API read task state:", response.responseText);
+    }
+
+    function pollGraphData() {
+        if (taskState.ready) {
+            return;
+        }
+
+        $.ajax({
+            beforeSend: CSRFpreRequestCallback,
+            url: "build", // /course_instance/graph/build
+            method: "POST",
+            dataType: "json",
+            contentType: "application/json",
+            data: JSON.stringify(taskState),
+            success: pollSuccess,
+            error: pollError,
+        });
+    }
+
+    // Trigger graph build and poll for completion
+    pollGraphData();
 }
 
 $(initializeUI);

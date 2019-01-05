@@ -1,41 +1,12 @@
 import collections
-import functools
 
+import celery
+from celery.utils.log import get_task_logger
 from django.urls import reverse
+
 from data.models import Course
 
-
-class LRU(collections.OrderedDict):
-    """Custom LRU cache inspired by https://bugs.python.org/msg292251"""
-
-    def __init__(self, func, maxsize=256):
-        self.maxsize = maxsize
-        self.func = func
-        functools.update_wrapper(self, func)
-
-    def __call__(self, *args):
-        if args in self:
-            graph = self[args]
-            self.move_to_end(args)
-            return graph
-        graph = self.func(*args)
-        if len(self) >= self.maxsize:
-            self.popitem(last=False)
-        self[args] = graph
-        return graph
-
-    def invalidate_all(self):
-        self.clear()
-
-    # FIXME this method should have a mutex if several celery workers invalidate concurrently
-    def invalidate_for_course(self, course_key):
-        # As long as the cache max size is relatively small, walking through all keys is hardly a performance disaster
-        course_entries = [key for key in self.keys() if key[0] == course_key]
-        for key in course_entries:
-            del self[key]
-
-    def is_cached(self, *args):
-        return args in self
+logger = get_task_logger(__name__)
 
 
 class Graph:
@@ -60,10 +31,13 @@ class Graph:
         }
 
 
-@LRU
+@celery.shared_task
 def generate_match_graph(course_key, min_similarity, unique_exercises=True):
-    """Constructs a graph as a dictionary from all comparisons with a minimum similarity on a given course."""
+    """
+    Constructs a graph as a dictionary from all comparisons with a minimum similarity on a given course.
+    """
     course = Course.objects.filter(key=course_key).first()
+    logger.info("Generating match graph for %s", course)
     graph = Graph()
     # Get all comparisons for every student pair grouped by exercise
     for exercise_comparisons in course.all_student_pair_matches(min_similarity):
@@ -84,16 +58,5 @@ def generate_match_graph(course_key, min_similarity, unique_exercises=True):
                 "max_similarity": comparison.similarity,
             }
             graph.add_edge(student_a, student_b, edge_data)
-    return graph.as_dict()
-
-
-# Cache interface
-
-def is_cached(course_key, *args):
-    return generate_match_graph.is_cached((course_key, ) + args)
-
-def invalidate_course_graphs(course):
-    generate_match_graph.invalidate_for_course(course.key)
-
-def invalidate_all_graphs():
-    generate_match_graph.invalidate_all()
+    # Return a JSON serializable graph with the min similarity that was used
+    return dict(graph.as_dict(), min_similarity=format(min_similarity, ".2f"))

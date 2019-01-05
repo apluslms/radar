@@ -261,16 +261,44 @@ def graph_ui(request, course, course_key):
 
 @access_resource
 def build_graph(request, course, course_key):
-    if not request.POST or "minSimilarity" not in request.POST:
-        return HttpResponse("Graph build arguments must contain 'minSimilarity' in the body of a POST request.", status=400)
-    min_similarity = request.POST["minSimilarity"]
-    graph_data = graph.generate_match_graph(course.key, min_similarity)
-    return JsonResponse(graph_data)
+    if request.method != "POST" or not request.is_ajax():
+        return HttpResponseBadRequest()
+
+    task_state = json.loads(request.body)
+
+    if task_state["task_id"]:
+        # Task is pending, check state and return result if ready
+        async_result = celery.result.AsyncResult(task_state["task_id"])
+        if async_result.ready():
+            task_state["ready"] = True
+            task_state["task_id"] = None
+            if async_result.state == "SUCCESS":
+                graph_data = async_result.get()
+                # Cache graph definition
+                course.similarity_graph_json = json.dumps(graph_data)
+                course.save()
+                async_result.forget()
+                task_state["graph_data"] = graph_data
+            else:
+                task_state["graph_data"] = {}
+    elif not task_state["ready"]:
+        graph_data = json.loads(course.similarity_graph_json or '{}')
+        if graph_data and graph_data["min_similarity"] == task_state["min_similarity"]:
+            # Graph was already cached
+            task_state["graph_data"] = graph_data
+            task_state["ready"] = True
+        else:
+            # No graph cached, build async
+            async_task = graph.generate_match_graph.delay(course.key, float(task_state["min_similarity"]))
+            task_state["task_id"] = async_task.id
+
+    return JsonResponse(task_state)
 
 
 @access_resource
 def invalidate_graph_cache(request, course, course_key):
-    graph.invalidate_course_graphs(course)
+    course.similarity_graph_json = ''
+    course.save()
     return HttpResponse("Graph cache invalidated")
 
 

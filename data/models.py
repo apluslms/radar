@@ -49,6 +49,7 @@ class Course(NamespacedApiObject):
     minimum_match_tokens = models.IntegerField(default=15, help_text="Minimum number of tokens to consider a match")
     reviewers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="courses", blank=True, help_text="Reviewers for match analysis")
     archived = models.BooleanField(db_index=True, default=False)
+    similarity_graph_json = models.TextField(blank=True, default='', help_text="JSON-serialized string of the similarity graph definition returned by data.graph.generate_match_graph")
     objects = CourseManager()
 
     class Meta:

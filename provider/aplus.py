@@ -40,6 +40,9 @@ def reload(exercise, config):
     Deletes all existing submissions to exercise.
     """
     logger.info("Reloading all submissions for exercise %s", exercise)
+    # Similarity is no longer valid because there are new matches
+    exercise.course.similarity_graph_json = ''
+    exercise.course.save()
     submissions_url = config["host"] + API_SUBMISSION_LIST_URL % { "eid": exercise.key }
     # Queue exercise for asynchronous handling,
     # all submissions to this exercise are created in parallel while matching is sequential
@@ -51,6 +54,9 @@ def recompare(exercise, config):
     Clear all comparisons of submissions to given exercise and match all from scratch.
     """
     logger.info("Recomparing all submissions for exercise %s", exercise)
+    # Similarity is no longer valid because there are new matches
+    exercise.course.similarity_graph_json = ''
+    exercise.course.save()
     # Drop all existing comparisons and queue for recomparison
     exercise.clear_all_matches()
     exercise.touch_all_timestamps()
