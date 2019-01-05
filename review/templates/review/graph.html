@@ -26,9 +26,14 @@ After the graph has been built, it will remain cached until new submissions are 
     <dd>Students, unique by student number</dd>
     <dt>Edges</dt>
     <dd>
-    An edge between two nodes represents the existence of at least one pair of submissions that have a similarity higher than the specified minimum similarity.
+    An edge between two nodes represents the existence of at least one pair of submissions that have a similarity higher than some given minimum match similarity parameter.
     Edge weights represent the amount of such pairs.
     Click on an edge to open an overview of all matching pairs with maximum similarity.
+    </dd>
+    <dt>Note</dt>
+    <dd>
+    <p>Submission pairs with similarity lower than {{ minimum_similarity_threshold }} are not stored at all.</p>
+    <p>The cache contains only one graph with one minimum match similarity value. Building a graph with a different minimum match similarity will invalidate the older graph.</p>
     </dd>
   </dl>
 
@@ -37,7 +42,6 @@ After the graph has been built, it will remain cached until new submissions are 
           <h4>Build parameters</h4>
           <div class="slidecontainer">
             <b>Minimum match similarity</b>
-            <p>(pairs with similarity lower than {{ minimum_similarity_threshold }} are not stored)</p>
             <input type="range" class="slider" id="min-similarity-range" value="0.95" min="{{ minimum_similarity_threshold }}" max="1.00" step="0.01">
             <p id="min-similarity-range-value">0.95</p>
           </div>
