@@ -43,7 +43,7 @@ class Course(NamespacedApiObject):
     """
     created = models.DateTimeField(auto_now_add=True)
     key = URLKeyField(max_length=64, unique=True, help_text="Unique alphanumeric course instance id")
-    name = models.CharField(max_length=128, help_text="Descriptive course name")
+    name = models.CharField(max_length=255, help_text="Descriptive course name")
     provider = models.CharField(max_length=16, choices=settings.PROVIDER_CHOICES, help_text="Provider for submission data", default=settings.PROVIDER_CHOICES[0][0])
     tokenizer = models.CharField(max_length=16, choices=settings.TOKENIZER_CHOICES, help_text="Tokenizer for the submission contents", default=settings.TOKENIZER_CHOICES[0][0])
     minimum_match_tokens = models.IntegerField(default=15, help_text="Minimum number of tokens to consider a match")
@@ -131,7 +131,7 @@ class Exercise(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="exercises")
     key = URLKeyField(max_length=64, help_text="Alphanumeric exercise id")
-    name = models.CharField(max_length=128, default="unknown", help_text="Descriptive exercise name")
+    name = models.CharField(max_length=255, default="unknown", help_text="Descriptive exercise name")
     override_tokenizer = models.CharField(max_length=8, choices=settings.TOKENIZER_CHOICES, blank=True, null=True)
     override_minimum_match_tokens = models.IntegerField(blank=True, null=True)
     template_tokens = models.TextField(blank=True, default="")
