@@ -22,21 +22,22 @@ $(function() {
         xhr.setRequestHeader("X-CSRFToken", csrfToken);
     }
 
-    // The initial state is rendered into the document by the server
-    let taskState = JSON.parse($("#pending-api-read").text());
+    // Populated every time a user clicks a button and polling begins
+    let taskState = {};
 
     // Poll the server at taskState.poll_URL until it returns a string of the results rendered as a POSTable HTML form
     function poll() {
-        if (taskState.ready === "true") {
+        if (taskState.ready) {
             return;
         }
 
         function pollSuccess(newTaskState) {
-            if (taskState.ready === "true") {
+            if (taskState.ready) {
                 return;
             }
             taskState = newTaskState;
-            if (taskState.ready === "true") {
+            console.log(taskState);
+            if (taskState.ready) {
                 stopLoader();
                 if (taskState.resultHTML.length > 0) {
                     updateUI(taskState.resultHTML);
@@ -57,7 +58,8 @@ $(function() {
             url: taskState.poll_URL,
             method: "POST",
             dataType: "json",
-            data: taskState,
+            contentType: "application/json",
+            data: JSON.stringify(taskState),
             success: pollSuccess,
             error: pollError,
         });
@@ -65,12 +67,14 @@ $(function() {
 
     function beginPolling(configType) {
         if (taskState.task_id) {
-            console.error("Data retrieval already pending");
+            console.error("Data retrieval already pending, please wait for results");
             return;
         }
-        startLoader("Retrieving course data");
+        // The initial state is rendered into the document by the server
+        taskState = JSON.parse($("#pending-api-read").text());
         taskState.config_type = configType;
         poll();
+        startLoader("Retrieving course data");
     }
 
     automaticFetchButton.on("click", _ => beginPolling("automatic"));

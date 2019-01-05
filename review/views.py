@@ -133,19 +133,16 @@ def configure_course(request, course_key=None, course=None):
         "course": course,
         "provider_data": [
             {
-                "name": course.provider_name,
-                "description": "All submission data are retrieved from this system",
+                "description": "{:s}, all submission data are retrieved from here".format(course.provider_name),
                 "path": settings.PROVIDERS[course.provider].get("host", "UNKNOWN"),
             },
             {
-                "name": "Submission hook",
                 "description": "Data providers should POST the IDs of new submissions to this path in order to have them automatically downloaded by Radar",
-                "path": reverse("hook_submission", kwargs={"course_key": course.key}),
+                "path": request.build_absolute_uri(reverse("hook_submission", kwargs={"course_key": course.key})),
             },
             {
-                "name": "LTI login",
                 "description": "Login requests using the LTI-protocol should be made to this path",
-                "path": reverse("lti_login"),
+                "path": request.build_absolute_uri(reverse("lti_login")),
             },
         ],
         "errors": [],
@@ -173,15 +170,12 @@ def configure_course(request, course_key=None, course=None):
 
     p_config = provider_config(course.provider)
 
-    logger.info(request.POST)
-
     if "create-exercises" in request.POST or "overwrite-exercises" in request.POST:
         # API data has been fetched in a previous step, now the user wants to add exercises that were shown in the table
         if "create-exercises" in request.POST:
             # Pre-configured, read-only table
             exercises = json.loads(request.POST["exercises-json"])
             for exercise_data in exercises:
-                logger.info("create config %s", exercise_data["name"])
                 key_str = str(exercise_data["exercise_key"])
                 exercise = course.get_exercise(key_str)
                 exercise.set_from_config(exercise_data)
@@ -201,7 +195,6 @@ def configure_course(request, course_key=None, course=None):
                 for exercise_key in checked_rows
             )
             for exercise_data in exercises:
-                logger.info("overwrite config %s", exercise_data["name"])
                 key = str(exercise_data["exercise_key"])
                 course.exercises.filter(key=key).delete()
                 exercise = course.get_exercise(key)
@@ -214,8 +207,8 @@ def configure_course(request, course_key=None, course=None):
     if not request.is_ajax():
         return HttpResponseBadRequest("Unknown POST request")
 
-    pending_api_read = request.POST.dict()
-    logger.info(pending_api_read)
+    logger.info(request.body)
+    pending_api_read = json.loads(request.body)
 
     if pending_api_read["task_id"]:
         # Task is pending, check state and return result if ready
@@ -233,7 +226,7 @@ def configure_course(request, course_key=None, course=None):
                 pending_api_read["resultHTML"] = ''
         return JsonResponse(pending_api_read)
 
-    if "true" in pending_api_read["ready"]:
+    if pending_api_read["ready"]:
         # The client might be polling a few times even after it has received the results
         return JsonResponse(pending_api_read)
 

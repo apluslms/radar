@@ -17,30 +17,30 @@
 </div>
 {% endif %}
 
-<div class='well data-fetch'>
-    <h3>Exercise configuration</h3>
-    <p>
-    Here you can retrieve exercise data from the provider API and select which submissions Radar should compare for similarity.
-    After retrieving data for an exercise and adding it to Radar, the exercise will remain 'connected' to the provider API, and every file submitted to that exercise will automatically be recorded here.
-    Also, if the exercise has existing submissions in the provider, all those submissions will be matched after all data has been retrieved.
-    Note that after importing exercise data using this tool, if a file is submitted to an exercise, that file will <strong>not</strong> be matched automatically to all existing files.
-    However, all exercises with new submissions can be rematched using a single button on the course front page.
-    Therefore, it is recommended to wait that all or most submissions to an exercise have been submitted, before rematching all submissions to that exercise.
-    </p>
-    <p>
-    You will have a chance to review the data before committing any changes.
-    Simply retrieving the data does not modify the Radar database.
-    </p>
+<h3>Exercise configuration</h3>
+<p>
+Here you can retrieve exercise data from the provider API and select which submissions Radar should compare for similarity.
+After retrieving data for an exercise and adding it to Radar, the exercise will remain 'connected' to the provider API, and every file submitted to that exercise will automatically be recorded here.
+Also, if the exercise has existing submissions in the provider, all those submissions will be matched after all data has been retrieved.
+Note that after importing exercise data using this tool, if a file is submitted to an exercise, that file will <strong>not</strong> be matched automatically to all existing files.
+However, all exercises with new submissions can be rematched using a single button on the course front page.
+Therefore, it is recommended to wait that all or most submissions to an exercise have been submitted, before rematching all submissions to that exercise.
+</p>
+<p>
+You will have a chance to review the data before committing any changes.
+Simply retrieving the data does not modify the Radar database.
+</p>
 
+<div class='well data-fetch'>
+
+    <h4>Data provider</h4>
     <table class="table table-condensed table-striped">
         <tr>
-            <th>Name</th>
             <th>Description</th>
             <th>Path</th>
         </tr>
         {% for data in provider_data %}
         <tr>
-            <td>{{ data.name }}</td>
             <td>{{ data.description }}</td>
             <td><a href="{{ data.path }}">{{ data.path }}</a></td>
         </tr>
@@ -55,12 +55,14 @@
 </div>
 
 <div class="well data-fetch">
+    <h4>Automatic</h4>
     {% csrf_token %}
     <p>If all exercises, that you want to use Radar for, have Radar settings in their configuration files at the data provider, use this to fetch those settings through the provider API.</p>
     <button class="btn btn-primary" name="provider-fetch-automatic">Retrieve pre-configured Radar data</button>
 </div>
 
 <div class="well data-fetch">
+    <h4>Manual</h4>
     {% csrf_token %}
     <p>If exercises have not been configured for Radar, use this to fetch all submittable exercises from the data provider, and then pick manually what you want to add to Radar.</p>
     <p>It is recommended to pre-configure all Radar settings in the exercise configuration files  in the course material instead of using this option.</p>
