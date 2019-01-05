@@ -229,11 +229,9 @@ function drawGraphAsync() {
 
     function pollSuccess(newTaskState) {
         if (taskState.ready) {
-            console.log('already completed');
             return;
         }
         taskState = newTaskState;
-        console.log(taskState);
         if (taskState.ready) {
             pollIndex = 0;
             const graphDef = taskState.graph_data;

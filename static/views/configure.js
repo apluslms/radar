@@ -36,7 +36,6 @@ $(function() {
                 return;
             }
             taskState = newTaskState;
-            console.log(taskState);
             if (taskState.ready) {
                 stopLoader();
                 if (taskState.resultHTML.length > 0) {

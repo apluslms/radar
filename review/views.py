@@ -207,7 +207,6 @@ def configure_course(request, course_key=None, course=None):
     if not request.is_ajax():
         return HttpResponseBadRequest("Unknown POST request")
 
-    logger.info(request.body)
     pending_api_read = json.loads(request.body)
 
     if pending_api_read["task_id"]:
