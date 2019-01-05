@@ -12,12 +12,24 @@
 {% block content %}
 {% csrf_token %}
 
+<h3>Graph view</h3>
+<p>
+This is the highest level view of all match result views.
+It shows a single graph of student pairs and the amount of high similarity submissions those pairs have.
+Note that building the graph can take a considerable amount of time depending on server load and/or the amount of submissions to this course instance.
+After the graph has been built, it will remain cached until new submissions are matched or the user manually invalidates the cache for this course instance.
+</p>
+
 <div class="graph-ui">
   <dl>
     <dt>Nodes</dt>
     <dd>Students, unique by student number</dd>
     <dt>Edges</dt>
-    <dd>An edge between two nodes represents the existence of at least one pair of submissions that have a similarity higher than the specified minimum similarity. Edge weights represent the amount of such pairs.</dd>
+    <dd>
+    An edge between two nodes represents the existence of at least one pair of submissions that have a similarity higher than the specified minimum similarity.
+    Edge weights represent the amount of such pairs.
+    Click on an edge to open an overview of all matching pairs with maximum similarity.
+    </dd>
   </dl>
 
   <div class="row">
@@ -25,17 +37,17 @@
           <h4>Build parameters</h4>
           <div class="slidecontainer">
             <b>Minimum match similarity</b>
-            <input type="range" class="slider" id="min-similarity-range"
-                   value="0.95" min="0.00" max="1.00" step="0.01">
+            <p>(pairs with similarity lower than {{ minimum_similarity_threshold }} are not stored)</p>
+            <input type="range" class="slider" id="min-similarity-range" value="0.95" min="{{ minimum_similarity_threshold }}" max="1.00" step="0.01">
             <p id="min-similarity-range-value">0.95</p>
           </div>
-          <button id="build-graph-button" type="button" class="btn btn-outline-warning"
+          <button id="build-graph-button" type="button" class="btn btn-primary"
                   autocomplete="off">
             Build graph
           </button>
-          <button id="invalidate-graph-button" type="button" class="btn btn-outline-warning"
+          <button id="invalidate-graph-button" type="button" class="btn btn-primary"
                   autocomplete="off">
-            Invalidate server graph cache
+            Remove this graph from the server cache
           </button>
       </div>
 
@@ -47,11 +59,11 @@
                    value="2" min="1" max="20" step="1">
             <p id="min-match-count-range-value">2</p>
           </div>
-          <button id="refresh-graph-button" type="button" class="btn btn-outline-primary"
+          <button id="refresh-graph-button" type="button" class="btn btn-primary"
                   aria-pressed="false" autocomplete="off">
-            Refresh
+            Refresh/apply
           </button>
-          <button id="shuffle-layout-button" type="button" class="btn btn-outline-primary"
+          <button id="shuffle-layout-button" type="button" class="btn btn-primary"
                   aria-pressed="false" autocomplete="off">
             Shuffle graph layout
           </button>

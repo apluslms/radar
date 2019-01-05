@@ -254,6 +254,7 @@ def graph_ui(request, course, course_key):
             ("Graph", None)
         ),
         "course": course,
+        "minimum_similarity_threshold": settings.MATCH_STORE_MIN_SIMILARITY
     }
     return render(request, "review/graph.html", context)
 
