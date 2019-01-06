@@ -1,7 +1,10 @@
 // Graph state
 var sigmaObject;
-var sigmaFilter;
 var buildingGraph = false;
+// Backup of the original nodes and edges arrays, as returned by the server
+var graphDefinition;
+// Most recent coordinates for each node
+var graphLayout;
 
 // UI
 var shuffleLayoutButton;
@@ -27,7 +30,10 @@ function initializeUI() {
     summaryModal = $("#pair-comparisons-summary-modal");
     progressBarContainer = $("#load-progress");
 
-    shuffleLayoutButton.on("click", _ => shuffleGraphLayout(sigmaObject));
+    shuffleLayoutButton.on("click", _ => {
+        shuffleGraphLayout();
+        applyGraphLayout();
+    });
     refreshButton.on("click", handleRefreshClick);
     buildGraphButton.on("click", drawGraphAsync);
 
@@ -82,6 +88,11 @@ function handleEdgeClick(event) {
         return arrayToHTML(elements);
     }
 
+    // Opening a modal seems to mess up edge hover mouse tracking, we fix it by forcing removal of all edge hover effects and then putting them back on
+    sigmaObject.settings({enableEdgeHovering: false});
+    sigmaObject.refresh();
+    sigmaObject.settings({enableEdgeHovering: true});
+
     // Get graph edge that was clicked
     const edge = event.data.edge;
     // Set modal title with match data from edge
@@ -93,59 +104,50 @@ function handleEdgeClick(event) {
     summaryModal.find("div.modal-body").html(arrayToHTML(edge.matchesData.map(matchToHTML)));
     // Show modal
     summaryModal.modal("toggle");
-    // TODO fire leave edge hover event to prevent edge highlighting from being stuck when returning from modal view
 }
 
 function handleRefreshClick() {
-    startLoader("Updating graph");
-    // Hide edges with weight less than the current min match count slider value
-    applyMinEdgeWeightFilter(minMatchCountSlider.val());
-    // Hide all nodes that have no edges after filtering
-    applyDisconnectedNodesFilter();
-    // Refresh graph rendering
-    sigmaObject.refresh();
-    stopLoader();
+    // Rebuild graph to filter by edge weight
+    redrawGraph(graphDefinition, {minEdgeWeight: minMatchCountSlider.val()});
+    applyGraphLayout();
 }
 
-function applyMinEdgeWeightFilter(newMinEdgeWeight) {
-    sigmaFilter
-        // Clear existing filters by key
-        .undo('min-edge-weight')
-        // Include only edges with at least newMinEdgeWeight weights
-        .edgesBy(e => e.weight >= newMinEdgeWeight, 'min-edge-weight')
-        // Apply filter to graph
-        .apply();
+function shuffleGraphLayout() {
+    for (node_id in graphLayout) {
+        const node = graphLayout[node_id];
+        node.x = Math.random() - 0.5;
+        node.y = Math.random() - 0.5;
+    }
 }
 
-function applyDisconnectedNodesFilter() {
-    sigmaFilter
-        .undo('disconnected-nodes')
-        .nodesBy(n => !sigmaObject.graph.adjacentEdges(n.id).every(e => e.hidden), 'disconnected-nodes')
-        .apply();
-}
-
-function shuffleGraphLayout(s) {
-    s.graph.nodes().forEach(n => {
-        n.x = Math.random() - 0.5;
-        n.y = Math.random() - 0.5;
+function applyGraphLayout() {
+    sigmaObject.graph.nodes().forEach(node => {
+        const pos = graphLayout[node.id];
+        node.x = pos.x;
+        node.y = pos.y;
     });
-    s.refresh();
+    sigmaObject.refresh();
 }
 
-function buildGraph(graphData) {
+function buildGraph(graphData, config) {
+    if (graphData.nodes.length === 0 && graphData.edges.length === 0) {
+        console.error("buildGraph cannot render an empty graph definition:", graphData);
+        return;
+    }
+
     const s = new sigma({
         renderer: {
             container: "graph-container",
             type: 'canvas'
         },
         settings: {
-            minEdgeSize: 1,
-            maxEdgeSize: 10,
             enableEdgeHovering: true,
             defaultEdgeHoverColor: '#444',
             edgeHoverExtremities: true,
             edgeLabelSize: 'proportional',
             edgeLabelSizePowRatio: 1.5,
+            minNodeSize: 5,
+            maxNodeSize: 10,
         }
     });
 
@@ -158,14 +160,22 @@ function buildGraph(graphData) {
         });
     });
 
-    // Compute the edge with the largest weight to update the max value of the filter slider
+    let minEdgeWeightFilter;
+    if (config) {
+        minEdgeWeightFilter = config.minEdgeWeight || 0;
+    }
+
+    // Compute the largest and smallest edge weights to set the graph control slider boundaries
+    let minMatchCount = Infinity;
     let maxMatchCount = 0;
 
     graphData.edges.forEach((edge, i) => {
         const matchCount = edge.matches_in_exercises.length;
-        if (matchCount > maxMatchCount) {
-            maxMatchCount = matchCount;
+        if (matchCount < minEdgeWeightFilter) {
+            return;
         }
+        minMatchCount = Math.min(minMatchCount, matchCount);
+        maxMatchCount = Math.max(maxMatchCount, matchCount);
         s.graph.addEdge({
             id: 'e' + i,
             source: edge.source,
@@ -179,20 +189,59 @@ function buildGraph(graphData) {
         });
     });
 
-    minMatchCountSlider.attr("max", maxMatchCount + 1);
+    s.settings({
+        minEdgeSize: 2 + minMatchCount,
+        maxEdgeSize: 2 + maxMatchCount,
+    });
+
+    graphLayout.minMatchCount = minMatchCount;
+    graphLayout.maxMatchCount = maxMatchCount;
 
     return s;
 }
 
-function drawGraph(graphData) {
-    // Draw graph and assign resulting sigma.js object to global variable
-    sigmaObject = buildGraph(graphData);
-    sigmaObject.refresh();
-    sigmaFilter = new sigma.plugins.filter(sigmaObject);
+function clearSigmaGraph() {
+    if (typeof sigmaObject !== "undefined") {
+        sigmaObject.graph.clear();
+        sigmaObject.refresh();
+    }
+}
 
-    shuffleGraphLayout(sigmaObject);
+function redrawGraph(graphData, config) {
+    startLoader("Re-drawing graph");
 
+    // Render blank canvas
+    clearSigmaGraph();
+
+    // Overwrite global sigma.js object with a new one
+    sigmaObject = buildGraph(graphData, config);
+    // Open modal with match list by clicking edges
     sigmaObject.bind("clickEdge", handleEdgeClick);
+
+    if (config && config.resetControlUI) {
+        // Update graph control slider
+        const minMatchCount = graphLayout.minMatchCount;
+        const maxMatchCount = graphLayout.maxMatchCount;
+        minMatchCountSlider.prop("min", minMatchCount);
+        minMatchCountSlider.prop("max", maxMatchCount);
+        minMatchCountSlider.prop("value", minMatchCount);
+        minMatchCountSliderValue.text(minMatchCount);
+    }
+
+    const graph = sigmaObject.graph;
+
+    // Drop all nodes that have no edges
+    graph.nodes().forEach(node => {
+        if (!graph.degree(node.id))
+            graph.dropNode(node.id);
+    });
+    // Set node sizes linearly proportional to their degree
+    graph.nodes().forEach(node => {
+        node.size = 1 + 2 * graph.degree(node.id);
+    });
+
+    // Re-render with applied changes
+    sigmaObject.refresh();
 
     if (buildingGraph) {
         buildingGraph = false;
@@ -201,29 +250,24 @@ function drawGraph(graphData) {
 }
 
 function drawGraphFromJSON(dataString) {
-    return drawGraph(JSON.parse(dataString));
+    redrawGraph(JSON.parse(dataString));
 }
 
 // Main method for requesting graph data from the server and building the SigmaJS object
 function drawGraphAsync() {
-    buildingGraph = true;
     startLoader("Building graph");
-    if (typeof sigmaObject !== "undefined") {
-        // Clear all active hover effects
-        sigmaObject.settings({enableEdgeHovering: false});
-        sigmaObject.refresh();
-        // Drop all edges and nodes
-        sigmaObject.graph.clear();
-        // Clear rendered graph from canvas
-        sigmaObject.refresh();
-    }
+
+    clearSigmaGraph();
+
+    buildingGraph = true;
+    graphDefinition = {};
+    graphLayout = {};
 
     let taskState = {
         task_id: '',
         ready: false,
         min_similarity: minSimilaritySlider.val(),
     };
-
     let pollIndex = 0;
     const pollSeconds = [1, 1, 1, 2, 2, 4, 4, 10, 30];
 
@@ -234,11 +278,13 @@ function drawGraphAsync() {
         taskState = newTaskState;
         if (taskState.ready) {
             pollIndex = 0;
-            const graphDef = taskState.graph_data;
-            if (graphDef.nodes && graphDef.edges) {
-                drawGraph(graphDef);
-                // Apply default filter settings to graph
-                handleRefreshClick();
+            graphDefinition = taskState.graph_data;
+            if (graphDefinition.nodes && graphDefinition.edges) {
+                // Store all node ids and get random positions for nodes
+                graphDefinition.nodes.forEach(node_id => graphLayout[node_id] = {});
+                shuffleGraphLayout();
+                redrawGraph(graphDefinition, {resetControlUI: true});
+                applyGraphLayout();
             } else {
                 console.error("Server completed the data retrieval but returned an invalid graph definition object.");
             }

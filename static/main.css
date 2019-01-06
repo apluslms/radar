@@ -102,3 +102,8 @@ pre.sample-highlight { display:inline-block; }
 
 #execise-config-table {
     margin-top: 4em;
+}
+
+.slider-container {
+    margin-bottom: 1em;
+}

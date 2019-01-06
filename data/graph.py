@@ -22,20 +22,23 @@ class Graph:
         self.edges[edge_key].append(edge_data)
         return self.edges[edge_key]
 
-    def as_dict(self):
+    def as_dict(self, min_matches):
         return {
             "nodes": list(self.nodes),
             "edges": [{"source": from_to[0],
                        "target": from_to[1],
                        "matches_in_exercises": match_data}
-                      for from_to, match_data in self.edges.items()],
+                      for from_to, match_data in self.edges.items()
+                      if len(match_data) >= min_matches],
         }
 
 
 @celery.shared_task
-def generate_match_graph(course_key, min_similarity, unique_exercises=True):
+def generate_match_graph(course_key, min_similarity, unique_exercises=True, min_matches=1):
     """
     Constructs a graph as a dictionary from all comparisons with a minimum similarity on a given course.
+    If unique_exercises is True, and two students have several matches in one exercise, return the match with highest similarity.
+    min_matches is the smallest amount of matches two students must have in order to add the match as an edge in the graph.
     """
     course = Course.objects.filter(key=course_key).first()
     logger.info("Generating match graph for %s", course)
@@ -60,7 +63,8 @@ def generate_match_graph(course_key, min_similarity, unique_exercises=True):
             }
             graph.add_edge(student_a, student_b, edge_data)
     # Return a JSON serializable graph with the min similarity that was used
-    result = dict(graph.as_dict(), min_similarity=format(min_similarity, ".2f"))
+    result = graph.as_dict(min_matches)
+    result["min_similarity"] = format(min_similarity, ".2f")
     # Cache graph definition
     course.similarity_graph_json = json.dumps(result)
     course.save()
