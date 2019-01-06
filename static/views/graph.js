@@ -245,6 +245,8 @@ function buildGraph(graphData, config) {
 
 function clearSigmaGraph() {
     if (typeof sigmaObject !== "undefined") {
+        sigmaObject.settings({enableEdgeHovering: false});
+        sigmaObject.refresh();
         sigmaObject.graph.clear();
         sigmaObject.refresh();
     }
