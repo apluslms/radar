@@ -7,44 +7,54 @@ var graphDefinition;
 var graphLayout;
 
 // UI
-var shuffleLayoutButton;
-var refreshButton;
-var buildGraphButton;
-var invalidateGraphButton;
-var minMatchCountSlider;
-var minMatchCountSliderValue;
-var minSimilaritySlider;
-var minSimilaritySliderValue;
+var buildControl;
+var graphControl;
 var summaryModal;
 var progressBarContainer;
 
-function initializeUI() {
-    shuffleLayoutButton = $("#shuffle-layout-button");
-    refreshButton = $("#refresh-graph-button");
-    buildGraphButton = $("#build-graph-button");
-    invalidateGraphButton = $("#invalidate-graph-button");
-    minMatchCountSlider = $("#min-match-count-range");
-    minMatchCountSliderValue = $("#min-match-count-range-value");
-    minSimilaritySlider = $("#min-similarity-range");
-    minSimilaritySliderValue = $("#min-similarity-range-value");
-    summaryModal = $("#pair-comparisons-summary-modal");
-    progressBarContainer = $("#load-progress");
 
-    shuffleLayoutButton.on("click", _ => {
+function connectSliderValueDisplay(slider, display, parser) {
+    slider.on("input", _ => display.text(parser(slider.val())));
+}
+
+
+function initializeUI() {
+    graphControl = {};
+    graphControl.shuffleLayoutButton = $("#shuffle-layout-button");
+    graphControl.refreshButton = $("#refresh-graph-button");
+    graphControl.minMatchCountSlider = $(".filter-ui .slider-container input.match-count-slider");
+    graphControl.minMatchCountSliderValue = $(".filter-ui .slider-container p.match-count-slider-value");
+    graphControl.shuffleLayoutButton.on("click", _ => {
         shuffleGraphLayout();
         applyGraphLayout();
     });
-    refreshButton.on("click", handleRefreshClick);
-    buildGraphButton.on("click", drawGraphAsync);
+    graphControl.refreshButton.on("click", handleRefreshClick);
+    connectSliderValueDisplay(
+        graphControl.minMatchCountSlider,
+        graphControl.minMatchCountSliderValue,
+        parseInt
+    );
 
-    minMatchCountSlider.on("input", _ => {
-        minMatchCountSliderValue.text(parseInt(minMatchCountSlider.val()));
-    });
-    minSimilaritySlider.on("input", _ => {
-        minSimilaritySliderValue.text(parseFloat(minSimilaritySlider.val()));
-    });
+    buildControl = {};
+    buildControl.buildButton = $("#build-graph-button");
+    buildControl.invalidateCacheButton = $("#invalidate-graph-button");
+    buildControl.minSimilaritySlider = $(".build-args-ui .slider-container input.similarity-slider");
+    buildControl.minSimilaritySliderValue = $(".build-args-ui .slider-container p.similarity-slider-value");
+    buildControl.minMatchCountSlider = $(".build-args-ui .slider-container input.match-count-slider");
+    buildControl.minMatchCountSliderValue = $(".build-args-ui .slider-container p.match-count-slider-value");
+    buildControl.buildButton.on("click", drawGraphAsync);
+    connectSliderValueDisplay(
+        buildControl.minMatchCountSlider,
+        buildControl.minMatchCountSliderValue,
+        parseInt
+    );
+    connectSliderValueDisplay(
+        buildControl.minSimilaritySlider,
+        buildControl.minSimilaritySliderValue,
+        parseFloat
+    );
 
-    invalidateGraphButton.on("click", _ => {
+    buildControl.invalidateCacheButton.on("click", _ => {
         startLoader("Invalidating server graph cache");
         $.ajax({
             url: "invalidate",
@@ -56,6 +66,8 @@ function initializeUI() {
         });
     });
 
+    summaryModal = $("#pair-comparisons-summary-modal");
+    progressBarContainer = $("#load-progress");
 }
 
 function startLoader(message) {
@@ -108,7 +120,7 @@ function handleEdgeClick(event) {
 
 function handleRefreshClick() {
     // Rebuild graph to filter by edge weight
-    redrawGraph(graphDefinition, {minEdgeWeight: minMatchCountSlider.val()});
+    redrawGraph(graphDefinition, {minEdgeWeight: graphControl.minMatchCountSlider.val()});
     applyGraphLayout();
 }
 
@@ -222,10 +234,11 @@ function redrawGraph(graphData, config) {
         // Update graph control slider
         const minMatchCount = graphLayout.minMatchCount;
         const maxMatchCount = graphLayout.maxMatchCount;
-        minMatchCountSlider.prop("min", minMatchCount);
-        minMatchCountSlider.prop("max", maxMatchCount);
-        minMatchCountSlider.prop("value", minMatchCount);
-        minMatchCountSliderValue.text(minMatchCount);
+        graphControl.minMatchCountSlider.prop("min", minMatchCount);
+        graphControl.minMatchCountSlider.prop("max", maxMatchCount);
+        buildControl.minMatchCountSlider.prop("max", maxMatchCount);
+        graphControl.minMatchCountSlider.prop("value", minMatchCount);
+        graphControl.minMatchCountSliderValue.text(minMatchCount);
     }
 
     const graph = sigmaObject.graph;
@@ -266,7 +279,8 @@ function drawGraphAsync() {
     let taskState = {
         task_id: '',
         ready: false,
-        min_similarity: minSimilaritySlider.val(),
+        min_similarity: buildControl.minSimilaritySlider.val(),
+        min_matches: buildControl.minMatchCountSlider.val(),
     };
     let pollIndex = 0;
     const pollSeconds = [1, 1, 1, 2, 2, 4, 4, 10, 30];

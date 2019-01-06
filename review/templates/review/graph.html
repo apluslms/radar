@@ -3,8 +3,6 @@
 {% block head_includes %}
 {% load static %}
 <script src="{% static 'graph/sigma.min.js' %}"></script>
-<script src="{% static 'graph/sigma.layout.forceAtlas2.min.js' %}"></script>
-<script src="{% static 'graph/sigma.plugins.filter.min.js' %}"></script>
 <script src="{% static 'graph/sigma.renderers.edgeLabels.min.js' %}"></script>
 <script src="{% static 'views/graph.js' %}"></script>
 {% endblock head_includes %}
@@ -42,8 +40,11 @@ The cache contains only one graph with one minimum match similarity value. Build
           <h4>Build parameters</h4>
           <div class="slider-container">
             <b>Minimum match similarity</b>
-            <input type="range" class="slider" id="min-similarity-range" value="0.95" min="{{ minimum_similarity_threshold }}" max="1.00" step="0.01">
-            <p id="min-similarity-range-value">0.95</p>
+            <input type="range" class="slider similarity-slider" value="0.95" min="{{ minimum_similarity_threshold }}" max="1.00" step="0.01">
+            <p class="similarity-slider-value">0.95</p>
+            <b>Minimum match count</b>
+            <input type="range" class="slider match-count-slider" min="1" max="2" step="1">
+            <p class="match-count-slider-value">2</p>
           </div>
           <button id="build-graph-button" type="button" class="btn btn-primary"
                   autocomplete="off">
@@ -51,7 +52,7 @@ The cache contains only one graph with one minimum match similarity value. Build
           </button>
           <button id="invalidate-graph-button" type="button" class="btn btn-primary"
                   autocomplete="off">
-            Remove this graph from the server cache
+            Clear graph cache
           </button>
       </div>
 
@@ -59,8 +60,8 @@ The cache contains only one graph with one minimum match similarity value. Build
           <h4>Graph control</h4>
           <div class="slider-container">
             <b>Filter minimum match count</b>
-            <input type="range" class="slider" id="min-match-count-range" min="0" max="0" step="1">
-            <p id="min-match-count-range-value">0</p>
+            <input type="range" class="slider match-count-slider" min="1" max="1" step="1">
+            <p class="match-count-slider-value">1</p>
           </div>
           <button id="refresh-graph-button" type="button" class="btn btn-primary"
                   aria-pressed="false" autocomplete="off">

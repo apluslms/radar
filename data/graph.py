@@ -34,7 +34,7 @@ class Graph:
 
 
 @celery.shared_task
-def generate_match_graph(course_key, min_similarity, unique_exercises=True, min_matches=1):
+def generate_match_graph(course_key, min_similarity, min_matches, unique_exercises=True):
     """
     Constructs a graph as a dictionary from all comparisons with a minimum similarity on a given course.
     If unique_exercises is True, and two students have several matches in one exercise, return the match with highest similarity.
@@ -62,9 +62,10 @@ def generate_match_graph(course_key, min_similarity, unique_exercises=True, min_
                 "max_similarity": comparison.similarity,
             }
             graph.add_edge(student_a, student_b, edge_data)
-    # Return a JSON serializable graph with the min similarity that was used
+    # Return a JSON serializable graph with the used params
     result = graph.as_dict(min_matches)
     result["min_similarity"] = format(min_similarity, ".2f")
+    result["min_matches"] = format(min_matches, "d")
     # Cache graph definition
     course.similarity_graph_json = json.dumps(result)
     course.save()

@@ -271,13 +271,14 @@ def build_graph(request, course, course_key):
                 task_state["graph_data"] = {}
     elif not task_state["ready"]:
         graph_data = json.loads(course.similarity_graph_json or '{}')
-        if graph_data and graph_data["min_similarity"] == task_state["min_similarity"]:
+        min_similarity, min_matches = task_state["min_similarity"], task_state["min_matches"]
+        if graph_data and graph_data["min_similarity"] == min_similarity and graph_data["min_matches"] == min_matches:
             # Graph was already cached
             task_state["graph_data"] = graph_data
             task_state["ready"] = True
         else:
             # No graph cached, build async
-            async_task = graph.generate_match_graph.delay(course.key, float(task_state["min_similarity"]))
+            async_task = graph.generate_match_graph.delay(course.key, float(min_similarity), int(min_matches))
             task_state["task_id"] = async_task.id
 
     return JsonResponse(task_state)
