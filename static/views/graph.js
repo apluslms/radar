@@ -3,7 +3,7 @@ var sigmaObject;
 var buildingGraph = false;
 // Backup of the original nodes and edges arrays, as returned by the server
 var graphDefinition;
-// Most recent coordinates for each node
+// Most recent coordinates and colors for each node
 var graphLayout;
 
 // UI
@@ -70,21 +70,25 @@ function initializeUI() {
     progressBarContainer = $("#load-progress");
 }
 
+
 function startLoader(message) {
     progressBarContainer.children(".progress-bar").children("span.loader-message").text(message);
     progressBarContainer.show();
 }
+
 
 function stopLoader() {
     progressBarContainer.children(".progress-bar").children("span.loader-message").text('');
     progressBarContainer.hide();
 }
 
+
 // Add a X-CSRFToken header containing the Django generated CSRF token before sending requests
 function CSRFpreRequestCallback(xhr) {
     const csrfToken = $("input[name=csrfmiddlewaretoken]").val();
     xhr.setRequestHeader("X-CSRFToken", csrfToken);
 }
+
 
 function handleEdgeClick(event) {
     function arrayToHTML(strings) {
@@ -118,28 +122,56 @@ function handleEdgeClick(event) {
     summaryModal.modal("toggle");
 }
 
+
 function handleRefreshClick() {
     // Rebuild graph to filter by edge weight
     redrawGraph(graphDefinition, {minEdgeWeight: graphControl.minMatchCountSlider.val()});
     applyGraphLayout();
 }
 
+
 function shuffleGraphLayout() {
-    for (node_id in graphLayout) {
-        const node = graphLayout[node_id];
+    for (let node_id in graphLayout.nodes) {
+        const node = graphLayout.nodes[node_id];
         node.x = Math.random() - 0.5;
         node.y = Math.random() - 0.5;
     }
 }
 
+
+function generateHeatmap() {
+    const minMatchCount = graphLayout.minMatchCount;
+    const maxMatchCount = graphLayout.maxMatchCount;
+    for (let edge_id in graphLayout.edges) {
+        const edge = graphLayout.edges[edge_id];
+        let redness = Math.min(1.0, Math.max(0.0, edge.weight / (maxMatchCount - minMatchCount + 1)));
+        let hue = (1.0 - redness) * 60;
+        let lightness = 50;
+        let saturation = 80;
+        let alpha = 60;
+        edge.color = "hsla(" + hue + ", " + saturation + "%, " + lightness + "%, " + alpha + "%)";
+        // Increase saturation and alpha for hover effect
+        saturation = 100;
+        alpha = 80;
+        edge.hover_color = "hsla(" + hue + ", " + saturation + "%, " + lightness + "%, " + alpha + "%)";
+    }
+}
+
+
 function applyGraphLayout() {
     sigmaObject.graph.nodes().forEach(node => {
-        const pos = graphLayout[node.id];
+        const pos = graphLayout.nodes[node.id];
         node.x = pos.x;
         node.y = pos.y;
     });
+    sigmaObject.graph.edges().forEach(edge => {
+        const color = graphLayout.edges[edge.id];
+        edge.color = color.color;
+        edge.hover_color = color.hover_color;
+    });
     sigmaObject.refresh();
 }
+
 
 function buildGraph(graphData, config) {
     if (graphData.nodes.length === 0 && graphData.edges.length === 0) {
@@ -194,8 +226,6 @@ function buildGraph(graphData, config) {
             target: edge.target,
             size: matchCount * 10,
             label: '' + matchCount,
-            color: '#ccc',
-            hover_color: '#222',
             weight: matchCount,
             matchesData: Array.from(edge.matches_in_exercises),
         });
@@ -212,12 +242,14 @@ function buildGraph(graphData, config) {
     return s;
 }
 
+
 function clearSigmaGraph() {
     if (typeof sigmaObject !== "undefined") {
         sigmaObject.graph.clear();
         sigmaObject.refresh();
     }
 }
+
 
 function redrawGraph(graphData, config) {
     startLoader("Re-drawing graph");
@@ -262,9 +294,11 @@ function redrawGraph(graphData, config) {
     stopLoader();
 }
 
+
 function drawGraphFromJSON(dataString) {
     redrawGraph(JSON.parse(dataString));
 }
+
 
 // Main method for requesting graph data from the server and building the SigmaJS object
 function drawGraphAsync() {
@@ -274,7 +308,7 @@ function drawGraphAsync() {
 
     buildingGraph = true;
     graphDefinition = {};
-    graphLayout = {};
+    graphLayout = {nodes: {}, edges: {}};
 
     let taskState = {
         task_id: '',
@@ -294,10 +328,20 @@ function drawGraphAsync() {
             pollIndex = 0;
             graphDefinition = taskState.graph_data;
             if (graphDefinition.nodes && graphDefinition.edges) {
-                // Store all node ids and get random positions for nodes
-                graphDefinition.nodes.forEach(node_id => graphLayout[node_id] = {});
+                // Backup node and edge data for restoring graph layout after arbitrary filtering operation
+                graphDefinition.nodes.forEach(node_id => graphLayout.nodes[node_id] = {});
+                graphDefinition.edges.forEach((edge, i) => {
+                    const edge_id = 'e' + i;
+                    const matchCount = edge.matches_in_exercises.length;
+                    graphLayout.edges[edge_id] = {weight: matchCount};
+                });
+                // Generate random coordinates for nodes
                 shuffleGraphLayout();
+                // Build graph from definition returned by the server and reset UI sliders
                 redrawGraph(graphDefinition, {resetControlUI: true});
+                // Generate heat map from yellow to red proportional to match counts
+                generateHeatmap();
+                // Apply coordinates and colors to sigmaObject.graph
                 applyGraphLayout();
             } else {
                 console.error("Server completed the data retrieval but returned an invalid graph definition object.");
