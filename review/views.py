@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.http.response import JsonResponse, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template import loader as template_loader
-import celery
+from celery.result import AsyncResult
 
 from provider import aplus
 from data.models import Course, Comparison, Exercise
@@ -211,7 +211,7 @@ def configure_course(request, course_key=None, course=None):
 
     if pending_api_read["task_id"]:
         # Task is pending, check state and return result if ready
-        async_result = celery.result.AsyncResult(pending_api_read["task_id"])
+        async_result = AsyncResult(pending_api_read["task_id"])
         if async_result.ready():
             pending_api_read["ready"] = True
             pending_api_read["task_id"] = None
@@ -260,7 +260,7 @@ def build_graph(request, course, course_key):
 
     if task_state["task_id"]:
         # Task is pending, check state and return result if ready
-        async_result = celery.result.AsyncResult(task_state["task_id"])
+        async_result = AsyncResult(task_state["task_id"])
         if async_result.ready():
             task_state["ready"] = True
             task_state["task_id"] = None

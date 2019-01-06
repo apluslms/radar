@@ -30,13 +30,12 @@ class APIAuthException(ProviderAPIError):
     pass
 
 
-# This task should not ignore its result since it is needed for synchronization when using celery.chord
 # Highly I/O bound task, recommended to be consumed by several workers
-@celery.shared_task(bind=True, ignore_result=False)
-def create_submission(task, submission_key, course_key, submission_api_url):
+@celery.shared_task(bind=True, ignore_result=True)
+def create_submission(task, submission_key, course_key, submission_api_url, matching_start_time=''):
     """
     Fetch submission data for a new submission with provider key submission_key from a given API url, create new submission, and tokenize submission content.
-    Return submission id (int) on success and None if skipped.
+    If matching_start_time timestamp is given, it will be written into the submission object before writing.
     """
     course = Course.objects.get(key=course_key)
     if Submission.objects.filter(key=submission_key).exists():
@@ -96,6 +95,10 @@ def create_submission(task, submission_key, course_key, submission_api_url):
         grade=data["grade"],
     )
 
+    if matching_start_time:
+        # The exercise of this submission has been marked for matching, this submission is going directly to matching.
+        submission.matching_start_time = matching_start_time
+
     provider_config = config_loaders.provider_config(course.provider)
     get_submission_text = config_loaders.configured_function(
         provider_config,
@@ -133,8 +136,6 @@ def create_submission(task, submission_key, course_key, submission_api_url):
     template_comparison = matcher.match_against_template(submission)
     template_comparison.save()
 
-    return submission.id
-
 
 @celery.shared_task(ignore_result=True)
 def reload_exercise_submissions(exercise_id, submissions_api_url):
@@ -153,35 +154,10 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
     # Overwrite timestamp for new matching task
     exercise.touch_all_timestamps()
     # Create every submission and set timestamp
-    # This is quite slow due to the io latency of create_submission
-    # The latency used to be hidden by using more than one celery worker for create_submission, but this requires synchronization with celery.chord or group
     for submission in submissions_data:
-        submission_id = create_submission(submission["id"], exercise.course.key, submission["url"])
-        if not submission_id:
-            # Creating the submission failed
-            continue
-        matcher_tasks.set_timestamp(submission_id, exercise.matching_start_time)
+        create_submission(submission["id"], exercise.course.key, submission["url"], exercise.matching_start_time)
     # All submissions created, now match them
     matcher_tasks.match_all_new_submissions_to_exercise.delay(exercise_id)
-
-    # result backends must be cleaned up of tombstones from completed tasks that do not ignore their results
-    # this must be implemented somehow to use chords
-
-    # # For every submission in the list of submissions returned from the submission API:
-    # #   - create submission from scratch with create_submission
-    # #   - set timestamp of created submission to exercise timestamp
-    # tasks_create_and_prepare_submissions = (
-    #     celery.chain(
-    #         create_submission.si(submission["id"], exercise.course.key, submission["url"]).on_error(task_error_handler.s()),
-    #         # This task is not immutable, i.e. it accepts the return value from create_submission as its first argument
-    #         matcher_tasks.set_timestamp.s(exercise.matching_start_time)
-    #     )
-    #     for submission in submissions_data
-    # )
-    # # Callback task that matches all submissions to the exercise we are reloading
-    # task_match_exercise = matcher_tasks.match_all_new_submissions_to_exercise.si(exercise_id)
-    # # Create all submissions in parallel in independent tasks, synchronize, and match all submissions sequentially in a single task
-    # celery.chord(tasks_create_and_prepare_submissions)(task_match_exercise)
 
 
 @celery.shared_task

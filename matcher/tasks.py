@@ -24,18 +24,6 @@ def match_exercise(exercise_id):
         match_against_template(submission.id)
     match_all_new_submissions_to_exercise.delay(exercise_id)
 
-    # # Select all submissions that match the timestamp of this exercise
-    # submission_ids = (s.id for s in exercise.submissions_currently_matching)
-    # match_all_to_template = (match_against_template.si(sid) for sid in submission_ids)
-    # match_all_to_each_other = match_all_new_submissions_to_exercise.si(exercise.id)
-    # # For all submissions:
-    # #   - match in parallel to the exercise template,
-    # #   - synchronize,
-    # #   - match in parallel all submissions
-    # #   - synchronize,
-    # #   - handle all results when matching is complete
-    # celery.chord(match_all_to_template)(match_all_to_each_other)
-
 
 @celery.shared_task(ignore_result=True)
 def match_against_template(submission_id):
@@ -45,19 +33,6 @@ def match_against_template(submission_id):
     submission = Submission.objects.get(pk=submission_id)
     template_comparison = matcher.match_against_template(submission)
     template_comparison.save()
-
-
-@celery.shared_task(ignore_result=True)
-def set_timestamp(submission_id, timestamp):
-    """
-    Set given timestamp to a submission.
-    """
-    if submission_id is not None:
-        submission = Submission.objects.get(pk=submission_id)
-        submission.matching_start_time = timestamp
-        submission.save()
-    else:
-        logger.error("Will not set timestamp %s for submission with id None", timestamp)
 
 
 @celery.shared_task(ignore_result=True)
