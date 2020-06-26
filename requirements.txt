@@ -1,11 +1,11 @@
-Django==2.0
+Django~=2.2
 celery==4.1.1
 django-bootstrap-form==3.2.1
 oauthlib==2.0.1
 requests==2.20.0
 git+https://github.com/Aalto-LeTech/django-lti-login.git@master#egg=django-lti-login
 cachetools==2.0.1
-git+https://github.com/raphendyr/raphendyr-django-essentials.git@1.2.1
+raphendyr-django-essentials~=1.3.0
 git+https://github.com/Aalto-LeTech/a-plus-client.git@0862cac947b9c33f133680416ba5749cb7990b26
 python-memcached==1.59
 git+https://github.com/Aalto-LeTech/greedy-string-tiling.git@v0.12.0

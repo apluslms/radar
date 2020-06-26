@@ -1,14 +1,14 @@
 from django.conf.urls import include, url
 from django.contrib import admin
-from django.contrib.auth.views import login, logout_then_login
+from django.contrib.auth.views import LoginView, LogoutView
 
 import data.urls
 import review.urls
 
 
 urlpatterns = [
-    url(r'^accounts/login/$', login, {'template_name': 'login.html'}, name='login'),
-    url(r'^accounts/logout/$', logout_then_login, name='logout'),
+    url(r'^accounts/login/$', LoginView.as_view(template_name='login.html'), name='login'),
+    url(r'^accounts/logout/$', LogoutView.as_view(template_name='login.html'), name='logout'),
     url(r'^auth/', include('django_lti_login.urls')),
     url(r'^admin/', admin.site.urls),
 
