@@ -1,0 +1,10 @@
+{% load review %}
+<table class="comparison">
+{% for row in comparisons %}
+<tr>
+  {% for comparison in row.matches %}
+  {% student_wm course comparison student %}
+  {% endfor %}
+</tr>
+{% endfor %}
+</table>
