@@ -3,7 +3,7 @@ local_settings.py
 submission_files
 celerybeat-schedule
 node_modules
-radar/secret_key
+radar/secret_key.py
 static_root
 
 .project
