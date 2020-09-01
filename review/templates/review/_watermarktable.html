@@ -1,0 +1,62 @@
+{% load review %}
+<head>
+  <link rel="stylesheet" href="table.css">
+</head>
+
+<script type="text/javascript">
+var tableToExcel = (function() {
+  var uri = 'data:application/vnd.ms-excel;base64,'
+    , template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>{worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table>{table}</table></body></html>'
+    , base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) }
+    , format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) }
+  return function(table, name) {
+    if (!table.nodeType) table = document.getElementById(table)
+    var ctx = {worksheet: name || 'Worksheet', table: table.innerHTML}
+    window.location.href = uri + base64(format(template, ctx))
+  }
+})()
+
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.display === "block") {
+      content.style.display = "none";
+    } else {
+      content.style.display = "block";
+    }
+  });
+}
+</script>
+
+
+<table id="watermarks" class="table table-responsive table-hover">
+  <thead>
+    <tr>
+        <th>Source</th>
+        <th>Drain</th>
+    </tr>
+  <tr data-toggle="collapsible">
+	{% for row in comparisons %}
+	<tr>
+		{% for comparison in row.matches %}
+			{% if forloop.first %}
+				{% if comparison.submission_a.id == row.submission_id %}
+					{% student_wm course comparison %}
+					{% student_wm course comparison True %}
+          <td><button class="btn btn-default btn-sm">View more</td>
+				{% else %}
+					{% student_wm course comparison True %}
+					{% student_wm course comparison %}
+				{% endif %}
+			{% else %}
+			{% endif %}
+		{% endfor %}
+	</tr>
+	{% endfor %}
+</table>
+
+<input type="button" onclick="tableToExcel('watermarks', 'Suspected copying')" value="Bring to Excel">

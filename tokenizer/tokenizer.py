@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 from radar.config import tokenizer_config, configured_function
 
@@ -29,3 +30,10 @@ def tokenize_source(source, t_config):
     return f(source, t_config)
 
 
+def watermarker(submission_text):
+    watermarks = []
+    mark = re.findall('[\u200c\u200b]+', submission_text)
+    for i in mark:
+        watermarks.append(int(i.replace('\u200b','1').replace('\u200c','0'),2))
+    if watermarks:
+        return(watermarks)

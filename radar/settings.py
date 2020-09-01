@@ -5,7 +5,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 AUTH_LTI_LOGIN = {
     'ACCEPTED_ROLES': ['Instructor', 'TA'],
     'STAFF_ROLES': ['Instructor', 'TA']
@@ -134,17 +134,17 @@ PROVIDERS = {
 }
 
 REVIEW_CHOICES = (
-    (-10, "False alert"),
-    (0, "Unspecified match"),
-    (1, "Approved plagiate"),
-    (5, "Suspicious match"),
-    (10, "Plagiate"),
+    (-10, "Cleared"),
+    (0, "Unchecked"),
+    (1, "Approve copying"),
+    (5, "Follow"),
+    (10, "Report"),
 )
 REVIEWS = (
     {
         "value": REVIEW_CHOICES[4][0],
         "name": REVIEW_CHOICES[4][1],
-        "class": "success"
+        "class": "danger"
     },
     {
         "value": REVIEW_CHOICES[0][0],
@@ -159,12 +159,12 @@ REVIEWS = (
     {
         "value": REVIEW_CHOICES[2][0],
         "name": REVIEW_CHOICES[2][1],
-        "class": "warning"
+        "class": "success"
     },
     {
         "value": REVIEW_CHOICES[3][0],
         "name": REVIEW_CHOICES[3][1],
-        "class": "danger"
+        "class": "warning"
     },
 )
 
@@ -315,6 +315,8 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_BROKER_URL = "amqp://localhost:5672"
 # celery.chord tasks (used by matcher.tasks.match_submissions) are not supported with the RPC backend, therefore we use Memcached
 CELERY_RESULT_BACKEND = "cache+memcached://127.0.0.1:11211/"
+
+CELERYD_REDIRECT_STDOUTS = True
 
 from r_django_essentials.conf import update_settings_from_module
 

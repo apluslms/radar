@@ -316,6 +316,7 @@ class Submission(models.Model):
     matched = models.BooleanField(default=False, help_text="Is this Submission waiting to be matched")
     invalid = models.BooleanField(default=False, help_text="Is this Submission invalid in a way it cannot be matched")
     matching_start_time = models.CharField(max_length=50, blank=True, null=True, default=None, help_text="If not None, then this submission is currently being matched and waiting for results. None if submission is not currently being matched.")
+    watermark = models.TextField(max_length=256, blank=True, null=True, default=None)
 
     @property
     def submissions_to_compare(self):
@@ -333,7 +334,8 @@ class Submission(models.Model):
                  "checksum": self.source_checksum,
                  "ignore_marks": template_marks,
                  "authored_token_count": authored_token_count,
-                 "longest_authored_tile": longest_authored_tile }
+                 "longest_authored_tile": longest_authored_tile,
+                 "watermark": self.watermark }
 
     @property
     def template_comparison(self):
