@@ -3,7 +3,8 @@
   <link rel="stylesheet" href="table.css">
 </head>
 <td data-similarity="{{ comparison.similarity }}">
-        <strong class="key">{{ student.key }}</strong>
+        <strong class="key">{{ submission.student_id }}</strong>
+        <strong class="key">{{ submission.watermark }}</strong>
         {% if comparison.review != 0 %}
         <span class="glyphicon glyphicon-flag text-{{ comparison.review_class }}"></span>
         {% endif %}

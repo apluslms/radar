@@ -24,9 +24,9 @@ def student_td(course, comparison, b=False):
         "student": submission.student,
     }
 
-@register.inclusion_tag("review/_student.html")
-def student_wm(course, comparison, student, b=False):
-    submission = comparison.submission_a
+@register.inclusion_tag("review/_student_watermark.html")
+def student_wm(course, comparison, b=False):
+    submission = comparison.submission_b
     return {
         "url": reverse("comparison", kwargs={
             "course_key": course.key,
@@ -37,4 +37,5 @@ def student_wm(course, comparison, student, b=False):
         "comparison": comparison,
         "submission": submission,
         "student": submission.student,
+        "watermark": submission.watermark,
     }
