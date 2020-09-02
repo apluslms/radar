@@ -14,8 +14,8 @@ Requirements
 ------------
 * Python 3.5
 * RabbitMQ 3.5
-* Django 2.0
-* Celery 4.1
+* Django 2.2
+* Celery 4.4
 * Memcached 1.5
 * and other Python packages, see ``requirements.txt``
 

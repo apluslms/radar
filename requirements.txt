@@ -1,8 +1,8 @@
-Django~=2.2
+Django~=2.2.16
 celery~=4.4.0
 django-bootstrap-form==3.2.1
 oauthlib==2.0.1
-requests==2.20.0
+requests==2.24.0
 git+https://github.com/Aalto-LeTech/django-lti-login.git@master#egg=django-lti-login
 cachetools==2.0.1
 raphendyr-django-essentials~=1.3.0
