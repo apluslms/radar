@@ -4,6 +4,7 @@ Contains some hard-coded A+ specific stuff that should be generalized.
 """
 import hashlib
 import json
+import re
 
 from django.conf import settings
 import celery
@@ -125,6 +126,15 @@ def create_submission(task, submission_key, course_key, submission_api_url, matc
         return
     submission.tokens = tokens
     submission.indexes_json = json_indexes
+
+    watermarks = tokenizer.watermarker(submission_text)
+    copied = False
+    if watermarks != None:
+        for i in watermarks:
+            if i != submission.student.id:
+                copied = True
+    submission.watermark = watermarks
+    submission.save()
 
     # Compute checksum of submitted source code for finding exact character matches quickly
     # This line will not be reached if submission_text contains data not encodable in utf-8, since it is checked in tokenizer.tokenize_submission
