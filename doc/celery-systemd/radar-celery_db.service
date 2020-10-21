@@ -1,0 +1,27 @@
+[Unit]
+Description=Radar Celery long running tasks service
+PartOf=nginx.service
+Requires=radar-web-uwsgi.service
+
+[Service]
+User=radar
+Group=radar
+SyslogIdentifier=radar_celery_db
+StandardOutput=syslog
+StandardError=syslog
+WorkingDirectory=/srv/radar/radar
+Environment="PATH=/sbin:/bin:/usr/sbin:/usr/bin:/opt/bin:/srv/radar/venv/bin"
+ExecStart=/srv/radar/venv/bin/celery worker \
+    --pidfile=/run/radar/celery_db.pid \
+    --loglevel=info \
+    --concurrency 1 \
+    --app radar \
+    --queues db \
+    --hostname worker_db@radar
+PIDFile=/run/radar/celery_db.pid
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+Nice=1
+
+[Install]
+WantedBy=multi-user.target

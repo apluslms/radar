@@ -1,0 +1,27 @@
+[Unit]
+Description=Radar Celery I/O tasks' service
+PartOf=nginx.service
+Requires=radar-web-uwsgi.service
+
+[Service]
+User=radar
+Group=radar
+SyslogIdentifier=radar_celery_io
+StandardOutput=syslog
+StandardError=syslog
+WorkingDirectory=/srv/radar/radar
+Environment="PATH=/sbin:/bin:/usr/sbin:/usr/bin:/opt/bin:/srv/radar/venv/bin"
+ExecStart=/srv/radar/venv/bin/celery worker \
+    --pidfile=/run/radar/celery_io.pid \
+    --loglevel=info \
+    --concurrency 3 \
+    --app radar \
+    --queues io \
+    --hostname worker_io@radar
+PIDFile=/run/radar/celery_io.pid
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+Nice=1
+
+[Install]
+WantedBy=multi-user.target
