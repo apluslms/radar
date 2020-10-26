@@ -10,11 +10,13 @@ Submission sources are matched using the `greedy string tiling`_ library, which 
 Similarity matches will form submission groups for easy evaluation of the cases.
 Views are provided to follow submitters over series of exercises.
 
+`Installation instructions`_ are located in the doc directory.
+
 Requirements
 ------------
 * Python 3.5
 * RabbitMQ 3.5
-* Django 2.0
+* Django 2.2
 * Celery 4.1
 * Memcached 1.5
 * and other Python packages, see ``requirements.txt``
@@ -75,7 +77,8 @@ Original author
 teemu.t.lehtinen@aalto.fi, 9.2.2015
 
 
-.. _A+: https://github.com/Aalto-LeTech/a-plus
+.. _Installation instructions: doc/INSTALL.md
+.. _A+: https://github.com/apluslms/a-plus
 .. _Django LTI login: https://github.com/Aalto-LeTech/django-lti-login
 .. _greedy string tiling: https://github.com/Aalto-LeTech/greedy-string-tiling
 
