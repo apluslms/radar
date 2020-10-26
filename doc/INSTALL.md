@@ -85,7 +85,7 @@ As root
     python manage.py add_lti_key --desc aplus
     ```
 
-    Select course -> Edit course -> Menu -> Add -> Select radar
+    Select course -> Edit course -> Menu -> Add -> Select radar  
     Click radar link in menu => Creates course in radar
 
 ## uWSGI, NGINX and Celery workers
