@@ -5,19 +5,12 @@ Description=A uWSGI Python Web Server for Radar
 User=radar
 Group=radar
 SyslogIdentifier=radar
-StandardOutput=syslog
-StandardError=syslog
 WorkingDirectory=/srv/radar/radar/
-ExecStart=/usr/bin/uwsgi-core \
-    --plugin=python3 --single-interpreter --master \
-    --master-fifo=/run/radar/web-uwsgi.master \
-    --socket=/run/radar/web-uwsgi.socket \
-    --chmod=666 \
-    --ini /srv/radar/uwsgi-radar.ini \
-    --touch-chain-reload /srv/radar/uwsgi-radar.ini
+ExecStart=/srv/radar/venv/bin/uwsgi --ini /srv/radar/uwsgi-radar.ini
 ExecReload=/bin/sh -c "echo c > /run/radar/web-uwsgi.master"
 Restart=always
 KillSignal=SIGQUIT
+Type=notify
 
 [Install]
 WantedBy=multi-user.target
