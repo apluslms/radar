@@ -9,7 +9,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.template import loader as template_loader
 from celery.result import AsyncResult
 
-from provider import aplus
 from data.models import Course, Comparison, Exercise
 from data import graph
 from radar.config import provider_config, configured_function
@@ -36,8 +35,9 @@ def course(request, course_key=None, course=None):
     }
     if request.method == "POST":
         # The user can click "Match all unmatched" for a shortcut to match all unmatched submissions for every exercise
+        p_config = provider_config(course.provider)
         if "match-all-unmatched-for-exercises" in request.POST:
-            aplus.recompare_all_unmatched(course)
+            configured_function(p_config, 'recompare_unmatched')(course)
             return redirect("course", course_key=course.key)
     return render(request, "review/course.html", context)
 
@@ -277,9 +277,14 @@ def build_graph(request, course, course_key):
             task_state["graph_data"] = graph_data
             task_state["ready"] = True
         else:
-            # No graph cached, build async
-            async_task = graph.generate_match_graph.delay(course.key, float(min_similarity), int(min_matches))
-            task_state["task_id"] = async_task.id
+            # No graph cached, build
+            p_config = provider_config(course.provider)
+            if not p_config.get("async_graph", True):
+                task_state["graph_data"] = graph.generate_match_graph(course.key, float(min_similarity), int(min_matches))
+                task_state["ready"] = True
+            else:
+                async_task = graph.generate_match_graph.delay(course.key, float(min_similarity), int(min_matches))
+                task_state["task_id"] = async_task.id
 
     return JsonResponse(task_state)
 
@@ -330,7 +335,8 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
                 return redirect("course", course_key=course.key)
             else:
                 context["change_failure"]["delete_exercise"] = form.cleaned_data["name"]
-    template_source = aplus.load_exercise_template(exercise, p_config)
+    
+    template_source = configured_function(p_config, 'get_exercise_template')(exercise, p_config)
     if exercise.template_tokens and not template_source:
         context["template_source_error"] = True
         context["template_tokens"] = exercise.template_tokens
