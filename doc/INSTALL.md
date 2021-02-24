@@ -1,5 +1,7 @@
 # Radar
 
+This document describes installation for production use.
+
 ## System
 
 As root

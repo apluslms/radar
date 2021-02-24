@@ -10,7 +10,8 @@ Submission sources are matched using the `greedy string tiling`_ library, which 
 Similarity matches will form submission groups for easy evaluation of the cases.
 Views are provided to follow submitters over series of exercises.
 
-`Installation instructions`_ are located in the doc directory.
+`Development instructions`_ as well as
+`installation instructions`_ are located in the doc directory.
 
 Requirements
 ------------
@@ -77,7 +78,8 @@ Original author
 teemu.t.lehtinen@aalto.fi, 9.2.2015
 
 
-.. _Installation instructions: doc/INSTALL.md
+.. _Development instructions: doc/DEVELOPMENT.md
+.. _installation instructions: doc/INSTALL.md
 .. _A+: https://github.com/apluslms/a-plus
 .. _Django LTI login: https://github.com/Aalto-LeTech/django-lti-login
 .. _greedy string tiling: https://github.com/Aalto-LeTech/greedy-string-tiling

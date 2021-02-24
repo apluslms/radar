@@ -2,7 +2,6 @@
 Celery tasks for asynchronous submission processing.
 Contains some hard-coded A+ specific stuff that should be generalized.
 """
-import hashlib
 import json
 
 from django.conf import settings
@@ -14,9 +13,9 @@ import requests
 from accounts.models import RadarUser
 from data import graph
 from data.models import Course, Submission, Exercise, TaskError
-from matcher import matcher, tasks as matcher_tasks
+from matcher import tasks as matcher_tasks
 from provider import aplus
-from tokenizer import tokenizer
+from provider.insert import submission_exists, insert_submission, prepare_submission, InsertError
 import radar.config as config_loaders
 
 
@@ -38,7 +37,7 @@ def create_submission(task, submission_key, course_key, submission_api_url, matc
     If matching_start_time timestamp is given, it will be written into the submission object before writing.
     """
     course = Course.objects.get(key=course_key)
-    if Submission.objects.filter(key=submission_key).exists():
+    if submission_exists(submission_key):
         # raise ProviderTaskError("Submission with key %s already exists, will not create a duplicate." % submission_key)
         write_error("Submission with key %s already exists, will not create a duplicate." % submission_key, "create_submission")
         return
@@ -85,56 +84,13 @@ def create_submission(task, submission_key, course_key, submission_api_url, matc
     # set as approved plagiate and show this in the UI
     ## for submitter_id in _decode_students(data["submitters"]):
     submitter_id = "_".join(aplus._decode_students(data["submitters"]))
-    student = course.get_student(str(submitter_id))
-    submission = Submission.objects.create(
-        key=submission_key,
-        exercise=exercise,
-        student=student,
-        provider_url=data["html_url"],
-        provider_submission_time=data["submission_time"],
-        grade=data["grade"],
-    )
-
-    if matching_start_time:
-        # The exercise of this submission has been marked for matching, this submission is going directly to matching.
-        submission.matching_start_time = matching_start_time
-
-    provider_config = config_loaders.provider_config(course.provider)
-    get_submission_text = config_loaders.configured_function(
-        provider_config,
-        "get_submission_text"
-    )
-    submission_text = get_submission_text(submission, provider_config)
-    if submission_text is None:
-        # raise ProviderTaskError("Failed to get submission text for submission %s" % submission)
-        submission.invalid = True
-        submission.save()
-        write_error("Failed to get submission text for submission %s" % submission, "create_submission")
+    
+    try:
+        submission = insert_submission(exercise, submission_key, submitter_id, data)
+        prepare_submission(submission, matching_start_time)
+    except InsertError as err:
+        write_error(err.message, 'create_submission')
         return
-
-    tokens, json_indexes = tokenizer.tokenize_submission(
-        submission,
-        submission_text,
-        provider_config
-    )
-    if not tokens:
-        # raise ProviderTaskError("Tokenizer returned an empty token string for submission %s, will not save submission" % submission_key)
-        submission.invalid = True
-        submission.save()
-        write_error("Tokenizer returned an empty token string for submission %s, will not save submission" % submission_key, "create_submission")
-        return
-    submission.tokens = tokens
-    submission.indexes_json = json_indexes
-
-    # Compute checksum of submitted source code for finding exact character matches quickly
-    # This line will not be reached if submission_text contains data not encodable in utf-8, since it is checked in tokenizer.tokenize_submission
-    submission_hash = hashlib.md5(submission_text.encode("utf-8"))
-    submission.source_checksum = submission_hash.hexdigest()
-    submission.save()
-
-    # Compute similarity of submitted tokens to exercise template tokens
-    template_comparison = matcher.match_against_template(submission)
-    template_comparison.save()
 
 
 @celery.shared_task(ignore_result=True)
@@ -171,7 +127,6 @@ def get_full_course_config(api_user_id, course_id, has_radar_config=True):
     result = {}
     course = Course.objects.get(pk=course_id)
     api_user = RadarUser.objects.get(pk=api_user_id)
-    p_config = config_loaders.provider_config(course.provider)
     client = api_user.get_api_client(course.namespace)
 
     try:
