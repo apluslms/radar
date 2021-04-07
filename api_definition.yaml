@@ -6,8 +6,8 @@ info:
   title: Radar REST API
   description: API for accessing code similarity results from a Radar instance.
   contact:
-    name: Aalto LeTech
-    url: https://github.com/Aalto-LeTech
+    name: A+ LMS
+    url: https://apluslms.github.io/
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT

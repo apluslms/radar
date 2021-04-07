@@ -1,11 +1,11 @@
-Django~=2.2
-celery==4.1.1
-django-bootstrap-form==3.2.1
-oauthlib==2.0.1
-requests==2.20.0
-git+https://github.com/Aalto-LeTech/django-lti-login.git@master#egg=django-lti-login
-cachetools==2.0.1
-raphendyr-django-essentials~=1.3.0
-git+https://github.com/Aalto-LeTech/a-plus-client.git@0862cac947b9c33f133680416ba5749cb7990b26
-python-memcached==1.59
-git+https://github.com/Aalto-LeTech/greedy-string-tiling.git@v0.12.0
+Django ~= 2.2.20
+celery >= 5.0.5, < 6
+django-bootstrap-form >= 3.4, < 4
+oauthlib >= 3.1.0, < 4
+requests >= 2.25.1, < 3
+git+https://github.com/apluslms/django-lti-login.git@3.1.0#egg=django-lti-login
+cachetools >= 4.2.1, < 5
+raphendyr-django-essentials ~= 1.3.0
+git+https://github.com/apluslms/a-plus-client.git@v1.1.0#egg=a_plus_client
+python-memcached >= 1.59, < 2
+git+https://github.com/apluslms/greedy-string-tiling.git@v0.12.0
