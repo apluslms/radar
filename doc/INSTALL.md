@@ -70,11 +70,9 @@ As root
     # Add correct hostname and admin email address to settings
     editor radar/local_settings.py
 
-    # Generate the secret key
-    python - << EOF > ~/radar/radar/secret_key
-    from django.core.management.utils import get_random_secret_key
-    print(get_random_secret_key())
-    EOF
+    # The secret key will be automatically generated if
+    # radar/secret_key.py is missing
+
     python manage.py migrate
     python manage.py collectstatic
     ```
