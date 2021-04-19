@@ -313,9 +313,10 @@ CELERY_BROKER_URL = "amqp://localhost:5672"
 # celery.chord tasks (used by matcher.tasks.match_submissions) are not supported with the RPC backend, therefore we use Memcached
 CELERY_RESULT_BACKEND = "cache+memcached://127.0.0.1:11211/"
 
-from r_django_essentials.conf import update_settings_with_file, update_secret_from_file
+from r_django_essentials.conf import update_settings_with_file, update_secret_from_file, update_settings_from_environment
 
 update_settings_with_file(__name__,
                           os.environ.get('RADAR_LOCAL_SETTINGS', 'local_settings'),
                           quiet='RADAR_LOCAL_SETTINGS' in os.environ)
+update_settings_from_environment(__name__, 'RADAR_')
 update_secret_from_file(__name__, os.environ.get('RADAR_SECRET_KEY_FILE', 'secret_key'))
