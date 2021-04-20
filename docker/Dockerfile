@@ -6,21 +6,18 @@ ENV CONTAINER_TYPE="radar" \
     RADAR_SECRET_KEY_FILE="/local/radar/secret_key.py"
 
 COPY docker/rootfs /
+COPY . /srv/radar
 
-ARG BRANCH=container
 RUN : \
  && apt_install \
       curl \
 \
   # create user
  && adduser --system --no-create-home --disabled-password --gecos "A+ radar service,,," --home /srv/radar --ingroup nogroup radar \
- && mkdir /srv/radar && chown radar.nogroup /srv/radar \
+ && chown radar.nogroup /srv/radar \
 \
  && cd /srv/radar \
-  # clone and prebuild .pyc files
- && git clone --quiet --single-branch --branch $BRANCH https://github.com/gehock/radar.git . \
- && (echo "On branch $(git rev-parse --abbrev-ref HEAD) | $(git describe)"; echo; git log -n5) > GIT \
- && rm -rf .git \
+  # prebuild .pyc files
  && python3 -m compileall -q . \
 \
   # install requirements, remove the file, remove unrequired locales and tests
