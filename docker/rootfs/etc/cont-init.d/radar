@@ -1,0 +1,15 @@
+#!/bin/sh
+
+. /usr/local/lib/cont-init-functions.sh
+ENSURE_DIR_MODE=2755
+ENSURE_DIR_USER=radar
+ENSURE_DIR_GROUP=nogroup
+
+ensure_dir /run/radar
+ensure_dir /local/radar
+ensure_dir /local/radar/static
+ensure_dir /local/radar/media
+
+ensure_dir /local/lti-services-in 2777 root root
+
+printf "http://%s:8000" "$(hostname -i)" > /var/run/s6/container_environment/RADAR_BASE_URL

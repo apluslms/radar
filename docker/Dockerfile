@@ -1,26 +1,24 @@
 FROM apluslms/service-base:django-1.9
 
 # Set container related configuration via environment variables
-ENV CONTAINER_TYPE="aplus" \
-    APLUS_LOCAL_SETTINGS="/srv/aplus-cont-settings.py" \
-    APLUS_SECRET_KEY_FILE="/local/aplus/secret_key.py"
+ENV CONTAINER_TYPE="radar" \
+    RADAR_LOCAL_SETTINGS="/srv/radar-cont-settings.py" \
+    RADAR_SECRET_KEY_FILE="/local/radar/secret_key.py"
 
-COPY rootfs /
+COPY docker/rootfs /
 
-ARG BRANCH=v1.8.1
+ARG BRANCH=container
 RUN : \
  && apt_install \
-      python3-lxml \
-      python3-lz4 \
-      python3-pillow \
+      curl \
 \
   # create user
- && adduser --system --no-create-home --disabled-password --gecos "A+ webapp server,,," --home /srv/aplus --ingroup nogroup aplus \
- && mkdir /srv/aplus && chown aplus.nogroup /srv/aplus \
+ && adduser --system --no-create-home --disabled-password --gecos "A+ radar service,,," --home /srv/radar --ingroup nogroup radar \
+ && mkdir /srv/radar && chown radar.nogroup /srv/radar \
 \
- && cd /srv/aplus \
+ && cd /srv/radar \
   # clone and prebuild .pyc files
- && git clone --quiet --single-branch --branch $BRANCH https://github.com/apluslms/a-plus.git . \
+ && git clone --quiet --single-branch --branch $BRANCH https://github.com/gehock/radar.git . \
  && (echo "On branch $(git rev-parse --abbrev-ref HEAD) | $(git describe)"; echo; git log -n5) > GIT \
  && rm -rf .git \
  && python3 -m compileall -q . \
@@ -33,14 +31,13 @@ RUN : \
 \
   # preprocess
  && export \
-    APLUS_SECRET_KEY="-" \
-    APLUS_BASE_URL="-" \
-    APLUS_CACHES="{\"default\": {\"BACKEND\": \"django.core.cache.backends.dummy.DummyCache\"}}" \
- && python3 manage.py compilemessages 2>&1 \
- && create-db.sh aplus aplus django-migrate.sh \
+    RADAR_SECRET_KEY="-" \
+    RADAR_BASE_URL="-" \
+    RADAR_CACHES="{\"default\": {\"BACKEND\": \"django.core.cache.backends.dummy.DummyCache\"}}" \
+ && create-db.sh radar radar django-migrate.sh \
  && :
 
 
-WORKDIR /srv/aplus
-EXPOSE 8000
-CMD [ "manage", "runserver", "0.0.0.0:8000" ]
+WORKDIR /srv/radar
+EXPOSE 8001
+CMD [ "manage", "runserver", "0.0.0.0:8001" ]
