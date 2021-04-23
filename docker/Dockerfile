@@ -11,6 +11,14 @@ COPY . /srv/radar
 RUN : \
  && apt_install \
       curl \
+      htop \
+      netcat \
+      vim \
+      curl \
+      wget \
+      less \
+ && pip_install \
+      debugpy \
 \
   # create user
  && adduser --system --no-create-home --disabled-password --gecos "A+ radar service,,," --home /srv/radar --ingroup nogroup radar \
@@ -37,4 +45,4 @@ RUN : \
 
 WORKDIR /srv/radar
 EXPOSE 8001
-CMD [ "manage", "runserver", "0.0.0.0:8001" ]
+CMD [ "python3", "-m", "debugpy", "--listen", "0.0.0.0:5678", "manage.py", "runserver", "0.0.0.0:8001" ]
