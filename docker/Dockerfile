@@ -40,6 +40,10 @@ RUN : \
     RADAR_BASE_URL="-" \
     RADAR_CACHES="{\"default\": {\"BACKEND\": \"django.core.cache.backends.dummy.DummyCache\"}}" \
  && create-db.sh radar radar django-migrate.sh \
+\
+  # create celery backend location
+ && mkdir -p /var/celery/results \
+ && chown radar:nogroup /var/celery/results \
  && :
 
 

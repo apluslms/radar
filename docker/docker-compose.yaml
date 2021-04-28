@@ -15,6 +15,7 @@ services:
     ports:
     - "8001:8001"
     - "5678:5678"
+    - "5679:5679"
   grader:
     image: apluslms/run-mooc-grader:1.8
     volumes:

@@ -22,9 +22,18 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
         'LOCATION': '/run/radar/django-cache',
     },
+    "exercise_templates": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": "/run/radar/django_cache_exercises",
+        "TIMEOUT": 3600,
+        "OPTIONS": {
+            "MAX_ENTRIES": 100,
+        },
+    },
 }
 
 #CELERY_BROKER_URL = "amqp://"
+CELERY_RESULT_BACKEND = 'file:///var/celery/results'
 
 LOGGING['loggers'].update({
     '': {
