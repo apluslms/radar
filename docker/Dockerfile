@@ -48,5 +48,9 @@ RUN : \
 
 
 WORKDIR /srv/radar
+# The most recent PyPi release of flower doesn't support celery>=5
+# See https://github.com/mher/flower/issues/1109
+RUN pip_install git+https://github.com/mher/flower#egg=flower
+EXPOSE 5555
 EXPOSE 8001
 CMD [ "python3", "-m", "debugpy", "--listen", "0.0.0.0:5678", "manage.py", "runserver", "0.0.0.0:8001" ]

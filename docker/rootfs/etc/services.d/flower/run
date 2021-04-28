@@ -1,0 +1,23 @@
+#!/bin/execlineb -P
+
+define user radar
+define home /srv/${user}
+#define daemon /usr/bin/epmd
+fdmove -c 2 1
+
+# (-s is undocumented magic, that seems to move _prog_ to end of _then_ or
+# _else_ blocks and thus makes _define_ work)
+ifthenelse -s { test -e /local/venv_aplus/bin/python3 }
+{ define python3 /local/venv_aplus/bin/python3 }
+{ define python3 /usr/bin/python3 }
+
+# Use container environment
+with-contenv
+
+# user and workdir
+s6-setuidgid $user
+s6-env HOME=${home}
+cd ${home}
+
+# Start rabbitmq daemon
+${python3} -m celery -A radar flower --address=0.0.0.0

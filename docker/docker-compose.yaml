@@ -16,6 +16,7 @@ services:
     - "8001:8001"
     - "5678:5678"
     - "5679:5679"
+    - "5555:5555"
   grader:
     image: apluslms/run-mooc-grader:1.8
     volumes:
