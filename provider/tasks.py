@@ -183,10 +183,10 @@ def get_full_course_config(api_user_id, course_id, has_radar_config=True):
         exercises = response.get("exercises", [])
     except APIAuthException:
         exercises = []
-        result["errors"].append("This user does not have correct credentials to use the API of %s" % repr(course))
+        result.setdefault("errors", []).append("This user does not have correct credentials to use the API of %s" % repr(course))
 
     if not exercises:
-        result["errors"].append("No exercises found for %s" % repr(course))
+        result.setdefault("errors", []).append("No exercises found for %s" % repr(course))
 
     if has_radar_config:
         # Exercise API data is expected to contain Radar configurations
