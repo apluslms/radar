@@ -46,3 +46,13 @@ services:
 volumes:
   data:
 ```
+
+
+## Additional
+
+```shell
+git submodule update --init --recursive
+pushd aplus
+./docker-compile.sh
+popd
+```

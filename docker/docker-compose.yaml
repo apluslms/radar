@@ -5,12 +5,29 @@ volumes:
 services:
   radar:
     image: run-radar
-    # volumes:
+    volumes:
     # named persistent volume (until removed)
-    # - data:/data
+    - data:/data
     # mount development version to /src/radar
     # - /home/user/radar/:/src/radar/:ro
     # or to /srv/radar
     # - /home/user/radar/:/srv/radar/:ro
     ports:
     - "8001:8001"
+  grader:
+    image: apluslms/run-mooc-grader:1.8
+    volumes:
+      - data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/aplus:/tmp/aplus
+      - ./aplus-manual:/srv/courses/default:ro
+    ports:
+      - "8080:8080"
+  plus:
+    image: apluslms/run-aplus-front:1.8
+    volumes:
+      - data:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      - grader
