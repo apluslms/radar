@@ -1,58 +1,107 @@
-A Docker container that runs the A-plus
-Learning Management System exposed to port 8000.
+# Radar development container
 
-Note that the A-plus front service alone does not provide
-capability to implement or host learning material or exercises.
-The front connects to different material or assessment services
-that provide interactive content to learners. A common
-counterpart for content services is the
-[A-plus MOOC-grader](https://hub.docker.com/r/apluslms/run-mooc-grader/).
+## Known issues
 
-See into the [A-plus template course](https://github.com/apluslms/course-templates)
-that includes a Docker compose configuration to develop and test course content.
+When inspecting a match (<http://192.168.48.4:8001/1921684838000defcurrent/29/compare/123456-admin/13>),
+the link to a submission in A+ (<http://plus:8000/def/current/programming_exercises/radar/programming_exercises_radar_python_radar/submissions/3/>)
+uses `plus:8000` instead of localhost and exposed port.
 
-### Usage
+## Getting started
 
-A-plus is installed in `/srv/aplus`.
-You can mount development version of the source code to `/src/aplus`.
-The container will then copy it to `/srv/aplus` and compile
-the translation file (django.mo). If you mount directly to
-`/srv/aplus`, you need to manually compile the translation file beforehand,
-but on the other hand, Django can reload the code and restart the server
-without restarting the whole container when you edit the source code files.
+This image is meant to be used with the [aplus-manual](https://github.com/apluslms/aplus-manual)
+repository. The image can also be run stand-alone by using the included `docker-compose.yaml`,
+but that's not a recommended workflow.
 
-You can mount development version of the A+ source code on top of that, if you wish.
+### Using with aplus-manual
 
-Location `/data` is a volume and contains submission files, database and secret key.
-It is world writable, so you can run this container as normal user.
+1. Compile the image with `./build.sh`
+2. Follow the [instructions](https://github.com/apluslms/aplus-manual/blob/master/README.md)
+   for aplus-manual
 
-Partial example of `docker-compose.yml` (volumes are optional of course):
+The Radar source code can be mounted in the radar container at `/srv/radar` for
+automatic code reloading. See [run-aplus-front](https://github.com/apluslms/run-aplus-front#usage)
+for more information about mounting development code.
 
-```yaml
-services:
-  plus:
-    image: apluslms/run-aplus-front
-    volumes:
-    # named persistent volume (until removed)
-    # - data:/data
-    # mount development version to /src/aplus
-    # - /home/user/a-plus/:/src/aplus/:ro
-    # or to /srv/aplus
-    # - /home/user/a-plus/:/srv/aplus/:ro
-    ports:
-      - "8000:8000"
-    depends_on:
-      - grader
-volumes:
-  data:
-```
+By default the following ports are used:
 
+- 8001: radar http
+- 5555: flower http (celery dashboard)
+- 5678: radar debug (vscode debugpy)
+- 5679: celery debug (vscode debugpy)
 
-## Additional
+### Using stand-alone
+
+You can either clone the `aplus-manual` repository or mount your preferred
+course in the grader container.
 
 ```shell
+# Fetch and compile the course
+git clone https://github.com/apluslms/aplus-manual
+pushd aplus-manual
 git submodule update --init --recursive
-pushd aplus
 ./docker-compile.sh
 popd
+# Build the image and launch
+./build.sh
+docker-compose up
 ```
+
+By default the following services are exposed:
+
+- <http://localhost:8000/>: aplus
+- <http://localhost:8001/>: radar
+- <http://localhost:8080/>: grader
+- <http://localhost:5555/>: flower (celery dashboard)
+
+The default course instance and Radar LTI instance are configured automatically
+in A+, Radar has to be added manually to the course menu at
+<http://localhost:8000/def/current/teachers/menu/add/>.
+
+## Debugging
+
+Because this image is intended for development purposes, it includes built-in
+debugging features. Both the Django process that handles the main Radar code as
+well as the Celery worker are launched using Microsoft's
+[debugpy](https://code.visualstudio.com/docs/python/debugging). Debug interfaces
+for the two services are available at the following ports:
+
+- 5678: radar/django
+- 5679: celery
+
+An example configuration for debugging Django:
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Remote radar",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/radar",
+                    "remoteRoot": "/srv/radar"
+                },
+                // Uncomment this if you have copied the venv locally and want
+                // to debug the libraries in the virtualenv
+                // {
+                //     "localRoot": "${workspaceFolder}/radar-venv/dist-packages",
+                //     "remoteRoot": "/usr/local/lib/python3.7/dist-packages"
+                // }
+            ],
+            // Uncomment this if you want to debug the libraries in the virtualenv
+            // "justMyCode": false,
+        },
+    ]
+}
+```
+
+Adjust `localRoot` to point to the local copy of the Radar source code. If you
+want to step into the libraries installed with pip, copy the virtual environment
+from the image with `docker cp` and uncomment the appropriate lines. Add another
+entry with the same paths and `port` 5679 to debug Celery.
