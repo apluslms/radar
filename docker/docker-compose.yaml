@@ -1,0 +1,16 @@
+version: '3'
+
+volumes:
+  data:
+services:
+  radar:
+    image: run-radar
+    # volumes:
+    # named persistent volume (until removed)
+    # - data:/data
+    # mount development version to /src/radar
+    # - /home/user/radar/:/src/radar/:ro
+    # or to /srv/radar
+    # - /home/user/radar/:/srv/radar/:ro
+    ports:
+    - "8001:8001"
