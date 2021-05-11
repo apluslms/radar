@@ -49,7 +49,7 @@ def match_all_new_submissions_to_exercise(exercise_id):
         logger.error("Exercise %s has a None matching_start_time timestamp. E.g. the exercise does not expect results.")
         return
     config = {
-        "minimum_match_length": exercise.course.minimum_match_tokens,
+        "minimum_match_length": exercise.minimum_match_tokens,
         "minimum_similarity": settings.MATCH_STORE_MIN_SIMILARITY,
         "similarity_precision": settings.SIMILARITY_PRECISION,
         "exercise_id": exercise_id,
