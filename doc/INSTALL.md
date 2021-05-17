@@ -8,9 +8,7 @@ As root
 
     ```shell
     apt install \
-        uwsgi-core \
-        uwsgi-plugin-python3 \
-        python3-virtualenv \
+        python3-venv \
         python3-dev \
         memcached \
         rabbitmq-server \
@@ -56,15 +54,14 @@ As root
 
     ```shell
     # Run as user radar in /srv/radar
-    python3 -m virtualenv --python python3 venv
+    python3 -m venv venv
     source ~/venv/bin/activate
     git clone https://github.com/Aalto-LeTech/radar.git
     cd radar
     # Check out to whichever version is desired
     git checkout v0.0
+    pip install -r requirements-prod.txt
     pip install -r requirements.txt
-    # This extra library is required if postgres is used as the database
-    pip install psycopg2
 
     cp radar/local_settings.example.py radar/local_settings.py
     # Add correct hostname and admin email address to settings
@@ -83,7 +80,8 @@ As root
     python manage.py add_lti_key --desc aplus
     ```
 
-    Select course -> Edit course -> Menu -> Add -> Select radar  
+    Select course -> Edit course -> Menu -> Add -> Select radar
+
     Click radar link in menu => Creates course in radar
 
 ## uWSGI, NGINX and Celery workers
@@ -97,8 +95,9 @@ cd ~radar/radar
  1. Install uWSGI configuration
 
     ```shell
-    cp doc/uwsgi-radar.ini /srv/radar/uwsgi-radar.ini
-    cp doc/radar-web-uwsgi.service /etc/systemd/system
+    cp ~radar/radar/doc/uwsgi-radar.ini ~radar/uwsgi-radar.ini
+    chown radar:radar ~radar/uwsgi-radar.ini
+    cp ~radar/radar/doc/radar-web-uwsgi.service /etc/systemd/system
     systemctl daemon-reload
     systemctl enable radar-web-uwsgi
     systemctl start radar-web-uwsgi
@@ -107,11 +106,15 @@ cd ~radar/radar
  2. NGINX configuration
 
     ```shell
-    cp doc/radar-nginx.conf /etc/nginx/sites-available/radar.conf
-    ln -s /etc/nginx/sites-available/radar.conf \
-        /etc/nginx/sites-enabled/radar.conf
-    # Add correct hostname and SSL certificate path to the config
-    editor /etc/nginx/sites-available/radar.conf
+    apt-get install nginx
+    # Set custom name here if $(hostname) is not correct
+    name=$(hostname)
+    sed -e "s/__HOSTNAME__/$name/g" ~radar/radar/doc/radar-nginx.conf > \
+        /etc/nginx/sites-available/$name.conf
+    ln -s ../sites-available/$name.conf /etc/nginx/sites-enabled/$name.conf
+    # Edit /etc/nginx/sites-available/$name.conf if necessary (set TLS
+    # certificate path)
+    editor /etc/nginx/sites-available/$name.conf
     systemctl reload nginx
     ```
 
@@ -122,9 +125,9 @@ cd ~radar/radar
     `radar/local_settings.py`.
 
     ```shell
-    cp doc/celery-systemd/radar-celery{_db,_io,_matcher,}.service \
-    /etc/systemd/system
+    cp ~radar/radar/doc/celery-systemd/radar-celery{,_db,_io,_matcher}.service \
+        /etc/systemd/system
     systemctl daemon-reload
-    systemctl enable radar-celery{_db,_io,_matcher,}
-    systemctl start radar-celery{_db,_io,_matcher,}
+    systemctl enable radar-celery{,_db,_io,_matcher}
+    systemctl start radar-celery{,_db,_io,_matcher}
     ```

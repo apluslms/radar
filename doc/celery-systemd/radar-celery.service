@@ -11,11 +11,12 @@ StandardOutput=syslog
 StandardError=syslog
 WorkingDirectory=/srv/radar/radar
 Environment="PATH=/sbin:/bin:/usr/sbin:/usr/bin:/opt/bin:/srv/radar/venv/bin"
-ExecStart=/srv/radar/venv/bin/celery worker \
+ExecStart=/srv/radar/venv/bin/celery \
+    --app radar \
+    worker \
     --pidfile=/run/radar/celery_main.pid \
     --loglevel=info \
     --concurrency 1 \
-    --app radar \
     --queues celery \
     --hostname worker_main@radar
 PIDFile=/run/radar/celery_main.pid
