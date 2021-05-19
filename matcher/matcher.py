@@ -19,16 +19,17 @@ def top_marks(length, top):
     return '1' * top + '0' * (length - top)
 
 
-def update_submission(submission, similarity):
+def update_submission(submission_a, similarity, submission_b):
     """
     After matching a submission, update all flags and set new max similarity if the resulting similarity is highest so far.
     """
-    submission.matched = True
-    submission.matching_start_time = None
-    submission.invalid = False
-    if submission.max_similarity < similarity:
-        submission.max_similarity = similarity
-    submission.save()
+    submission_a.matched = True
+    submission_a.matching_start_time = None
+    submission_a.invalid = False
+    if submission_a.max_similarity < similarity:
+        submission_a.max_similarity = similarity
+        submission_a.max_with = submission_b
+    submission_a.save()
 
     # We don't need auto pause anymore because all matching tasks are started manually
     # if submission.max_similarity > settings.AUTO_PAUSE_MEAN:

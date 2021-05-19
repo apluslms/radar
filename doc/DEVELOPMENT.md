@@ -17,7 +17,7 @@ Windows:<br>
 `py_venv\Scripts\activate.bat`<br>
 `pip install -r requirements.txt`
 
-When starting a new terminal for development, access the same virtual enviroment by enterint the activate-command alone (2nd line).
+When starting a new terminal for development, access the same virtual enviroment by entering the activate command alone (2nd line).
 
 ## Django
 
@@ -35,17 +35,10 @@ Useful testing actions:
 1. `python manage.py runserver`<br>
    Runs the web UI in http://localhost:8000/ as well as Django database admin in http://localhost:8000/admin/
 2. `python manage.py loadsubmissions testcourse/exercise1 user1/sub1 user1/sub2 user2/sub1 ...`<br>
-<<<<<<< HEAD
    Loads file submissions into analysis queue from the given directories (wildcards should work too, e.g. data/rainfall/9*/*). Each submission is a single directory - even if there is only one submitted file per submission.
 3. `python manage.py matchsubmissions testcourse/exercise1`<br>
    Processes file submissions from the analysis queue. Beware, time requirement is exponential so
    better start with ten rather than hundred submissions. Once submissions have been inserted the
    button at top "Recompare all..." needs to be clicked to feed new submissions for matching.
-=======
-   Loads file submissions into analysis queue from the given directories (wildcards should work too, e.g. data/rainfall/2*/*). Each submission is a single directory - even if there is only one submitted file per submission.
-3. `python manage.py matchsubmissions testcourse/exercise1`<br>
-   Processes file submissions from the analysis queue. Beware, time requirement is exponential so
-   better start with ten rather than hundred submissions.
->>>>>>> Restore filesystem provider for testing
 
 Tip: create empty file `radar/local_settings.py` in order to get rid of extra warnings.

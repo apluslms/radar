@@ -109,8 +109,8 @@ def handle_match_results(matches):
         similarity = match[similarity_key]
         matches_json = match[matches_json_key]
         Comparison.objects.create(submission_a=a, submission_b=b, similarity=similarity, matches_json=matches_json)
-        matcher.update_submission(a, similarity)
-        matcher.update_submission(b, similarity)
+        matcher.update_submission(a, similarity, b)
+        matcher.update_submission(b, similarity, a)
     logger.info("Match results processed for %d submissions", len(submissions_updated))
     if len(submissions_updated) < expected_result_count:
         num_missing = expected_result_count - len(submissions_updated)

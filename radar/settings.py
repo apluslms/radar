@@ -16,15 +16,6 @@ AUTH_USER_MODEL = "accounts.RadarUser"
 
 APP_NAME = "Radar"
 
-<<<<<<< HEAD
-=======
-try:
-    with open(os.path.join(BASE_DIR, "radar", "secret_key")) as f:
-        SECRET_KEY = f.read().strip()
-except:
-    SECRET_KEY = None
-
->>>>>>> Restore filesystem provider for testing
 # Application definition
 
 INSTALLED_APPS = (
@@ -41,6 +32,7 @@ INSTALLED_APPS = (
     'aplus_client',
     'django_lti_login',
     'ltilogin',
+    'debug_toolbar',
 )
 
 MIDDLEWARE = (
@@ -50,6 +42,7 @@ MIDDLEWARE = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
 
 CACHES = {
@@ -151,11 +144,8 @@ PROVIDERS = {
         "async_api_read": "provider.filesystem.async_api_read",
         # Ignored, exertcise template must be inserted from web UI
         "get_exercise_template": "provider.filesystem.load_exercise_template",
-<<<<<<< HEAD
         # Disable asynchronous graph calculation (requires celery daemon)
         "async_graph": False,
-=======
->>>>>>> Restore filesystem provider for testing
     },
 }
 
@@ -170,7 +160,7 @@ REVIEWS = (
     {
         "value": REVIEW_CHOICES[4][0],
         "name": REVIEW_CHOICES[4][1],
-        "class": "success"
+        "class": "danger"
     },
     {
         "value": REVIEW_CHOICES[0][0],
@@ -185,12 +175,12 @@ REVIEWS = (
     {
         "value": REVIEW_CHOICES[2][0],
         "name": REVIEW_CHOICES[2][1],
-        "class": "warning"
+        "class": "info"
     },
     {
         "value": REVIEW_CHOICES[3][0],
         "name": REVIEW_CHOICES[3][1],
-        "class": "danger"
+        "class": "warning"
     },
 )
 
@@ -365,18 +355,12 @@ CELERY_RESULT_BACKEND = "cache+memcached://127.0.0.1:11211/"
 
 from r_django_essentials.conf import update_settings_with_file, update_secret_from_file, update_settings_from_environment
 
-<<<<<<< HEAD
 update_settings_with_file(__name__,
                           os.environ.get('RADAR_LOCAL_SETTINGS', 'local_settings'),
                           quiet='RADAR_LOCAL_SETTINGS' in os.environ)
 update_settings_from_environment(__name__, 'RADAR_')
 update_secret_from_file(__name__, os.environ.get('RADAR_SECRET_KEY_FILE', 'secret_key'))
-=======
-update_settings_from_module(__name__, "local_settings")
 
-if SECRET_KEY is None:
-    if DEBUG:
-        SECRET_KEY = 'secretindeed'
-    else:
-        raise ImproperlyConfigured('A secret_key file must be created to run when DEBUG=False')
->>>>>>> Restore filesystem provider for testing
+INTERNAL_IPS = [
+    '127.0.0.1',
+]
