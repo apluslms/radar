@@ -277,9 +277,14 @@ def build_graph(request, course, course_key):
             task_state["graph_data"] = graph_data
             task_state["ready"] = True
         else:
-            # No graph cached, build async
-            async_task = graph.generate_match_graph.delay(course.key, float(min_similarity), int(min_matches))
-            task_state["task_id"] = async_task.id
+            # No graph cached, build
+            p_config = provider_config(course.provider)
+            if not p_config.get("async_graph", True):
+                task_state["graph_data"] = graph.generate_match_graph(course.key, float(min_similarity), int(min_matches))
+                task_state["ready"] = True
+            else:
+                async_task = graph.generate_match_graph.delay(course.key, float(min_similarity), int(min_matches))
+                task_state["task_id"] = async_task.id
 
     return JsonResponse(task_state)
 

@@ -142,6 +142,8 @@ PROVIDERS = {
         "async_api_read": "provider.filesystem.async_api_read",
         # Ignored, exertcise template must be inserted from web UI
         "get_exercise_template": "provider.filesystem.load_exercise_template",
+        # Disable asynchronous graph calculation (requires celery daemon)
+        "async_graph": False,
     },
 }
 
