@@ -5,6 +5,7 @@ celerybeat-schedule
 node_modules
 radar/secret_key.py
 static_root
+py_venv
 
 .project
 .pydevproject
