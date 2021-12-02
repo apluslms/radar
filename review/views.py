@@ -8,9 +8,11 @@ from django.http.response import JsonResponse, HttpResponse, HttpResponseBadRequ
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template import loader as template_loader
 from celery.result import AsyncResult
+from django.utils.timezone import now
 
-from provider import aplus
-from data.models import Course, Comparison, Exercise
+from django.db.models import Avg, Max, Q
+
+from data.models import Course, Comparison, Exercise, Student, Submission
 from data import graph
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
@@ -36,8 +38,9 @@ def course(request, course_key=None, course=None):
     }
     if request.method == "POST":
         # The user can click "Match all unmatched" for a shortcut to match all unmatched submissions for every exercise
+        p_config = provider_config(course.provider)
         if "match-all-unmatched-for-exercises" in request.POST:
-            aplus.recompare_all_unmatched(course)
+            configured_function(p_config, 'recompare_unmatched')(course)
             return redirect("course", course_key=course.key)
     return render(request, "review/course.html", context)
 
@@ -104,10 +107,10 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
 
 @access_resource
 def marked_submissions(request, course_key=None, course=None):
-    comparisons = Comparison.objects\
-        .filter(submission_a__exercise__course=course, review__gte=5)\
-        .order_by("submission_a__created")\
-        .select_related("submission_a", "submission_b","submission_a__exercise", "submission_a__student", "submission_b__student")
+    comparisons = (Comparison.objects
+        .filter(submission_a__exercise__course=course, review__gte=5)
+        .order_by("submission_a__created")
+        .select_related("submission_a", "submission_b","submission_a__exercise", "submission_a__student", "submission_b__student"))
     suspects = {}
     for c in comparisons:
         for s in (c.submission_a.student, c.submission_b.student):
@@ -277,9 +280,14 @@ def build_graph(request, course, course_key):
             task_state["graph_data"] = graph_data
             task_state["ready"] = True
         else:
-            # No graph cached, build async
-            async_task = graph.generate_match_graph.delay(course.key, float(min_similarity), int(min_matches))
-            task_state["task_id"] = async_task.id
+            # No graph cached, build
+            p_config = provider_config(course.provider)
+            if not p_config.get("async_graph", True):
+                task_state["graph_data"] = graph.generate_match_graph(course.key, float(min_similarity), int(min_matches))
+                task_state["ready"] = True
+            else:
+                async_task = graph.generate_match_graph.delay(course.key, float(min_similarity), int(min_matches))
+                task_state["task_id"] = async_task.id
 
     return JsonResponse(task_state)
 
@@ -330,7 +338,8 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
                 return redirect("course", course_key=course.key)
             else:
                 context["change_failure"]["delete_exercise"] = form.cleaned_data["name"]
-    template_source = aplus.load_exercise_template(exercise, p_config)
+    
+    template_source = configured_function(p_config, 'get_exercise_template')(exercise, p_config)
     if exercise.template_tokens and not template_source:
         context["template_source_error"] = True
         context["template_tokens"] = exercise.template_tokens
@@ -350,3 +359,175 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
         "name": ''
     })
     return render(request, "review/exercise_settings.html", context)
+
+
+@access_resource
+def students_view(request, course=None, course_key=None):
+
+    """
+    Student view listing students and average similarity scores of their submissions
+    """
+
+    submissions = (Submission.objects
+        .filter(exercise__course=course)
+        .values('student__key', 'max_with__student__key')
+        .annotate(max_avg=Avg('max_similarity'), max=Max('max_similarity')))
+
+    context = {
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={ "course_key": course.key })),
+            ("Students", None)
+        ),
+        "course": course,
+        "submissions": submissions,
+    }
+    
+    return render(request, "review/students_view.html", context)
+
+@access_resource
+def student_view(request, course=None, course_key=None, student=None, student_key=None):
+
+    comparisons = (Comparison.objects
+        .filter(submission_a__exercise__course=course)
+        .filter(similarity__gt=0.75)
+        .select_related("submission_a", "submission_b","submission_a__exercise", 
+                "submission_b__exercise", "submission_a__student", "submission_b__student")
+        .filter(Q(submission_a__student__key=student_key) | Q(submission_b__student__key=student_key))
+        .exclude(submission_b__isnull=True))
+
+    context = {
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={ "course_key": course.key })),
+            ("Students", reverse("students_view", kwargs={ "course_key": course.key})),
+            (student_key, None)
+        ),
+        "course": course,
+        "exercises": course.exercises.all(),
+        "student" : student_key,
+        "comparisons": comparisons,
+        "row": range(5),
+    }
+
+    return render(request, "review/student_view.html", context)
+
+
+@access_resource
+def pair_view(request, course=None, course_key=None, a=None, a_key=None, b=None, b_key=None):
+
+    authors = {a_key, b_key}
+    comparisons = (Comparison.objects
+        .filter(submission_a__exercise__course=course)
+        .filter(similarity__gt=0)
+        .select_related("submission_a", "submission_b","submission_a__exercise", 
+                "submission_b__exercise", "submission_a__student", "submission_b__student")
+        .filter(Q(submission_a__student__key__in=authors) & Q(submission_b__student__key__in=authors)))
+        
+    context = {
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={ "course_key": course.key })),
+            ("%s vs %s" % (a_key, b_key), None)
+        ),
+        "course": course,
+        "exercises": course.exercises.all(),
+        "a" : a_key,
+        "b" : b_key,
+        "comparisons": comparisons,
+    }
+
+    return render(request, "review/pair_view.html", context)
+
+@access_resource
+def pair_view_summary(request, course=None, course_key=None, a=None, a_key=None, b=None, b_key=None):
+
+    authors = {a_key, b_key}
+
+    a = Student.objects.get(key=a_key, course=course)
+    b = Student.objects.get(key=b_key, course=course)
+
+    # Get comparisons of authors marked as plagiarized
+    comparisons = (Comparison.objects
+        .filter(submission_a__exercise__course=course)
+        .filter(similarity__gt=0)
+        .select_related("submission_a", "submission_b","submission_a__exercise", 
+                "submission_b__exercise", "submission_a__student", "submission_b__student")
+        .filter(Q(submission_a__student__key__in=authors) & Q(submission_b__student__key__in=authors))
+        .filter(review=settings.REVIEW_CHOICES[4][0]))
+
+    p_config = provider_config(course.provider)
+    get_submission_text = configured_function(p_config, "get_submission_text")
+    sources = []
+
+    # Loop through comparisons and add to sources
+    for n in comparisons:
+        reverse_flag = False
+        student_a = n.submission_a.student.key
+        student_b = n.submission_b.student.key
+        text_a = n.submission_a
+        text_b = n.submission_b
+        submission_text_a = get_submission_text(text_a, p_config)
+        submission_text_b = get_submission_text(text_b, p_config)
+        matches = n.matches_json
+        template_comparisons_a = text_a.template_comparison.matches_json
+        template_comparisons_b = text_b.template_comparison.matches_json
+        indexes_a = text_a.indexes_json
+        indexes_b = text_b.indexes_json
+        exercise = n.submission_a.exercise.name
+
+        if "reverse" in request.GET:
+            reverse_flag = True
+            text_a = n.submission_b
+            text_b = n.submission_a
+        sources.append({"text_a" : submission_text_a, "text_b" : submission_text_b, "matches" : matches,
+                        "templates_a" : template_comparisons_a, "templates_b" : template_comparisons_b, "indexes_a" : indexes_a,
+                        "indexes_b" : indexes_b, "reverse_flag" : reverse_flag, "student_a" : student_a, "student_b" : student_b,
+                        "exercise" : exercise})
+
+    context = {
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={ "course_key": course.key })),
+            ("%s vs %s" % (a_key, b_key), reverse("pair_view", kwargs={ "course_key": course_key, "a_key": a_key, "b_key": b_key })),
+            ("Summary", None)
+        ),
+        "course": course,
+        "a" : a_key,
+        "b" : b_key,
+        "a_object" : a,
+        "b_object" : b,
+        "sources": sources,
+        "time": now,
+    }
+
+    return render(request, "review/pair_view_summary.html", context)
+
+@access_resource
+def flagged_pairs(request, course=None, course_key=None):
+
+    # Get comparisons of students with flagged plagiates
+    comparisons = (Comparison.objects
+        .filter(submission_a__exercise__course=course)
+        .select_related("submission_a", "submission_b","submission_a__exercise", "submission_a__student", "submission_b__student")
+        .filter(similarity__gt=0)
+        .filter(review=settings.REVIEW_CHOICES[4][0]))
+
+    context = {
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={ "course_key": course.key })),
+            ("Flagged pairs", None)
+        ),
+        "course": course,
+        "comparisons": comparisons,
+    }
+
+    return render(request, "review/flagged_pairs.html", context)
+
+#TODO: Move to helper functions
+# Helper function for presenting submissions in chunks of n
+def grouped(l, n):
+    # Yield successive n-sized chunks from l.
+    for i in range(0, len(l), n):
+        yield l[i:i+n]

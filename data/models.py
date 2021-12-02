@@ -285,6 +285,9 @@ class Student(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="students")
     key = URLKeyField(max_length=64, help_text="Alphanumeric student id")
 
+    name = models.CharField(max_length=64, blank=True, default='No Name', help_text="Full name of the student")
+    email = models.EmailField(blank=True, default='No Email')
+
     class Meta:
         unique_together = ("course", "key")
         ordering = ["course", "key"]
@@ -313,6 +316,7 @@ class Submission(models.Model):
     longest_authored_tile = models.IntegerField(blank=True, null=True, default=None)
     max_similarity = models.FloatField(db_index=True, default=0.0,
             help_text="Maximum average similarity.")
+    max_with =  models.ForeignKey('self', on_delete=models.CASCADE, help_text="The submission the max_similarity refers to", blank=True, null=True)
     matched = models.BooleanField(default=False, help_text="Is this Submission waiting to be matched")
     invalid = models.BooleanField(default=False, help_text="Is this Submission invalid in a way it cannot be matched")
     matching_start_time = models.CharField(max_length=50, blank=True, null=True, default=None, help_text="If not None, then this submission is currently being matched and waiting for results. None if submission is not currently being matched.")

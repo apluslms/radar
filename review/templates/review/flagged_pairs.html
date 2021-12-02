@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load review %}
+{% block css %}
+<link rel="stylesheet" href="//cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css" />
+{% endblock %}
+{% block content %}
+
+<h3>Flagged pairs view</h3>
+<p>Student pairs that have flagged plagiates on this course</p>
+
+<div>
+    <table class="table" id="flaggedpairstable">
+        <thead>
+            <tr>
+                <th>Students &nbsp;</th>
+            </tr>
+        </thead>
+        <tbody>
+                {% for comparison in comparisons %}
+                <tr>
+                    <td><a href="{% url 'pair_view' course_key=course.key a_key=comparison.submission_a.student.key b_key=comparison.submission_b.student.key %}">{{ comparison.submission_a.student.key }} vs {{ comparison.submission_b.student.key }}</a></td>
+                </tr>
+                {% endfor %}
+        <tfoot>
+            <tr>
+                <th>Students</th>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+<script src=//cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js></script>
+<script>
+    $(document).ready( function () {
+        $('#flaggedpairstable').DataTable();
+    } );
+</script>
+
+<!-- Removing duplicate pairs -->
+<script>
+    var seen = {};
+    $('table tr').each(function() {
+        var element = $(this).text();
+        if (seen[element])
+            $(this).remove();
+        else
+            seen[element] = true;
+    });
+</script>
+{% endblock %}

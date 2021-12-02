@@ -2,7 +2,7 @@
 <td data-similarity="{{ comparison.similarity }}">
     <a href="{{ url }}">
         {{ comparison.similarity|percent }}
-        <strong class="key">{{ student.key }}</strong>
+        <b>{{ comparison.submission_a.student.key }}</b> vs <b>{{ comparison.submission_b.student.key }}</b>
         {% if comparison.review != 0 %}
         <span class="glyphicon glyphicon-flag text-{{ comparison.review_class }}"></span>
         {% endif %}

@@ -15,14 +15,17 @@ logger = get_task_logger(__name__)
 
 
 @celery.shared_task(ignore_result=True)
-def match_exercise(exercise_id):
+def match_exercise(exercise_id, delay=True):
     """
     Match all valid, yet unmatched submissions for a given exercise.
     """
     exercise = Exercise.objects.get(pk=exercise_id)
     for submission in exercise.submissions_currently_matching:
         match_against_template(submission.id)
-    match_all_new_submissions_to_exercise.delay(exercise_id)
+    if delay:
+        match_all_new_submissions_to_exercise.delay(exercise_id)
+    else:
+        match_all_new_submissions_to_exercise(exercise_id, False)
 
 
 @celery.shared_task(ignore_result=True)
@@ -36,7 +39,7 @@ def match_against_template(submission_id):
 
 
 @celery.shared_task(ignore_result=True)
-def match_all_new_submissions_to_exercise(exercise_id):
+def match_all_new_submissions_to_exercise(exercise_id, delay=True):
     """
     Match all submissions to Exercise with a given id.
     The exercise and all its submissions must have their matching_start_time timestamps synchronized before this task is started, otherwise this does nothing.
@@ -58,9 +61,13 @@ def match_all_new_submissions_to_exercise(exercise_id):
     }
     # JSON serializable list of submissions
     compare_list = [s.as_dict() for s in exercise.submissions_currently_matching]
-    match_all_task = match_all_combinations.si(config, compare_list)
     # Match all, then handle results when all matches are available
-    celery.chain(match_all_task, handle_match_results.s())()
+    if delay:
+        match_all_task = match_all_combinations.si(config, compare_list)
+        celery.chain(match_all_task, handle_match_results.s())()
+    else:
+        matches = match_all_combinations(config, compare_list)
+        handle_match_results(matches)
 
 
 @celery.shared_task(ignore_result=True)
@@ -102,8 +109,8 @@ def handle_match_results(matches):
         similarity = match[similarity_key]
         matches_json = match[matches_json_key]
         Comparison.objects.create(submission_a=a, submission_b=b, similarity=similarity, matches_json=matches_json)
-        matcher.update_submission(a, similarity)
-        matcher.update_submission(b, similarity)
+        matcher.update_submission(a, similarity, b)
+        matcher.update_submission(b, similarity, a)
     logger.info("Match results processed for %d submissions", len(submissions_updated))
     if len(submissions_updated) < expected_result_count:
         num_missing = expected_result_count - len(submissions_updated)

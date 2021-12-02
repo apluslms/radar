@@ -1,5 +1,6 @@
 from django import template
 from django.urls import reverse
+from ..views import grouped
 
 register = template.Library()
 
@@ -8,6 +9,9 @@ register = template.Library()
 def percent(value):
     return "{:d}%".format(round(100 * value))
 
+@register.filter
+def get_comparisons_for_student(object, student):
+    return object.comparisons_for_student(student)
 
 @register.inclusion_tag("review/_student.html")
 def student_td(course, comparison, b=False):
@@ -23,3 +27,7 @@ def student_td(course, comparison, b=False):
         "submission": submission,
         "student": submission.student,
     }
+
+@register.filter
+def group_by(value, arg):
+    return grouped(value, arg)

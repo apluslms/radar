@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load review %}
+{% block css %}
+<style>
+	.float-container {
+		max-width: 50%;
+    	float: left;
+		margin-bottom: 0;
+		padding-bottom: 0;
+	}
+</style>
+{% endblock %}
+{% block content %}
+
+<h3>Similarity Summary</h3>
+<p>{{ course.key }}, {{ course.name }}, {{ time }}, {{ user.email }}</p>
+<p>Students:</p>
+<p contenteditable="true" style="margin : 0; padding : 0;">{{ a }}</p>
+<p contenteditable="true" style="margin : 0; padding : 0;">{{ b }}</p>
+<textarea class="form-control" rows="3" placeholder="Add comments here..."></textarea>
+<br>
+
+<div id="top">
+{% for n in sources %}
+<button type="button" class="btn btn-primary"><span class="caret"></span> {{ n.exercise }}</button>
+<div class="ex">
+	<textarea class="form-control" rows="2" placeholder="Add comments here..."></textarea>
+	<div class="code-comparison" id="template{{forloop.counter}}">
+		<div class="float-container">
+			<pre style="padding: 0; margin: 0;">{{ a }}</pre>
+			<pre class="code-a code-view" style="min-width: 100%;">{{ n.text_a }}</pre>
+		</div>
+		<div class="float-container">
+			<pre style="padding: 0; margin: 0;">{{ b }}</pre>
+			<pre class="code-b code-view" style="min-width: 100%;">{{ n.text_b }}</pre>
+		</div>
+		<pre class="matches json">{{ n.matches }}</pre>
+		<pre class="template-a json">{{ n.templates_a }}</pre>
+		<pre class="template-b json">{{ n.templates_b }}</pre>
+		<pre class="indexes-a json">{{ n.indexes_a }}</pre>
+		<pre class="indexes-b json">{{ n.indexes_b }}</pre>
+	</div>
+</div>
+<br>
+<script>
+	$(function() {
+		var js = new JS();
+		js.quickReview($('#review'));
+		js.codeview($('#template{{forloop.counter}}'));
+	});
+</script>
+{% endfor %}
+</div>
+<script>
+	$(document).ready(function(){
+	  $("button").click(function(){
+		$(this).next("div").toggle(200);
+	  });
+	});
+</script>
+
+{% endblock %}

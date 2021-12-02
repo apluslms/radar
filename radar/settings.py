@@ -1,5 +1,6 @@
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-import os
+import os, sys
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
@@ -31,6 +32,7 @@ INSTALLED_APPS = (
     'aplus_client',
     'django_lti_login',
     'ltilogin',
+    'debug_toolbar',
 )
 
 MIDDLEWARE = (
@@ -40,6 +42,7 @@ MIDDLEWARE = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
 
 CACHES = {
@@ -114,19 +117,35 @@ PROVIDERS = {
         "full_reload": "provider.aplus.reload",
         # Deletes matches, then compares all existing submissions
         "recompare": "provider.aplus.recompare",
+        # Recompare all unmatched
+        "recompare_unmatched": "provider.aplus.recompare_all_unmatched",
         # Retrieves the contents of a submission from the provider API
         "get_submission_text": "data.aplus.get_submission_text",
         # Queues a read to the provider API that fetches all exercises in a course
         "async_api_read": "provider.aplus.async_api_read",
+        # Retrieves exercise template from the provider API
+        "get_exercise_template": "provider.aplus.load_exercise_template",
         # Override these in local settings
         "host": "http://localhost:8000",
         "token": "asd123",
     },
-    # Obsolete and not implemented
     "filesystem": {
+        # Ignored, submissions must be created from CLI
         "hook": "provider.filesystem.hook",
-        "cron": "provider.filesystem.cron",
+        # Deletes all submissions and matches, cannot reload anything
+        "full_reload": "provider.filesystem.reload",
+        # Deletes matches, then compares all existing submissions
+        "recompare": "provider.filesystem.recompare",
+        # Ignored, submissions must be matched from CLI
+        "recompare_unmatched": "provider.filesystem.recompare_all_unmatched",
+        # Retrieves the contents of a submission from filesystem
         "get_submission_text": "data.files.get_submission_text",
+        # Ignored, exercises must be created from CLI
+        "async_api_read": "provider.filesystem.async_api_read",
+        # Ignored, exertcise template must be inserted from web UI
+        "get_exercise_template": "provider.filesystem.load_exercise_template",
+        # Disable asynchronous graph calculation (requires celery daemon)
+        "async_graph": False,
     },
 }
 
@@ -141,7 +160,7 @@ REVIEWS = (
     {
         "value": REVIEW_CHOICES[4][0],
         "name": REVIEW_CHOICES[4][1],
-        "class": "success"
+        "class": "danger"
     },
     {
         "value": REVIEW_CHOICES[0][0],
@@ -156,12 +175,12 @@ REVIEWS = (
     {
         "value": REVIEW_CHOICES[2][0],
         "name": REVIEW_CHOICES[2][1],
-        "class": "warning"
+        "class": "info"
     },
     {
         "value": REVIEW_CHOICES[3][0],
         "name": REVIEW_CHOICES[3][1],
-        "class": "danger"
+        "class": "warning"
     },
 )
 
@@ -341,3 +360,7 @@ update_settings_with_file(__name__,
                           quiet='RADAR_LOCAL_SETTINGS' in os.environ)
 update_settings_from_environment(__name__, 'RADAR_')
 update_secret_from_file(__name__, os.environ.get('RADAR_SECRET_KEY_FILE', 'secret_key'))
+
+INTERNAL_IPS = [
+    '127.0.0.1',
+]
