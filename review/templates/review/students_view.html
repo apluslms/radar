@@ -11,9 +11,8 @@
         <thead>
             <tr>
                 <th>Student</th>
-                <th>Average similarity score</th>
+                <th>Average of highest similarity scores</th>
                 <th>Highest similarity score</th>
-                <th>Highest similarity with</th>
             </tr>
         </thead>
         <tbody>
@@ -22,11 +21,6 @@
                     <td><a href="{% url 'student_view' course_key=course.key student_key=submission.student__key %}">{{ submission.student__key }}</a></td>
                     <td>{{ submission.max_avg|percent }}</td>
                     <td>{{ submission.max|percent }}</td>
-                    {% if submission.max_with__student__key != null %}
-                    <td><a href="{% url 'pair_view' course_key=course.key a_key=submission.student__key b_key=submission.max_with__student__key %}">{{ submission.max_with__student__key }}</a></td>
-                    {% else %}
-                    <td>None</td>
-                    {% endif %}
                 </tr>
                 {% endfor %}
         <tfoot>
@@ -34,7 +28,6 @@
                 <th>Student</th>
                 <th>Average similarity score</th>
                 <th>Highest similarity score</th>
-                <th>Highest similarity with</th>
             </tr>
         </tfoot>
     </table>

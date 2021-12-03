@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load review %}
 {% block content %}
 
 <form id="review" class="btn-group pull-right" method="post" action="{% url 'comparison' course_key=course.key exercise_key=exercise.key ak=comparison.submission_a.student.key bk=comparison.submission_b.student.key ck=comparison.pk %}">
@@ -19,6 +20,7 @@
 {% include 'review/_comparisontable.html' %}
 
 <div class="code-comparison"{% if reverse %} data-reverse{% endif %}>
+	<p>Similarity: <b>{{ comparison.similarity|percent }}</b></p>
 	{% if a.provider_url %}<a href="{{ a.provider_url }}" target="_blank" class="provider">{{ a.provider_url }}</a>{% endif %}
 	{% if b.provider_url %}<a href="{{ b.provider_url }}" target="_blank" class="provider">{{ b.provider_url }}</a>{% endif %}
 	<pre class="code-a code-view">{{ source_a }}</pre>

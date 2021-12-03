@@ -365,13 +365,13 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
 def students_view(request, course=None, course_key=None):
 
     """
-    Student view listing students and average similarity scores of their submissions
+    Students view listing students and average/max similarity scores of their submissions
     """
 
     submissions = (Submission.objects
-        .filter(exercise__course=course)
-        .values('student__key', 'max_with__student__key')
-        .annotate(max_avg=Avg('max_similarity'), max=Max('max_similarity')))
+            .filter(exercise__course=course)
+            .values('student__key')
+            .annotate(max_avg=Avg('max_similarity'), max=Max('max_similarity')))
 
     context = {
         "hierarchy": (
