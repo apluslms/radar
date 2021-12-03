@@ -34,7 +34,9 @@
 <script src=//cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js></script>
 <script>
     $(document).ready( function () {
-        $('#flaggedpairstable').DataTable();
+        $('#flaggedpairstable').DataTable( {
+            "lengthMenu": [ [-1, 10, 100], ["All", 10, 100] ]
+        } );
     } );
 </script>
 
