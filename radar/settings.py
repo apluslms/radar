@@ -33,6 +33,7 @@ INSTALLED_APPS = (
     'django_lti_login',
     'ltilogin',
     'debug_toolbar',
+    'provider',
 )
 
 MIDDLEWARE = (
