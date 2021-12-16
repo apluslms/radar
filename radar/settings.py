@@ -365,3 +365,6 @@ update_secret_from_file(__name__, os.environ.get('RADAR_SECRET_KEY_FILE', 'secre
 INTERNAL_IPS = [
     '127.0.0.1',
 ]
+
+# Django 3.2
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'

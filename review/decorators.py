@@ -1,4 +1,4 @@
-from django.utils.six import wraps
+from six import wraps
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404
 from data.models import Course, Exercise, Student
