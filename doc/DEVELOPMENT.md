@@ -17,7 +17,7 @@ Windows:<br>
 `py_venv\Scripts\activate.bat`<br>
 `pip install -r requirements.txt`
 
-When starting a new terminal for development, access the same virtual enviroment by enterint the activate-command alone (2nd line).
+When starting a new terminal for development, access the same virtual enviroment by entering the activate command alone (2nd line).
 
 ## Django
 

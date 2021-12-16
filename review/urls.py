@@ -12,6 +12,11 @@ from review.views import (
     index,
     invalidate_graph_cache,
     marked_submissions,
+    students_view,
+    student_view,
+    pair_view,
+    pair_view_summary,
+    flagged_pairs,
 )
 
 
@@ -22,6 +27,11 @@ urlpatterns = [
     url(r'^(?P<course_key>\w+)/marked/$', marked_submissions, name='marked_submissions'),
     url(r'^(?P<course_key>\w+)/configure/$', configure_course, name='configure_course'),
     url(r'^(?P<course_key>\w+)/graph/$', graph_ui, name='graph_ui'),
+    url(r'^(?P<course_key>\w+)/students/$', students_view, name='students_view'),
+    url(r'^(?P<course_key>\w+)/students/(?P<student_key>\w+)/$', student_view, name='student_view'),
+    url(r'^(?P<course_key>\w+)/(?P<a_key>\w+)-(?P<b_key>\w+)/$', pair_view, name='pair_view'),
+    url(r'^(?P<course_key>\w+)/(?P<a_key>\w+)-(?P<b_key>\w+)/summary/$', pair_view_summary, name='pair_view_summary'),
+    url(r'^(?P<course_key>\w+)/flagged_pairs/$', flagged_pairs, name='flagged_pairs'),
     url(r'^(?P<course_key>\w+)/graph/build$', build_graph, name='build_graph'),
     url(r'^(?P<course_key>\w+)/graph/invalidate$', invalidate_graph_cache, name='invalidate_graph_cache'),
     url(r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/$', exercise, name='exercise'),

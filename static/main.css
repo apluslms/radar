@@ -107,3 +107,61 @@ pre.sample-highlight { display:inline-block; }
 .slider-container {
     margin-bottom: 1em;
 }
+
+
+/* Only needed in pair_view_summary.html */
+@media print {
+  .ex {
+    display: block !important;
+  }
+  .code-comparison { 
+    clear:both; 
+    overflow:visible !important;
+  }
+  .code-comparison a.provider { 
+    display:block; 
+    width:100% !important; 
+    float:left; 
+  }
+  pre.code-view {
+	  display:block;
+    max-width:100% !important;
+    min-width:50% !important;
+    height:max-content !important;
+    overflow:visible !important;
+    word-wrap:break-word;
+    float:none !important;
+    position: static !important;
+  }
+  .source {
+    background-color:#fff !important;
+  }
+  .source a {
+    color:#333 !important; 
+    text-decoration:none !important; 
+  }
+  .source a.template {
+    background-color:#f8f8f8 !important; 
+  }
+  .source a.match {
+    background-color:#ffff99 !important;
+  }
+  .source a.match.current {
+    background-color:#ffcc66;
+  }
+  .source a.match.exact {
+    background-color:#ff9966 !important;
+  }
+  .source a.match.exact.current {
+    background-color:#ff6600;
+  }
+
+  /* Print codes after oneanother (not side-by-side) */
+  .float-container {
+    width: 100% !important;
+    max-width: none !important;
+    float: none !important;
+    padding: 0;
+    margin: 0;
+  }
+}

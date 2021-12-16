@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load review %}
+{% block content %}
+
+<h3>Pair View</h3>
+<p>All comparisons for {{ a }} and {{ b }}</p>
+<button><a href="{% url 'pair_view_summary' course_key=course.key a_key=a b_key=b %}">Get summary of marked plagiates</a></button>
+<table class="comparison">
+    <p>All exercises:</p>
+    {% for group in comparisons|group_by:6 %}
+    <tr>
+        {% for c in group %}
+            <td>{% student_td course c %}</td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+</table>
+
+{% for n in exercises %}
+    <div class="row">
+        <div class="col-lg-12">
+            <table class="comparison">
+                <p>{{ n.name }}:</p>
+                {% for group in comparisons|group_by:6 %}
+                <tr>
+                    {% for c in group %}
+                        {% if c.submission_a.exercise.name == n.name %}
+                            <td>{% student_td course c %}</td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+{% endfor %}
+
+
+{% endblock %}

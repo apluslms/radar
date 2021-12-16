@@ -8,7 +8,7 @@ from data.models import Course
 
 
 class Command(BaseCommand):
-    help = "Calculates remaining matches for an exercise."
+    help = "Calculate similarity for submissions in the exercise that are not matched yet."
 
     def add_arguments(self, parser):
         parser.add_argument('course/exercise', type=str)

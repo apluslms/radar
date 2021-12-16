@@ -32,6 +32,8 @@ INSTALLED_APPS = (
     'aplus_client',
     'django_lti_login',
     'ltilogin',
+    'debug_toolbar',
+    'provider',
 )
 
 MIDDLEWARE = (
@@ -41,6 +43,7 @@ MIDDLEWARE = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
 
 CACHES = {
@@ -158,7 +161,7 @@ REVIEWS = (
     {
         "value": REVIEW_CHOICES[4][0],
         "name": REVIEW_CHOICES[4][1],
-        "class": "success"
+        "class": "danger"
     },
     {
         "value": REVIEW_CHOICES[0][0],
@@ -173,12 +176,12 @@ REVIEWS = (
     {
         "value": REVIEW_CHOICES[2][0],
         "name": REVIEW_CHOICES[2][1],
-        "class": "warning"
+        "class": "info"
     },
     {
         "value": REVIEW_CHOICES[3][0],
         "name": REVIEW_CHOICES[3][1],
-        "class": "danger"
+        "class": "warning"
     },
 )
 
@@ -358,3 +361,10 @@ update_settings_with_file(__name__,
                           quiet='RADAR_LOCAL_SETTINGS' in os.environ)
 update_settings_from_environment(__name__, 'RADAR_')
 update_secret_from_file(__name__, os.environ.get('RADAR_SECRET_KEY_FILE', 'secret_key'))
+
+INTERNAL_IPS = [
+    '127.0.0.1',
+]
+
+# Django 3.2
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'

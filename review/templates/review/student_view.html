@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+{% load review %}
+
+<h3>Student View</h3>
+<p>All comparisons for {{ student }} with similarity greater than 75%</p>
+
+{% for exercise in exercises %}
+    <p>
+        {{ exercise.name }}
+
+    </p>
+    <table class="comparison">
+        {% for group in comparisons|group_by:6 %}
+        <tr>
+            {% for c in group %}
+                {% if c.submission_a.exercise.key == exercise.key %}
+                    <td>{% student_td course c %}</td>
+                {% endif %}
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+{% endfor %}
+{% endblock %}
