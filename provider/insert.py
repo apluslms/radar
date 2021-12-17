@@ -51,7 +51,7 @@ def prepare_submission(submission, matching_start_time=''):
     if not tokens:
         submission.invalid = True
         submission.save()
-        raise InsertError("Tokenizer returned an empty token string for submission %s, will not save submission" % submission_key)
+        raise InsertError("Tokenizer returned an empty token string for submission %s, will not save submission" % submission)
     submission.tokens = tokens
     submission.indexes_json = json_indexes
 
