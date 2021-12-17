@@ -1,6 +1,5 @@
 # Required for building packages in requirements.txt
 wheel
 # This extra library is required if postgres is used as the database.
-# Can be upgraded past v2.9 when changing to Django 3
-psycopg2<2.9
+psycopg2 ~= 2.9.2
 uwsgi
