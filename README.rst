@@ -15,10 +15,10 @@ Views are provided to follow submitters over series of exercises.
 
 Requirements
 ------------
-* Python 3.5
-* RabbitMQ 3.5
-* Django 2.2
-* Celery 4.1
+* Python 3.8+
+* RabbitMQ 3.8+
+* Django 3.2
+* Celery 5.2
 * Memcached 1.5
 * and other Python packages, see ``requirements.txt``
 
