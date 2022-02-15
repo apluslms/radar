@@ -109,12 +109,12 @@ object ScalariformTokens extends App {
     Tokens.XML_UNPARSED -> '$',
     Tokens.XML_PROCESSING_INSTRUCTION -> '$')
 
-  val source = io.Source.stdin.getLines.mkString("\n")
-  val tokens = ScalaLexer.tokenise(source, scalaVersion = ScalaVersions.DEFAULT_VERSION)
+  val source = io.Source.stdin.getLines().mkString("\n")
+  val tokens = ScalaLexer.tokenise(source, scalaVersion = ScalaVersions.Scala_2_11.toString)
   val filtered = tokens.filter(t => !t.tokenType.isComment && !t.tokenType.isNewline && t.tokenType != Tokens.EOF)
 
   val ids = filtered.map(t => typeMap.getOrElse(t.tokenType, '?'))
-  val chars = filtered.map(t => t.offset + "-" + t.lastCharacterOffset)
+  val chars = filtered.map(t => s"${t.offset}-${t.lastCharacterOffset}")
 
   println(ids.mkString(""))
   println(chars.mkString(","))

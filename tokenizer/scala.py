@@ -25,7 +25,7 @@ def tokenize(source, config):
 
     """
     try:
-        parsed = run(("scala", "-cp", "tokenizer/scalariform:tokenizer/scalariform/scalariform.jar", "ScalariformTokens"), source)
+        parsed = run(("scala", "-cp", "tokenizer/scalariform/scalariform.jar", "ScalariformTokens"), source)
         lines = parsed.decode("utf-8").split("\n", 1)
         return lines[0].strip(), index_string_to_list(lines[1].strip())
     except Exception as e:

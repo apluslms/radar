@@ -19,6 +19,10 @@ Makefile
 !CMakeLists.txt
 compile_commands.json
 
+tokenizer/scalariform/target/
+tokenizer/scalariform/project/target/
+tokenizer/scalariform/project/project/target/
+
 **/bin
 *.a
 *.swp
