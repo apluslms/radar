@@ -2,6 +2,7 @@ import logging
 import requests
 
 from django.core.cache import caches as django_caches
+from aplus_auth.requests import get as aplus_get
 
 from data.models import URLKeyField
 from provider import tasks
@@ -78,7 +79,7 @@ def request_template_content(url):
     """
     try:
         logger.debug("Requesting exercise template content from '%s'.", url)
-        response = requests.get(url, timeout=(4, 10))
+        response = aplus_get(url, timeout=(4, 10))
         response.raise_for_status()
         response_content_type = response.headers.get("Content-Type")
         if response_content_type.find("text/plain") < 0:
