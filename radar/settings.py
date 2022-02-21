@@ -1,6 +1,7 @@
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os, sys
 from django.core.exceptions import ImproperlyConfigured
+from typing import Dict, Optional
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
@@ -15,6 +16,27 @@ AUTH_LTI_LOGIN = {
 AUTH_USER_MODEL = "accounts.RadarUser"
 
 APP_NAME = "Radar"
+
+# Authentication and authorization library settings
+# see https://pypi.org/project/aplus-auth/ for explanations
+APLUS_AUTH_LOCAL = {
+    #"UID": "...", # set to "radar" below, can be changed
+    "PRIVATE_KEY": None,
+    "PUBLIC_KEY": None,
+    "REMOTE_AUTHENTICATOR_UID": None, # The UID of the remote authenticator, e.g. "aplus"
+    "REMOTE_AUTHENTICATOR_KEY": None, # The public key of the remote authenticator
+    "REMOTE_AUTHENTICATOR_URL": None, # probably "https://<A+ domain>/api/v2/get-token/"
+    #"UID_TO_KEY": {...}
+    #"TRUSTED_UIDS": [...],
+    #"TRUSTING_REMOTES": [...],
+    #"DISABLE_JWT_SIGNING": False,
+    #"DISABLE_LOGIN_CHECKS": False,
+}
+
+# Messaging library
+APLUS_AUTH: Dict[str, Optional[str]] = {
+    "UID": "radar",
+}
 
 # Application definition
 
@@ -34,6 +56,7 @@ INSTALLED_APPS = (
     'ltilogin',
     'debug_toolbar',
     'provider',
+    'aplus_auth',
 )
 
 MIDDLEWARE = (
@@ -365,6 +388,8 @@ update_secret_from_file(__name__, os.environ.get('RADAR_SECRET_KEY_FILE', 'secre
 INTERNAL_IPS = [
     '127.0.0.1',
 ]
+
+APLUS_AUTH.update(APLUS_AUTH_LOCAL)
 
 # Django 3.2
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
