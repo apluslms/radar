@@ -31,6 +31,19 @@ DATABASES = {
 
 STATIC_ROOT = "static_root"
 
+APLUS_AUTH_LOCAL = {
+    "PRIVATE_KEY": open("/srv/radar/radar-private.pem", "r").read(),
+    "PUBLIC_KEY": open("/srv/radar/radar-public.pem", "r").read(),
+    "REMOTE_AUTHENTICATOR_UID": "aplus",
+    "REMOTE_AUTHENTICATOR_KEY": """-----BEGIN PUBLIC KEY-----
+xxxxxxxxxxxxxxxxxxxxx
+-----END PUBLIC KEY-----""",
+    "REMOTE_AUTHENTICATOR_URL": "https://plus.cs.aalto.fi/api/v2/get-token/",
+    "DISABLE_JWT_SIGNING": False,
+    "DISABLE_LOGIN_CHECKS": False,
+}
+
+
 CELERY_TASK_ROUTES = {
     # High latency due to network I/O, consumed by the celery_io worker,
     # OK to have concurrency > 1
