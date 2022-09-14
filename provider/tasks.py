@@ -89,7 +89,7 @@ def create_submission(task, submission_key, course_key, submission_api_url, matc
         submission = insert_submission(exercise, submission_key, submitter_id, data)
         prepare_submission(submission, matching_start_time)
     except InsertError as err:
-        write_error(err.message, 'create_submission')
+        write_error(str(err), 'create_submission')
         return
 
 
