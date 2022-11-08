@@ -133,3 +133,14 @@ cd ~radar/radar
     systemctl enable radar-celery{,_db,_io,_matcher}
     systemctl start radar-celery{,_db,_io,_matcher}
     ```
+
+## RabbitMQ configuration
+
+The RabbitMQ messages between Radar and the matchlib can become large when there
+are several submissions to be analaysed. If the message size exceeds the default
+maximum message size (128 MB), it will be dropped and the Radar task never completes.
+Therefore, it is recommended to increase the RabbitMQ maximum message size,
+by adding the following line to `/etc/rabbitmq/rabbitmq.conf` (for doubling the max.
+message size to 256 MB):
+
+    max_message_size = 268435456
