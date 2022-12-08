@@ -3,6 +3,7 @@ import requests
 
 from django.core.cache import caches as django_caches
 from aplus_auth.requests import get as aplus_get
+from aplus_auth.payload import Permission, Permissions
 
 from data.models import URLKeyField
 from provider import tasks
@@ -73,13 +74,15 @@ def get_api_client(course):
     return api_user.get_api_client(course.namespace)
 
 
-def request_template_content(url):
+def request_template_content(url, course):
     """
     Attempt to GET exercise template contents from url.
     """
     try:
         logger.debug("Requesting exercise template content from '%s'.", url)
-        response = aplus_get(url, timeout=(4, 10))
+        permissions = Permissions()
+        permissions.instances.add(Permission.READ, id=course.api_id)
+        response = aplus_get(url, permissions=permissions, timeout=(4, 10))
         response.raise_for_status()
         response_content_type = response.headers.get("Content-Type")
         if response_content_type.find("text/plain") < 0:
@@ -105,7 +108,7 @@ def request_template_content(url):
 # "|en:<external url to template in english>|fi:<external url to template in finnish>|"
 # Therefore, if i18n exercise template urls are found,
 # we use a heuristic to first select the english template and if not available, the finnish template, and if not available, fail miserably
-def load_exercise_template_from_api_data(exercise_data):
+def load_exercise_template_from_api_data(exercise_data, course):
     """
     Do a GET request for each exercise template url in exercise, and return the template source of response, concatenated with newlines.
     """
@@ -130,7 +133,7 @@ def load_exercise_template_from_api_data(exercise_data):
                     raise AplusProviderError("Unknown exercise template url format: {}, expected i18n urls but did not find any language prefixes from '{}'. Complete url was: {}".format(template_url, lang_prefixes, template_urls_str))
             if template_url:
                 parsed_urls.append(template_url)
-        template_data = (request_template_content(url) for url in parsed_urls)
+        template_data = (request_template_content(url, course) for url in parsed_urls)
         # Join all non-empty templates into a single string, separated by newlines.
         # If there is only one non-empty template in template_data,
         # this will simply evaluate to that template, with no extra newline.
@@ -154,12 +157,12 @@ def load_exercise_template(exercise, config, invalidate_cache=False):
     if data is None:
         logger.error("A+ API returned None when loading from %s", exercise_url)
         return ""
-    template_source = load_exercise_template_from_api_data(data)
+    template_source = load_exercise_template_from_api_data(data, exercise.course)
     template_cache.set(exercise.key, template_source)
     return template_source
 
 
-def get_radar_config(exercise_data):
+def get_radar_config(exercise_data, course):
     """
     Extract relevant Radar data from an AplusApiDict or None if there is no Radar data.
     """
@@ -175,12 +178,12 @@ def get_radar_config(exercise_data):
        "url": exercise_data.get("html_url"),
        "tokenizer": radar_config.get("tokenizer", "skip"),
        "minimum_match_tokens": radar_config.get("minimum_match_tokens") or 15,
-       "get_template_source": lambda: load_exercise_template_from_api_data(exercise_data)
+       "get_template_source": lambda: load_exercise_template_from_api_data(exercise_data, course)
     }
     return data
 
 
-def leafs_with_radar_config(exercises):
+def leafs_with_radar_config(exercises, course):
     """
     Return an iterator yielding dictionaries of leaf exercises that have Radar configurations.
     """
@@ -189,9 +192,9 @@ def leafs_with_radar_config(exercises):
     for exercise in exercises:
         child_exercises = exercise.get("exercises")
         if child_exercises:
-            yield from leafs_with_radar_config(child_exercises)
+            yield from leafs_with_radar_config(child_exercises, course)
         else:
-            radar_config = get_radar_config(exercise)
+            radar_config = get_radar_config(exercise, course)
             if radar_config:
                 yield radar_config
 

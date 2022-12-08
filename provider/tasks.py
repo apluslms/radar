@@ -61,7 +61,7 @@ def create_submission(task, submission_key, course_key, submission_api_url, matc
 
     # Check if exercise is configured for Radar
     # If not, and there is no manually configured exercise in the database, skip
-    radar_config = aplus.get_radar_config(exercise_data)
+    radar_config = aplus.get_radar_config(exercise_data, course)
     if radar_config is None and not course.has_exercise(str(exercise_data["id"])):
         return
 
@@ -147,7 +147,7 @@ def get_full_course_config(api_user_id, course_id, has_radar_config=True):
         # Exercise API data is expected to contain Radar configurations
         # Partition all radar configs into unseen and existing exercises
         new_exercises, old_exercises = [], []
-        for radar_config in aplus.leafs_with_radar_config(exercises):
+        for radar_config in aplus.leafs_with_radar_config(exercises, course):
             radar_config["template_source"] = radar_config["get_template_source"]()
             # We got the template and lambdas are not serializable so we delete the getter
             del radar_config["get_template_source"]
@@ -168,7 +168,7 @@ def get_full_course_config(api_user_id, course_id, has_radar_config=True):
             # Avoid overwriting exercise_info if it is defined
             patched_exercise_info = dict(exercise["exercise_info"] or {}, radar={"tokenizer": "skip", "minimum_match_tokens": 15})
             exercise.add_data({"exercise_info": patched_exercise_info})
-            radar_config = aplus.get_radar_config(exercise)
+            radar_config = aplus.get_radar_config(exercise, course)
             if radar_config:
                 radar_config["template_source"] = radar_config["get_template_source"]()
                 del radar_config["get_template_source"]
