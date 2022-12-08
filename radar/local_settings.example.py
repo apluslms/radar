@@ -41,6 +41,10 @@ xxxxxxxxxxxxxxxxxxxxx
     "REMOTE_AUTHENTICATOR_URL": "https://plus.cs.aalto.fi/api/v2/get-token/",
     "DISABLE_JWT_SIGNING": False,
     "DISABLE_LOGIN_CHECKS": False,
+    # Exercise templates are fetched from gitmanager
+    "TRUSTING_REMOTES": {
+         "https://gitmanager.cs.aalto.fi": "gitmanager",
+    },
 }
 
 
