@@ -1,4 +1,4 @@
-FROM apluslms/service-base:django-1.9
+FROM apluslms/service-base:django-1.16
 
 # Set container related configuration via environment variables
 ENV CONTAINER_TYPE="radar" \
