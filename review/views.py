@@ -58,13 +58,14 @@ def course_histograms(request, course_key=None, course=None):
 
 @access_resource
 def exercise(request, course_key=None, exercise_key=None, course=None, exercise=None):
+    rows = int(request.GET.get('rows', settings.SUBMISSION_VIEW_HEIGHT))
     return render(request, "review/exercise.html", {
         "hierarchy": ((settings.APP_NAME, reverse("index")),
                       (course.name, reverse("course", kwargs={ "course_key": course.key })),
                       (exercise.name, None)),
         "course": course,
         "exercise": exercise,
-        "comparisons": exercise.top_comparisons(),
+        "comparisons": exercise.top_comparisons(rows),
     })
 
 
