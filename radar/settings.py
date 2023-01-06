@@ -245,7 +245,7 @@ MATCH_STORE_MIN_SIMILARITY = 0.2
 # Amount of float digits when serializing similarity
 SIMILARITY_PRECISION = 3
 
-SUBMISSION_VIEW_HEIGHT = 30
+SUBMISSION_VIEW_HEIGHT = 50
 SUBMISSION_VIEW_WIDTH = 5
 
 # Maximum size of the HTTP response content in bytes when

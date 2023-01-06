@@ -196,11 +196,11 @@ class Exercise(models.Model):
     def submissions_max_similarity_json(self):
         return json.dumps(list(self.submissions_max_similarity))
 
-    def top_comparisons(self):
+    def top_comparisons(self, rows):
         max_list = (self.valid_matched_submissions
                 .values('student__id')
                 .annotate(m=models.Max('max_similarity'))
-                .order_by('-m')[:settings.SUBMISSION_VIEW_HEIGHT])
+                .order_by('-m')[:rows])
         return self._comparisons_by_submission(
             self.valid_matched_submissions
             .filter(student__id=each['student__id'])

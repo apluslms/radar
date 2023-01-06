@@ -13,6 +13,9 @@
 <pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
 
 <h4>Comparison pairs with highest similarity</h4>
+<a href="{% url 'exercise' course_key=exercise.course.key exercise_key=exercise.key %}?rows=100" class="btn btn-default btn-xs"}">
+    Show 100 rows
+</a>
 {% include 'review/_comparisontable.html' %}
 
 <pre id="js" class="well">
