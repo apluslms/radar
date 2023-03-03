@@ -4,7 +4,7 @@ volumes:
   data:
 services:
   radar:
-    image: run-radar
+    image: apluslms/run-radar
     volumes:
     # named persistent volume (until removed)
     - data:/data
@@ -18,7 +18,7 @@ services:
     - "5679:5679"
     - "5555:5555"
   grader:
-    image: apluslms/run-mooc-grader:1.8
+    image: apluslms/run-mooc-grader:1.17
     volumes:
       - data:/data
       - /var/run/docker.sock:/var/run/docker.sock
@@ -27,7 +27,7 @@ services:
     ports:
       - "8080:8080"
   plus:
-    image: apluslms/run-aplus-front:1.8
+    image: apluslms/run-aplus-front:1.18
     volumes:
       - data:/data
     ports:
