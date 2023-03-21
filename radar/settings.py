@@ -71,7 +71,7 @@ MIDDLEWARE = (
 
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.memcached.MemcachedCache",
+        "BACKEND": "django.core.cache.backends.memcached.PyLibMCCache",
         "LOCATION": "127.0.0.1:11211",
     },
     # Exercise template sources are not stored in the database, but fetched from the provider API each time before the exercise settings view is rendered.

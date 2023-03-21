@@ -13,12 +13,16 @@ As root
         python3-venv \
         python3-dev \
         memcached \
+        libmemcached11 \
+        zlib1g \
         rabbitmq-server \
         nginx \
         postgresql \
         libpq-dev \
         build-essential
     ```
+
+    `libmemcached11` and `zlib1g` are needed for the pylibmc backend for Memcached.
 
  2. Create a new user for radar
 
@@ -58,7 +62,7 @@ As root
     # Run as user radar in /srv/radar
     python3 -m venv venv
     source ~/venv/bin/activate
-    git clone https://github.com/Aalto-LeTech/radar.git
+    git clone https://github.com/apluslms/radar.git
     cd radar
     # Check out to whichever version is desired
     git checkout v0.0

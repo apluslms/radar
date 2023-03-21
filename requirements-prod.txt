@@ -3,3 +3,4 @@ wheel
 # This extra library is required if postgres is used as the database.
 psycopg2 ~= 2.9.5
 uwsgi
+pylibmc >= 1.6.3, < 2
