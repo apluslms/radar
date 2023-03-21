@@ -1,4 +1,4 @@
-FROM apluslms/service-base:django-1.16
+FROM apluslms/service-base:django-1.17
 
 # Set container related configuration via environment variables
 ENV CONTAINER_TYPE="radar" \
@@ -17,8 +17,6 @@ RUN : \
       curl \
       wget \
       less \
- && pip_install \
-      debugpy \
 \
   # create user
  && adduser --system --no-create-home --disabled-password --gecos "A+ radar service,,," --home /srv/radar --ingroup nogroup radar \
@@ -29,7 +27,10 @@ RUN : \
  && python3 -m compileall -q . \
 \
   # install requirements, remove the file, remove unrequired locales and tests
- && pip_install -r requirements.txt \
+ && pip_install \
+      -r requirements.txt \
+      "flower ~= 1.2.0" \
+      "django-debug-toolbar >= 3.8.1" \
  && rm requirements.txt \
  && find /usr/local/lib/python* -type d -regex '.*/locale/[a-z_A-Z]+' -not -regex '.*/\(en\|fi\|sv\)' -print0 | xargs -0 rm -rf \
  && find /usr/local/lib/python* -type d -name 'tests' -print0 | xargs -0 rm -rf \
@@ -48,9 +49,6 @@ RUN : \
 
 
 WORKDIR /srv/radar
-# The most recent PyPi release of flower doesn't support celery>=5
-# See https://github.com/mher/flower/issues/1109
-RUN pip_install git+https://github.com/mher/flower#egg=flower
 EXPOSE 5555
 EXPOSE 8001
 CMD [ "python3", "-m", "debugpy", "--listen", "0.0.0.0:5678", "manage.py", "runserver", "0.0.0.0:8001" ]
