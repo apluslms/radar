@@ -54,7 +54,6 @@ INSTALLED_APPS = (
     'aplus_client',
     'django_lti_login',
     'ltilogin',
-    'debug_toolbar',
     'provider',
     'aplus_auth',
 )
@@ -66,7 +65,6 @@ MIDDLEWARE = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
 
 CACHES = {
@@ -385,11 +383,20 @@ update_settings_with_file(__name__,
 update_settings_from_environment(__name__, 'RADAR_')
 update_secret_from_file(__name__, os.environ.get('RADAR_SECRET_KEY_FILE', 'secret_key'))
 
-INTERNAL_IPS = [
-    '127.0.0.1',
-]
 
 APLUS_AUTH.update(APLUS_AUTH_LOCAL)
 
 # Django 3.2
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+# Set up Django Debug Toolbar.
+if DEBUG:
+    INSTALLED_APPS += ('debug_toolbar',)
+    # Add the debug toolbar middleware to the start of MIDDLEWARE.
+    MIDDLEWARE = ('debug_toolbar.middleware.DebugToolbarMiddleware',) + MIDDLEWARE
+    # The following variables may have been defined in local_settings.py or environment variables.
+    try:
+        if '127.0.0.1' not in INTERNAL_IPS:
+            INTERNAL_IPS.append('127.0.0.1')
+    except NameError:
+        INTERNAL_IPS = ['127.0.0.1']

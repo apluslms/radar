@@ -13,3 +13,9 @@ ensure_dir /local/radar/media
 ensure_dir /local/lti-services-in 2777 root root
 
 printf "http://%s:8000" "$(hostname -i)" > /var/run/s6/container_environment/RADAR_BASE_URL
+
+# Take this container's IP (v4) address, change the last component to .1 and
+# output it in a JSON list (like ["127.0.0.1"]) to Radar settings.py.
+# The IP address with the .1 ending should be the host machine's IP address in
+# the Docker network, in other words, the IP address of the client (web browser).
+echo '["'$(hostname -i | cut -s -d. -f1-3)'.1"]' > /var/run/s6/container_environment/RADAR_INTERNAL_IPS
