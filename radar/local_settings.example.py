@@ -29,6 +29,23 @@ DATABASES = {
     }
 }
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.memcached.PyLibMCCache",
+        "LOCATION": "127.0.0.1:11211",
+    },
+    # Exercise template sources are not stored in the database, but fetched from the provider API each time before the exercise settings view is rendered.
+    # This cache stores the fetched templates for 1 hour.
+    "exercise_templates": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": "/var/tmp/django_cache",
+        "TIMEOUT": 3600,
+        "OPTIONS": {
+            "MAX_ENTRIES": 100,
+        },
+    },
+}
+
 STATIC_ROOT = "static_root"
 
 APLUS_AUTH_LOCAL = {
@@ -47,6 +64,8 @@ xxxxxxxxxxxxxxxxxxxxx
     },
 }
 
+CELERY_BROKER_URL = "amqp://localhost:5672"
+CELERY_RESULT_BACKEND = "cache+memcached://127.0.0.1:11211/"
 
 CELERY_TASK_ROUTES = {
     # High latency due to network I/O, consumed by the celery_io worker,
