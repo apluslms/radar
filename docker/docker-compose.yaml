@@ -14,8 +14,8 @@ services:
     # - /home/user/radar/:/srv/radar/:ro
     ports:
     - "8001:8001"
-    - "5678:5678"
-    - "5679:5679"
+    - "5670:5678"
+    - "5671:5679"
     - "5555:5555"
   grader:
     image: apluslms/run-mooc-grader:1.17

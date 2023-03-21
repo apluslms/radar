@@ -54,8 +54,7 @@ By default the following services are exposed:
 - <http://localhost:5555/>: flower (celery dashboard)
 
 The default course instance and Radar LTI instance are configured automatically
-in A+, Radar has to be added manually to the course menu at
-<http://localhost:8000/def/current/teachers/menu/add/>.
+in A+ as well as the course menu link to Radar in the default course.
 
 ## Debugging
 
@@ -68,23 +67,24 @@ for the two services are available at the following ports:
 - 5678: radar/django
 - 5679: celery
 
-An example configuration for debugging Django:
+There is an example configuration for debugging Django below.
+Note that the host ports need to match the published ports set in docker-compose.yaml.
 
 ```json
 {
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Remote radar",
+            "name": "Remote Attach to Radar",
             "type": "python",
             "request": "attach",
             "connect": {
                 "host": "localhost",
-                "port": 5678
+                "port": 5670
             },
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}/radar",
+                    "localRoot": "${workspaceFolder}",
                     "remoteRoot": "/srv/radar"
                 },
                 // Uncomment this if you have copied the venv locally and want
@@ -97,11 +97,26 @@ An example configuration for debugging Django:
             // Uncomment this if you want to debug the libraries in the virtualenv
             // "justMyCode": false,
         },
+        {
+            "name": "Remote Attach to Radar Celery worker",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5671
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "/srv/radar"
+                }
+            ],
+            "justMyCode": false
+        }
     ]
 }
 ```
 
 Adjust `localRoot` to point to the local copy of the Radar source code. If you
 want to step into the libraries installed with pip, copy the virtual environment
-from the image with `docker cp` and uncomment the appropriate lines. Add another
-entry with the same paths and `port` 5679 to debug Celery.
+from the image with `docker cp` and uncomment the appropriate lines.
