@@ -1,0 +1,11 @@
+#!/bin/sh
+
+docker run --privileged --rm tonistiigi/binfmt --install all
+
+docker buildx create --use default
+
+docker buildx build \
+--push \
+--tag "$DOCKER_REPO":"$DOCKER_TAG" \
+--platform linux/amd64,linux/arm64 \
+--file Dockerfile ..

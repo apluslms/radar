@@ -1,0 +1,3 @@
+#!/bin/sh
+
+# This hook is empty because the image was pushed to the registry in the build hook
