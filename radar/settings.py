@@ -51,9 +51,9 @@ INSTALLED_APPS = (
     'data',
     'accounts',
     'review',
-    'aplus_client',
+    'aplus_client.django.apps.AplusClientConfig',
     'django_lti_login',
-    'ltilogin',
+    'ltilogin.apps.RadarConfig',
     'provider',
     'aplus_auth',
 )

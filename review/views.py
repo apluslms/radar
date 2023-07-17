@@ -17,6 +17,7 @@ from data import graph
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTemplateForm, DeleteExerciseFrom
+from util.misc import is_ajax
 
 
 logger = logging.getLogger("radar.review")
@@ -75,7 +76,7 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
                                    submission_a__student__key=ak, submission_b__student__key=bk)
     if request.method == "POST":
         result = "review" in request.POST and comparison.update_review(request.POST["review"])
-        if request.is_ajax():
+        if is_ajax(request):
             return JsonResponse({ "success": result })
 
     reverse_flag = False
@@ -208,7 +209,7 @@ def configure_course(request, course_key=None, course=None):
                 full_reload(exercise, p_config)
         return redirect(reverse("configure_course", kwargs={"course_key": course.key}) + "?success=true")
 
-    if not request.is_ajax():
+    if not is_ajax(request):
         return HttpResponseBadRequest("Unknown POST request")
 
     pending_api_read = json.loads(request.body.decode("utf-8"))
@@ -257,7 +258,7 @@ def graph_ui(request, course, course_key):
 
 @access_resource
 def build_graph(request, course, course_key):
-    if request.method != "POST" or not request.is_ajax():
+    if request.method != "POST" or not is_ajax(request):
         return HttpResponseBadRequest()
 
     task_state = json.loads(request.body.decode("utf-8"))
@@ -339,7 +340,7 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
                 return redirect("course", course_key=course.key)
             else:
                 context["change_failure"]["delete_exercise"] = form.cleaned_data["name"]
-    
+
     template_source = configured_function(p_config, 'get_exercise_template')(exercise, p_config)
     if exercise.template_tokens and not template_source:
         context["template_source_error"] = True
@@ -383,7 +384,7 @@ def students_view(request, course=None, course_key=None):
         "course": course,
         "submissions": submissions,
     }
-    
+
     return render(request, "review/students_view.html", context)
 
 @access_resource
@@ -392,7 +393,7 @@ def student_view(request, course=None, course_key=None, student=None, student_ke
     comparisons = (Comparison.objects
         .filter(submission_a__exercise__course=course)
         .filter(similarity__gt=0.75)
-        .select_related("submission_a", "submission_b","submission_a__exercise", 
+        .select_related("submission_a", "submission_b","submission_a__exercise",
                 "submission_b__exercise", "submission_a__student", "submission_b__student")
         .filter(Q(submission_a__student__key=student_key) | Q(submission_b__student__key=student_key))
         .exclude(submission_b__isnull=True))
@@ -421,10 +422,10 @@ def pair_view(request, course=None, course_key=None, a=None, a_key=None, b=None,
     comparisons = (Comparison.objects
         .filter(submission_a__exercise__course=course)
         .filter(similarity__gt=0)
-        .select_related("submission_a", "submission_b","submission_a__exercise", 
+        .select_related("submission_a", "submission_b","submission_a__exercise",
                 "submission_b__exercise", "submission_a__student", "submission_b__student")
         .filter(Q(submission_a__student__key__in=authors) & Q(submission_b__student__key__in=authors)))
-        
+
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
@@ -452,7 +453,7 @@ def pair_view_summary(request, course=None, course_key=None, a=None, a_key=None,
     comparisons = (Comparison.objects
         .filter(submission_a__exercise__course=course)
         .filter(similarity__gt=0)
-        .select_related("submission_a", "submission_b","submission_a__exercise", 
+        .select_related("submission_a", "submission_b","submission_a__exercise",
                 "submission_b__exercise", "submission_a__student", "submission_b__student")
         .filter(Q(submission_a__student__key__in=authors) & Q(submission_b__student__key__in=authors))
         .filter(review=settings.REVIEW_CHOICES[4][0]))
