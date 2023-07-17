@@ -79,4 +79,3 @@ def add_course_permissions(sender, **kwargs):
 
 
 user_logged_in.connect(add_course_permissions)
-

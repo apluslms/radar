@@ -17,7 +17,7 @@ Requirements
 ------------
 * Python 3.8+
 * RabbitMQ 3.8+
-* Django 3.2
+* Django 4.2
 * Celery 5.2
 * Memcached 1.5
 * and other Python packages, see ``requirements.txt``
@@ -83,4 +83,3 @@ teemu.t.lehtinen@aalto.fi, 9.2.2015
 .. _A+: https://github.com/apluslms/a-plus
 .. _Django LTI login: https://github.com/Aalto-LeTech/django-lti-login
 .. _greedy string tiling: https://github.com/Aalto-LeTech/greedy-string-tiling
-
