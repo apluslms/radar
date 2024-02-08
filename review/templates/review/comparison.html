@@ -17,7 +17,7 @@
 
 <button type="button"><a href="{% url 'pair_view' course_key=course.key a_key=a.student.key b_key=b.student.key %}">See all comparisons for this pair of students</a></button>
 
-{% include 'review/_comparisontable.html' %}
+{% include 'review/_comparisontable_unique.html' %}
 
 <div class="code-comparison"{% if reverse %} data-reverse{% endif %}>
 	<p>Similarity: <b>{{ comparison.similarity|percent }}</b></p>
