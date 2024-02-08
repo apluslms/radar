@@ -198,10 +198,11 @@ class Exercise(models.Model):
 
     def top_comparisons(self, rows):
         max_list = (self.valid_matched_submissions
-                .values('student__id')
-                .annotate(m=models.Max('max_similarity'))
-                .order_by('-m')[:rows])
-        return self._comparisons_by_submission(
+                    .values('student__id')
+                    .annotate(m=models.Max('max_similarity'))
+                    .order_by('-m')[:rows])
+
+        compared_list = self._comparisons_by_submission(
             self.valid_matched_submissions
             .filter(student__id=each['student__id'])
             .order_by('-max_similarity')
@@ -209,13 +210,31 @@ class Exercise(models.Model):
             for each in max_list
         )
 
+        # Filter the comparisons such that only unique ones are maintained, while identical ones are removed.
+        # Done using Python sets which cannot have duplicate values.
+        unique_set = set()
+
+        for comparison_row in compared_list:
+            unique_set.update(comparison_row["matches"])
+
+        sorted_unique_set = sorted(unique_set, key=lambda comparison: comparison.similarity, reverse=True)
+
+        return sorted_unique_set
+
     def comparisons_for_student(self, student):
-        return self._comparisons_by_submission(
-            self.valid_matched_submissions\
-                .filter(student=student)\
-                .order_by("created")\
+        student_list = self._comparisons_by_submission(
+            self.valid_matched_submissions
+                .filter(student=student)
+                .order_by("created")
                 .values_list("id", flat=True)
         )
+
+        unique_set = set()
+
+        for student in student_list:
+            unique_set.update(student["matches"])
+
+        return unique_set
 
     def _comparisons_by_submission(self, submissions):
         comparisons = []
