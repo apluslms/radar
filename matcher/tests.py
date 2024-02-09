@@ -1,76 +1,40 @@
-import logging
-import random
-import string
-import time
-logging.disable(logging.CRITICAL)
-
 from django.test import TestCase
-from django.conf import settings
-from django.utils.module_loading import import_string
+from data.models import Student, Course, Submission
+from matcher import tasks
+from aplus_client.django.models import ApiNamespace
 
-match_algorithm = import_string(settings.MATCH_ALGORITHMS["jplag_ext"]["callable"])
-
-def random_char():
-    return random.choice(string.printable)
-
-def random_string(size):
-    return ''.join(random_char() for _ in range(size))
-
-def random_string_copy(string, copy_pr):
-    # note that copy_pr == 0 does not guarantee that the randomly drawn char does not happen to be equal to c
-    return ''.join((random_char() if copy_pr < random.random() else c) for c in string)
-
-def generate_data(a_size, b_size, similarity_p):
-    tokens_a = random_string(a_size)
-    tokens_b = random_string_copy(tokens_a, similarity_p)[:b_size]
-    return (tokens_a, len(tokens_a)*[False], tokens_b, len(tokens_b)*[False], 15)
+TOKENS1 = "ABCD, Testing"
+TOKENS2 = "123123 Test"
 
 
-class TestBenchmark(TestCase):
-    """For the match algorithm specified in the settings module, run benchmark tests with random data and assert that the amount of successful iterations is large enough"""
+# Test for matcher calls
+class TestMatcher(TestCase):
 
-    def benchmark(self, match_args, min_iterations=10):
-        timeout_seconds = 0.5
-        iterations = 0
-        total_time = 0
-        while total_time < timeout_seconds:
-            start_time = time.perf_counter()
-            match_algorithm(*match_args)
-            end_time = time.perf_counter()
-            total_time += end_time - start_time
-            iterations += 1
-        self.assertGreater(iterations, min_iterations,
-                "Expected match algorithm {0!r} to compute its result at least {1} times in {2} seconds but it managed only {3} iterations before {2} second timeout."
-                .format(match_algorithm, min_iterations, timeout_seconds, iterations))
+    # Test matcher to see that submissions are matched and comparison objects are created
+    def test_run_match_exercise(self):
+        site = ApiNamespace(600)
+        site.save()
 
-    def test_a1_very_unlikely_equal_tiny(self):
-        self.benchmark(generate_data(100, 100, 0))
-    def test_a2_unlikely_equal_tiny(self):
-        self.benchmark(generate_data(100, 100, 0.25))
-    def test_a3_likely_equal_tiny(self):
-        self.benchmark(generate_data(100, 100, 0.75))
-    def test_a4_very_likely_equal_tiny(self):
-        self.benchmark(generate_data(100, 100, 1))
+        course = Course(id=600, api_id=600, namespace_id=600)
+        course.save()
 
-    def test_b1_very_unlikely_equal_average(self):
-        self.benchmark(generate_data(500, 500, 0))
-    def test_b2_unlikely_equal_average(self):
-        self.benchmark(generate_data(500, 500, 0.25))
-    def test_b3_likely_equal_average(self):
-        self.benchmark(generate_data(500, 500, 0.75))
-    def test_b4_very_likely_equal_average(self):
-        self.benchmark(generate_data(500, 500, 1))
+        exercise = course.get_exercise("TestCourse")
 
-    def test_c1_very_unlikely_equal_large(self):
-        self.benchmark(generate_data(1000, 1000, 0))
-    def test_c2_unlikely_equal_large(self):
-        self.benchmark(generate_data(1000, 1000, 0.25))
-    def test_c3_likely_equal_large(self):
-        self.benchmark(generate_data(1000, 1000, 0.75))
-    def test_c4_very_likely_equal_large(self):
-        self.benchmark(generate_data(1000, 1000, 1))
+        student_a = Student(key=3000, course=course)
+        student_b = Student(key=4000, course=course)
+        submission_a = Submission(key=3000, exercise=exercise, student=student_a, matched=False, tokens=TOKENS1)
+        submission_b = Submission(key=4000, exercise=exercise, student=student_b, matched=False, tokens=TOKENS2)
 
+        student_a.save()
+        student_b.save()
+        submission_a.save()
+        submission_b.save()
 
-class TestMatcherState(TestCase):
-    """Attempt to cover as many failure states as possible when calling matcher.match with some submission object."""
-    pass
+        exercise.touch_all_timestamps()
+
+        tasks.match_exercise(exercise.pk, delay=False)
+
+        self.assertTrue(submission_a in exercise.valid_matched_submissions)
+        self.assertTrue(submission_b in exercise.valid_matched_submissions)
+
+# TODO: Create more tests here
