@@ -12,7 +12,7 @@ from django.utils.timezone import now
 
 from django.db.models import Avg, Max, Q
 
-from data.models import Course, Comparison, Exercise, Student, Submission
+from data.models import Course, Comparison, Student, Submission
 from data import graph
 from radar.config import provider_config, configured_function
 from review.decorators import access_resource
@@ -22,12 +22,17 @@ from util.misc import is_ajax
 
 logger = logging.getLogger("radar.review")
 
+
 @login_required
 def index(request):
-    return render(request, "review/index.html", {
-        "hierarchy": ((settings.APP_NAME, None),),
-        "courses": Course.objects.get_available_courses(request.user)
-    })
+    return render(
+        request,
+        "review/index.html",
+        {
+            "hierarchy": ((settings.APP_NAME, None),),
+            "courses": Course.objects.get_available_courses(request.user),
+        },
+    )
 
 
 @access_resource
@@ -48,36 +53,64 @@ def course(request, course_key=None, course=None):
 
 @access_resource
 def course_histograms(request, course_key=None, course=None):
-    return render(request, "review/course_histograms.html", {
-        "hierarchy": ((settings.APP_NAME, reverse("index")),
-                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
-                      ("Histograms", None)),
-        "course": course,
-        "exercises": course.exercises.all(),
-    })
+    return render(
+        request,
+        "review/course_histograms.html",
+        {
+            "hierarchy": (
+                (settings.APP_NAME, reverse("index")),
+                (course.name, reverse("course", kwargs={"course_key": course.key})),
+                ("Histograms", None),
+            ),
+            "course": course,
+            "exercises": course.exercises.all(),
+        },
+    )
 
 
 @access_resource
 def exercise(request, course_key=None, exercise_key=None, course=None, exercise=None):
     rows = int(request.GET.get('rows', settings.SUBMISSION_VIEW_HEIGHT))
-    return render(request, "review/exercise.html", {
-        "hierarchy": ((settings.APP_NAME, reverse("index")),
-                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
-                      (exercise.name, None)),
-        "course": course,
-        "exercise": exercise,
-        "comparisons": exercise.top_comparisons(rows),
-    })
+    return render(
+        request,
+        "review/exercise.html",
+        {
+            "hierarchy": (
+                (settings.APP_NAME, reverse("index")),
+                (course.name, reverse("course", kwargs={"course_key": course.key})),
+                (exercise.name, None),
+            ),
+            "course": course,
+            "exercise": exercise,
+            "comparisons": exercise.top_comparisons(rows),
+        },
+    )
 
 
 @access_resource
-def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck=None, course=None, exercise=None):
-    comparison = get_object_or_404(Comparison, submission_a__exercise=exercise, pk=ck,
-                                   submission_a__student__key=ak, submission_b__student__key=bk)
+def comparison(
+    request,
+    course_key=None,
+    exercise_key=None,
+    ak=None,
+    bk=None,
+    ck=None,
+    course=None,
+    exercise=None,
+):
+    comparison = get_object_or_404(
+        Comparison,
+        submission_a__exercise=exercise,
+        pk=ck,
+        submission_a__student__key=ak,
+        submission_b__student__key=bk,
+    )
     if request.method == "POST":
-        result = "review" in request.POST and comparison.update_review(request.POST["review"])
+        result = "review" in request.POST and comparison.update_review(
+            request.POST["review"]
+        )
         if is_ajax(request):
-            return JsonResponse({ "success": result })
+            return JsonResponse({"success": result})
 
     reverse_flag = False
     a = comparison.submission_a
@@ -89,61 +122,92 @@ def comparison(request, course_key=None, exercise_key=None, ak=None, bk=None, ck
 
     p_config = provider_config(course.provider)
     get_submission_text = configured_function(p_config, "get_submission_text")
-    return render(request, "review/comparison.html", {
-        "hierarchy": ((settings.APP_NAME, reverse("index")),
-                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
-                      (exercise.name, reverse("exercise",
-                                              kwargs={ "course_key": course.key, "exercise_key": exercise.key })),
-                      ("%s vs %s" % (a.student.key, b.student.key), None)),
-        "course": course,
-        "exercise": exercise,
-        "comparisons": exercise.comparisons_for_student(a.student),
-        "comparison": comparison,
-        "reverse": reverse_flag,
-        "a": a,
-        "b": b,
-        "source_a": get_submission_text(a, p_config),
-        "source_b": get_submission_text(b, p_config)
-    })
+    return render(
+        request,
+        "review/comparison.html",
+        {
+            "hierarchy": (
+                (settings.APP_NAME, reverse("index")),
+                (course.name, reverse("course", kwargs={"course_key": course.key})),
+                (
+                    exercise.name,
+                    reverse(
+                        "exercise",
+                        kwargs={"course_key": course.key, "exercise_key": exercise.key},
+                    ),
+                ),
+                ("%s vs %s" % (a.student.key, b.student.key), None),
+            ),
+            "course": course,
+            "exercise": exercise,
+            "comparisons": exercise.comparisons_for_student(a.student),
+            "comparison": comparison,
+            "reverse": reverse_flag,
+            "a": a,
+            "b": b,
+            "source_a": get_submission_text(a, p_config),
+            "source_b": get_submission_text(b, p_config),
+        },
+    )
 
 
 @access_resource
 def marked_submissions(request, course_key=None, course=None):
-    comparisons = (Comparison.objects
-        .filter(submission_a__exercise__course=course, review__gte=5)
+    comparisons = (
+        Comparison.objects.filter(submission_a__exercise__course=course, review__gte=5)
         .order_by("submission_a__created")
-        .select_related("submission_a", "submission_b","submission_a__exercise", "submission_a__student", "submission_b__student"))
+        .select_related(
+            "submission_a",
+            "submission_b",
+            "submission_a__exercise",
+            "submission_a__student",
+            "submission_b__student",
+        )
+    )
     suspects = {}
     for c in comparisons:
         for s in (c.submission_a.student, c.submission_b.student):
             if s.id not in suspects:
-                suspects[s.id] = { 'key':s.key, 'sum':0, 'comparisons':[] }
+                suspects[s.id] = {'key': s.key, 'sum': 0, 'comparisons': []}
             suspects[s.id]['sum'] += c.review
             suspects[s.id]['comparisons'].append(c)
-    return render(request, "review/marked.html", {
-        "hierarchy": ((settings.APP_NAME, reverse("index")),
-                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
-                      ("Marked submissions", None)),
-        "course": course,
-        "suspects": sorted(suspects.values(), reverse=True, key=lambda e: e['sum']),
-    })
+    return render(
+        request,
+        "review/marked.html",
+        {
+            "hierarchy": (
+                (settings.APP_NAME, reverse("index")),
+                (course.name, reverse("course", kwargs={"course_key": course.key})),
+                ("Marked submissions", None),
+            ),
+            "course": course,
+            "suspects": sorted(suspects.values(), reverse=True, key=lambda e: e['sum']),
+        },
+    )
 
 
 @access_resource
 def configure_course(request, course_key=None, course=None):
     context = {
-        "hierarchy": ((settings.APP_NAME, reverse("index")),
-                      (course.name, reverse("course", kwargs={ "course_key": course.key })),
-                      ("Configure", None)),
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            ("Configure", None),
+        ),
         "course": course,
         "provider_data": [
             {
-                "description": "{:s}, all submission data are retrieved from here".format(course.provider_name),
+                "description": "{:s}, all submission data are retrieved from here".format(
+                    course.provider_name
+                ),
                 "path": settings.PROVIDERS[course.provider].get("host", "UNKNOWN"),
             },
             {
-                "description": "Data providers should POST the IDs of new submissions to this path in order to have them automatically downloaded by Radar",
-                "path": request.build_absolute_uri(reverse("hook_submission", kwargs={"course_key": course.key})),
+                "description": "Data providers should POST the IDs of new submissions to this path in order to"
+                               " have them automatically downloaded by Radar",
+                "path": request.build_absolute_uri(
+                    reverse("hook_submission", kwargs={"course_key": course.key})
+                ),
             },
             {
                 "description": "Login requests using the LTI-protocol should be made to this path",
@@ -159,7 +223,7 @@ def configure_course(request, course_key=None, course=None):
         "poll_URL": reverse("configure_course", kwargs={"course_key": course.key}),
         "ready": False,
         "poll_interval_seconds": 5,
-        "config_type": "automatic"
+        "config_type": "automatic",
     }
 
     if request.method == "GET":
@@ -176,7 +240,8 @@ def configure_course(request, course_key=None, course=None):
     p_config = provider_config(course.provider)
 
     if "create-exercises" in request.POST or "overwrite-exercises" in request.POST:
-        # API data has been fetched in a previous step, now the user wants to add exercises that were shown in the table
+        # API data has been fetched in a previous step, now the user wants to add exercises
+        # that were shown in the table
         if "create-exercises" in request.POST:
             # Pre-configured, read-only table
             exercises = json.loads(request.POST["exercises-json"])
@@ -190,13 +255,21 @@ def configure_course(request, course_key=None, course=None):
                 full_reload(exercise, p_config)
         elif "overwrite-exercises" in request.POST:
             # Manual configuration, editable table, overwrite existing
-            checked_rows = (key.split("-", 1)[0] for key in request.POST if key.endswith("enabled"))
+            checked_rows = (
+                key.split("-", 1)[0] for key in request.POST if key.endswith("enabled")
+            )
             exercises = (
-                {"exercise_key": exercise_key,
-                 "name": request.POST[exercise_key + "-name"],
-                 "template_source": request.POST.get(exercise_key + "-template-source", ''),
-                 "tokenizer": request.POST[exercise_key + "-tokenizer"],
-                 "minimum_match_tokens": request.POST[exercise_key + "-min-match-tokens"]}
+                {
+                    "exercise_key": exercise_key,
+                    "name": request.POST[exercise_key + "-name"],
+                    "template_source": request.POST.get(
+                        exercise_key + "-template-source", ''
+                    ),
+                    "tokenizer": request.POST[exercise_key + "-tokenizer"],
+                    "minimum_match_tokens": request.POST[
+                        exercise_key + "-min-match-tokens"
+                    ],
+                }
                 for exercise_key in checked_rows
             )
             for exercise_data in exercises:
@@ -207,7 +280,10 @@ def configure_course(request, course_key=None, course=None):
                 exercise.save()
                 full_reload = configured_function(p_config, "full_reload")
                 full_reload(exercise, p_config)
-        return redirect(reverse("configure_course", kwargs={"course_key": course.key}) + "?success=true")
+        return redirect(
+            reverse("configure_course", kwargs={"course_key": course.key})
+            + "?success=true"
+        )
 
     if not is_ajax(request):
         return HttpResponseBadRequest("Unknown POST request")
@@ -223,9 +299,13 @@ def configure_course(request, course_key=None, course=None):
             if async_result.state == "SUCCESS":
                 exercise_data = async_result.get()
                 async_result.forget()
-                config_table = template_loader.get_template("review/configure_table.html")
+                config_table = template_loader.get_template(
+                    "review/configure_table.html"
+                )
                 exercise_data["config_type"] = pending_api_read["config_type"]
-                pending_api_read["resultHTML"] = config_table.render(exercise_data, request)
+                pending_api_read["resultHTML"] = config_table.render(
+                    exercise_data, request
+                )
             else:
                 pending_api_read["resultHTML"] = ''
         return JsonResponse(pending_api_read)
@@ -247,11 +327,11 @@ def graph_ui(request, course, course_key):
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
-            (course.name, reverse("course", kwargs={ "course_key": course.key })),
-            ("Graph", None)
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            ("Graph", None),
         ),
         "course": course,
-        "minimum_similarity_threshold": settings.MATCH_STORE_MIN_SIMILARITY
+        "minimum_similarity_threshold": settings.MATCH_STORE_MIN_SIMILARITY,
     }
     return render(request, "review/graph.html", context)
 
@@ -276,8 +356,15 @@ def build_graph(request, course, course_key):
                 task_state["graph_data"] = {}
     elif not task_state["ready"]:
         graph_data = json.loads(course.similarity_graph_json or '{}')
-        min_similarity, min_matches = task_state["min_similarity"], task_state["min_matches"]
-        if graph_data and graph_data["min_similarity"] == min_similarity and graph_data["min_matches"] == min_matches:
+        min_similarity, min_matches = (
+            task_state["min_similarity"],
+            task_state["min_matches"],
+        )
+        if (
+            graph_data
+            and graph_data["min_similarity"] == min_similarity
+            and graph_data["min_matches"] == min_matches
+        ):
             # Graph was already cached
             task_state["graph_data"] = graph_data
             task_state["ready"] = True
@@ -285,10 +372,14 @@ def build_graph(request, course, course_key):
             # No graph cached, build
             p_config = provider_config(course.provider)
             if not p_config.get("async_graph", True):
-                task_state["graph_data"] = graph.generate_match_graph(course.key, float(min_similarity), int(min_matches))
+                task_state["graph_data"] = graph.generate_match_graph(
+                    course.key, float(min_similarity), int(min_matches)
+                )
                 task_state["ready"] = True
             else:
-                async_task = graph.generate_match_graph.delay(course.key, float(min_similarity), int(min_matches))
+                async_task = graph.generate_match_graph.delay(
+                    course.key, float(min_similarity), int(min_matches)
+                )
                 task_state["task_id"] = async_task.id
 
     return JsonResponse(task_state)
@@ -302,13 +393,15 @@ def invalidate_graph_cache(request, course, course_key):
 
 
 @access_resource
-def exercise_settings(request, course_key=None, exercise_key=None, course=None, exercise=None):
+def exercise_settings(
+    request, course_key=None, exercise_key=None, course=None, exercise=None
+):
     p_config = provider_config(course.provider)
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
-            (course.name, reverse("course", kwargs={ "course_key": course.key })),
-            ("%s settings" % (exercise.name), None)
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            ("%s settings" % (exercise.name), None),
         ),
         "course": course,
         "exercise": exercise,
@@ -338,48 +431,52 @@ def exercise_settings(request, course_key=None, exercise_key=None, course=None, 
             if form.is_valid() and form.cleaned_data["name"] == exercise.name:
                 exercise.delete()
                 return redirect("course", course_key=course.key)
-            else:
-                context["change_failure"]["delete_exercise"] = form.cleaned_data["name"]
 
-    template_source = configured_function(p_config, 'get_exercise_template')(exercise, p_config)
+            context["change_failure"]["delete_exercise"] = form.cleaned_data["name"]
+
+    template_source = configured_function(p_config, 'get_exercise_template')(
+        exercise, p_config
+    )
     if exercise.template_tokens and not template_source:
         context["template_source_error"] = True
         context["template_tokens"] = exercise.template_tokens
         context["template_source"] = ''
     else:
         context["template_source"] = template_source
-    context["form"] = ExerciseForm({
-        "name": exercise.name,
-        "paused": exercise.paused,
-        "tokenizer": exercise.tokenizer,
-        "minimum_match_tokens": exercise.minimum_match_tokens,
-    })
-    context["form_template"] = ExerciseTemplateForm({
-        "template": template_source,
-    })
-    context["form_delete_exercise"] = DeleteExerciseFrom({
-        "name": ''
-    })
+    context["form"] = ExerciseForm(
+        {
+            "name": exercise.name,
+            "paused": exercise.paused,
+            "tokenizer": exercise.tokenizer,
+            "minimum_match_tokens": exercise.minimum_match_tokens,
+        }
+    )
+    context["form_template"] = ExerciseTemplateForm(
+        {
+            "template": template_source,
+        }
+    )
+    context["form_delete_exercise"] = DeleteExerciseFrom({"name": ''})
     return render(request, "review/exercise_settings.html", context)
 
 
 @access_resource
 def students_view(request, course=None, course_key=None):
-
     """
     Students view listing students and average/max similarity scores of their submissions
     """
 
-    submissions = (Submission.objects
-            .filter(exercise__course=course)
-            .values('student__key')
-            .annotate(max_avg=Avg('max_similarity'), max=Max('max_similarity')))
+    submissions = (
+        Submission.objects.filter(exercise__course=course)
+        .values('student__key')
+        .annotate(max_avg=Avg('max_similarity'), max=Max('max_similarity'))
+    )
 
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
-            (course.name, reverse("course", kwargs={ "course_key": course.key })),
-            ("Students", None)
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            ("Students", None),
         ),
         "course": course,
         "submissions": submissions,
@@ -387,27 +484,38 @@ def students_view(request, course=None, course_key=None):
 
     return render(request, "review/students_view.html", context)
 
+
 @access_resource
 def student_view(request, course=None, course_key=None, student=None, student_key=None):
 
-    comparisons = (Comparison.objects
-        .filter(submission_a__exercise__course=course)
+    comparisons = (
+        Comparison.objects.filter(submission_a__exercise__course=course)
         .filter(similarity__gt=0.75)
-        .select_related("submission_a", "submission_b","submission_a__exercise",
-                "submission_b__exercise", "submission_a__student", "submission_b__student")
-        .filter(Q(submission_a__student__key=student_key) | Q(submission_b__student__key=student_key))
-        .exclude(submission_b__isnull=True))
+        .select_related(
+            "submission_a",
+            "submission_b",
+            "submission_a__exercise",
+            "submission_b__exercise",
+            "submission_a__student",
+            "submission_b__student",
+        )
+        .filter(
+            Q(submission_a__student__key=student_key)
+            | Q(submission_b__student__key=student_key)
+        )
+        .exclude(submission_b__isnull=True)
+    )
 
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
-            (course.name, reverse("course", kwargs={ "course_key": course.key })),
-            ("Students", reverse("students_view", kwargs={ "course_key": course.key})),
-            (student_key, None)
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            ("Students", reverse("students_view", kwargs={"course_key": course.key})),
+            (student_key, None),
         ),
         "course": course,
         "exercises": course.exercises.all(),
-        "student" : student_key,
+        "student": student_key,
         "comparisons": comparisons,
         "row": range(5),
     }
@@ -416,33 +524,48 @@ def student_view(request, course=None, course_key=None, student=None, student_ke
 
 
 @access_resource
-def pair_view(request, course=None, course_key=None, a=None, a_key=None, b=None, b_key=None):
+def pair_view(
+    request, course=None, course_key=None, a=None, a_key=None, b=None, b_key=None
+):
 
     authors = {a_key, b_key}
-    comparisons = (Comparison.objects
-        .filter(submission_a__exercise__course=course)
+    comparisons = (
+        Comparison.objects.filter(submission_a__exercise__course=course)
         .filter(similarity__gt=0)
-        .select_related("submission_a", "submission_b","submission_a__exercise",
-                "submission_b__exercise", "submission_a__student", "submission_b__student")
-        .filter(Q(submission_a__student__key__in=authors) & Q(submission_b__student__key__in=authors)))
+        .select_related(
+            "submission_a",
+            "submission_b",
+            "submission_a__exercise",
+            "submission_b__exercise",
+            "submission_a__student",
+            "submission_b__student",
+        )
+        .filter(
+            Q(submission_a__student__key__in=authors)
+            & Q(submission_b__student__key__in=authors)
+        )
+    )
 
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
-            (course.name, reverse("course", kwargs={ "course_key": course.key })),
-            ("%s vs %s" % (a_key, b_key), None)
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            ("%s vs %s" % (a_key, b_key), None),
         ),
         "course": course,
         "exercises": course.exercises.all(),
-        "a" : a_key,
-        "b" : b_key,
+        "a": a_key,
+        "b": b_key,
         "comparisons": comparisons,
     }
 
     return render(request, "review/pair_view.html", context)
 
+
 @access_resource
-def pair_view_summary(request, course=None, course_key=None, a=None, a_key=None, b=None, b_key=None):
+def pair_view_summary(
+    request, course=None, course_key=None, a=None, a_key=None, b=None, b_key=None
+):
 
     authors = {a_key, b_key}
 
@@ -450,13 +573,23 @@ def pair_view_summary(request, course=None, course_key=None, a=None, a_key=None,
     b = Student.objects.get(key=b_key, course=course)
 
     # Get comparisons of authors marked as plagiarized
-    comparisons = (Comparison.objects
-        .filter(submission_a__exercise__course=course)
+    comparisons = (
+        Comparison.objects.filter(submission_a__exercise__course=course)
         .filter(similarity__gt=0)
-        .select_related("submission_a", "submission_b","submission_a__exercise",
-                "submission_b__exercise", "submission_a__student", "submission_b__student")
-        .filter(Q(submission_a__student__key__in=authors) & Q(submission_b__student__key__in=authors))
-        .filter(review=settings.REVIEW_CHOICES[4][0]))
+        .select_related(
+            "submission_a",
+            "submission_b",
+            "submission_a__exercise",
+            "submission_b__exercise",
+            "submission_a__student",
+            "submission_b__student",
+        )
+        .filter(
+            Q(submission_a__student__key__in=authors)
+            & Q(submission_b__student__key__in=authors)
+        )
+        .filter(review=settings.REVIEW_CHOICES[4][0])
+    )
 
     p_config = provider_config(course.provider)
     get_submission_text = configured_function(p_config, "get_submission_text")
@@ -482,44 +615,69 @@ def pair_view_summary(request, course=None, course_key=None, a=None, a_key=None,
             reverse_flag = True
             text_a = n.submission_b
             text_b = n.submission_a
-        sources.append({"text_a" : submission_text_a, "text_b" : submission_text_b, "matches" : matches,
-                        "templates_a" : template_comparisons_a, "templates_b" : template_comparisons_b, "indexes_a" : indexes_a,
-                        "indexes_b" : indexes_b, "reverse_flag" : reverse_flag, "student_a" : student_a, "student_b" : student_b,
-                        "exercise" : exercise})
+        sources.append(
+            {
+                "text_a": submission_text_a,
+                "text_b": submission_text_b,
+                "matches": matches,
+                "templates_a": template_comparisons_a,
+                "templates_b": template_comparisons_b,
+                "indexes_a": indexes_a,
+                "indexes_b": indexes_b,
+                "reverse_flag": reverse_flag,
+                "student_a": student_a,
+                "student_b": student_b,
+                "exercise": exercise,
+            }
+        )
 
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
-            (course.name, reverse("course", kwargs={ "course_key": course.key })),
-            ("%s vs %s" % (a_key, b_key), reverse("pair_view", kwargs={ "course_key": course_key, "a_key": a_key, "b_key": b_key })),
-            ("Summary", None)
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            (
+                "%s vs %s" % (a_key, b_key),
+                reverse(
+                    "pair_view",
+                    kwargs={"course_key": course_key, "a_key": a_key, "b_key": b_key},
+                ),
+            ),
+            ("Summary", None),
         ),
         "course": course,
-        "a" : a_key,
-        "b" : b_key,
-        "a_object" : a,
-        "b_object" : b,
+        "a": a_key,
+        "b": b_key,
+        "a_object": a,
+        "b_object": b,
         "sources": sources,
         "time": now,
     }
 
     return render(request, "review/pair_view_summary.html", context)
 
+
 @access_resource
 def flagged_pairs(request, course=None, course_key=None):
 
     # Get comparisons of students with flagged plagiates
-    comparisons = (Comparison.objects
-        .filter(submission_a__exercise__course=course)
-        .select_related("submission_a", "submission_b","submission_a__exercise", "submission_a__student", "submission_b__student")
+    comparisons = (
+        Comparison.objects.filter(submission_a__exercise__course=course)
+        .select_related(
+            "submission_a",
+            "submission_b",
+            "submission_a__exercise",
+            "submission_a__student",
+            "submission_b__student",
+        )
         .filter(similarity__gt=0)
-        .filter(review=settings.REVIEW_CHOICES[4][0]))
+        .filter(review=settings.REVIEW_CHOICES[4][0])
+    )
 
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
-            (course.name, reverse("course", kwargs={ "course_key": course.key })),
-            ("Flagged pairs", None)
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            ("Flagged pairs", None),
         ),
         "course": course,
         "comparisons": comparisons,
@@ -527,9 +685,10 @@ def flagged_pairs(request, course=None, course_key=None):
 
     return render(request, "review/flagged_pairs.html", context)
 
-#TODO: Move to helper functions
-# Helper function for presenting submissions in chunks of n
-def grouped(l, n):
+
+# TODO: Move to helper functions
+# Helper function for presenting submissions in chunks of count
+def grouped(iterator, count):
     # Yield successive n-sized chunks from l.
-    for i in range(0, len(l), n):
-        yield l[i:i+n]
+    for i in range(0, len(iterator), count):
+        yield iterator[i: i + count]

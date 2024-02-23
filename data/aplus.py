@@ -2,6 +2,7 @@
 Retrieving submission data from the A+ API, without storing the content on disk.
 
 """
+
 import logging
 
 from django.conf import settings
@@ -18,7 +19,7 @@ def get_submission_text(submission, config):
     if api_client is None:
         logger.error("No API client available for submission %s", submission)
         return None
-    submission_api_url = config["host"] + API_SUBMISSION_URL % { "sid": submission.key }
+    submission_api_url = config["host"] + API_SUBMISSION_URL % {"sid": submission.key}
     data = api_client.load_data(submission_api_url)
     if data is None or "files" not in data:
         logger.error("Invalid API data returned from %s", submission_api_url)
@@ -39,7 +40,7 @@ def get_submission_text(submission, config):
                 logger.error(
                     "Failed GET from %s: response content size exceeded limit %d during streaming of submission file",
                     d["url"],
-                    settings.SUBMISSION_BYTES_LIMIT
+                    settings.SUBMISSION_BYTES_LIMIT,
                 )
                 break
             chunks.append(chunk)

@@ -2,6 +2,7 @@
 Storing submission source in file system.
 
 """
+
 import fcntl
 import os
 import codecs
@@ -36,15 +37,21 @@ def put_text(exercise, name, text):
 
 
 def get_submission_text(submission, config=None):
-    return get_text(submission.exercise, "%s.%d" % (submission.student.key, submission.pk))
+    return get_text(
+        submission.exercise, "%s.%d" % (submission.student.key, submission.pk)
+    )
 
 
 def put_submission_text(submission, text):
-    return put_text(submission.exercise, "%s.%d" % (submission.student.key, submission.pk), text)
+    return put_text(
+        submission.exercise, "%s.%d" % (submission.student.key, submission.pk), text
+    )
 
 
 def path_to_exercise(exercise, name):
-    return os.path.join(settings.SUBMISSION_DIRECTORY, exercise.course.key, exercise.key, name)
+    return os.path.join(
+        settings.SUBMISSION_DIRECTORY, exercise.course.key, exercise.key, name
+    )
 
 
 def join_files(file_map, config):

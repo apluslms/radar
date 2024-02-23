@@ -7,7 +7,9 @@ from aplus_client.django.models import ApiNamespace
 
 
 class Token(models.Model):
-    user = models.ForeignKey('RadarUser', on_delete=models.CASCADE, related_name="tokens")
+    user = models.ForeignKey(
+        'RadarUser', on_delete=models.CASCADE, related_name="tokens"
+    )
     site = models.ForeignKey(ApiNamespace, on_delete=models.PROTECT)
     token = models.CharField(_("API token"), max_length=40, null=True)
 

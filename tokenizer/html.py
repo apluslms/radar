@@ -3,6 +3,7 @@ from tokenizer.html_parser import TokenizingHTMLParser
 
 logger = logging.getLogger("radar.tokenizer")
 
+
 def tokenize(source, config):
     """
     Tokenize HTML source using html_parser.TokenizingHTMLParser.

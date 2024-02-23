@@ -21,7 +21,8 @@ def top_marks(length, top):
 
 def update_submission(submission_a, similarity, submission_b):
     """
-    After matching a submission, update all flags and set new max similarity if the resulting similarity is highest so far.
+    After matching a submission, update all flags and set new max similarity if the resulting similarity is highest
+     so far.
     """
     submission_a.matched = True
     submission_a.matching_start_time = None
@@ -47,16 +48,24 @@ def match_against_template(submission):
     """
     logger.debug("Match %s vs template", submission.student.key)
     # Template comparisons are defined as Comparison objects where the other (b) submission is null
-    comparison = Comparison(submission_a=submission, submission_b=None, similarity=0.0, matches_json="[]")
+    comparison = Comparison(
+        submission_a=submission, submission_b=None, similarity=0.0, matches_json="[]"
+    )
 
-    submission_tokens, template_tokens = submission.tokens, submission.exercise.template_tokens
+    submission_tokens, template_tokens = (
+        submission.tokens,
+        submission.exercise.template_tokens,
+    )
 
     # Calculate amount of submission tokens that match the beginning of the exercise template
-    l = 0
-    while (l < len(submission_tokens) and l < len(template_tokens)
-           and submission_tokens[l] == template_tokens[l]):
-        l += 1
-    template_head_match_count = l
+    iterator = 0
+    while (
+        iterator < len(submission_tokens)
+        and iterator < len(template_tokens)
+        and submission_tokens[iterator] == template_tokens[iterator]
+    ):
+        iterator += 1
+    template_head_match_count = iterator
 
     # Skip matching for the template head, we already checked the matches
     submission_marks = top_marks(len(submission_tokens), template_head_match_count)
@@ -69,7 +78,7 @@ def match_against_template(submission):
         submission_marks,
         template_tokens,
         template_marks,
-        submission.exercise.minimum_match_tokens
+        submission.exercise.minimum_match_tokens,
     )
     # Add the template head match
     if template_head_match_count > 0:

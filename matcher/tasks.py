@@ -1,11 +1,10 @@
 from django.conf import settings
-from django.utils.dateparse import parse_datetime
 
 import celery
 from celery.utils.log import get_task_logger
 
 # Matchlib can also be deployed to a Kubernetes node, easing the task load by allowing elastic parallel task processing
-from matchlib.tasks import match_to_others, match_all_combinations
+from matchlib.tasks import match_all_combinations
 from matcher import matcher
 
 from data.models import Exercise, Submission, TaskError, Comparison
@@ -42,14 +41,16 @@ def match_against_template(submission_id):
 def match_all_new_submissions_to_exercise(exercise_id, delay=True):
     """
     Match all submissions to Exercise with a given id.
-    The exercise and all its submissions must have their matching_start_time timestamps synchronized before this task is started, otherwise this does nothing.
-    Also matches every submission to the exercise template.
+    The exercise and all its submissions must have their matching_start_time timestamps synchronized before
+    this task is started, otherwise this does nothing. Also matches every submission to the exercise template.
     The resulting matching task is JSON serializable and can be consumed by any deployed matchlib instance.
     """
     logger.info("Matching all submissions to exercise with id %d", exercise_id)
     exercise = Exercise.objects.get(pk=exercise_id)
     if exercise.matching_start_time is None:
-        logger.error("Exercise %s has a None matching_start_time timestamp. E.g. the exercise does not expect results.")
+        logger.error(
+            "Exercise %s has a None matching_start_time timestamp. E.g. the exercise does not expect results."
+        )
         return
     config = {
         "minimum_match_length": exercise.minimum_match_tokens,
@@ -74,21 +75,29 @@ def match_all_new_submissions_to_exercise(exercise_id, delay=True):
 def handle_match_results(matches):
     """
     Create Comparison instances from matchlib results and update max similarities of the submission pairs.
-    If the exercise with an id given in 'matches' has a different timestamp than the 'matches' object, all results will be discarded.
+    If the exercise with an id given in 'matches' has a different timestamp than the 'matches' object,
+    all results will be discarded.
     """
-    logger.info("Handling match results, got %d pairs of submissions", len(matches["results"]))
+    logger.info(
+        "Handling match results, got %d pairs of submissions", len(matches["results"])
+    )
     exercise = Exercise.objects.get(pk=matches["config"]["exercise_id"])
     expected_result_count = exercise.submissions_currently_matching.count()
     if expected_result_count == 0:
         logger.error("Exercise %s is not expecting match results", exercise)
         return
-    logger.info("Exercise %s is expecting match results for %d submissions", exercise, expected_result_count)
+    logger.info(
+        "Exercise %s is expecting match results for %d submissions",
+        exercise,
+        expected_result_count,
+    )
     if exercise.matching_start_time != matches["config"]["matching_start_time"]:
         logger.warning(
-            "Exercise %s is expecting match results with timestamp %s, but results have timestamp %s. Discarding this list of results.",
+            "Exercise %s is expecting match results with timestamp %s, but results have timestamp %s."
+            " Discarding this list of results.",
             exercise,
             exercise.matching_start_time,
-            matches["config"]["matching_start_time"]
+            matches["config"]["matching_start_time"],
         )
         return
 
@@ -108,21 +117,34 @@ def handle_match_results(matches):
         submissions_updated.add(id_b_key)
         similarity = match[similarity_key]
         matches_json = match[matches_json_key]
-        Comparison.objects.create(submission_a=a, submission_b=b, similarity=similarity, matches_json=matches_json)
+        Comparison.objects.create(
+            submission_a=a,
+            submission_b=b,
+            similarity=similarity,
+            matches_json=matches_json,
+        )
         matcher.update_submission(a, similarity, b)
         matcher.update_submission(b, similarity, a)
     logger.info("Match results processed for %d submissions", len(submissions_updated))
     if len(submissions_updated) < expected_result_count:
         num_missing = expected_result_count - len(submissions_updated)
         if "minimum_similarity" in matches["config"]:
-            logger.info("Assuming missing %d submissions had a similarity lower than %.2f", num_missing, matches["config"]["minimum_similarity"])
+            logger.info(
+                "Assuming missing %d submissions had a similarity lower than %.2f",
+                num_missing,
+                matches["config"]["minimum_similarity"],
+            )
         else:
-            logger.warning("Missing %d submissions which had no similarity results, but no minimum similarity threshold for filtering was found in the configuration")
+            logger.warning(
+                "Missing %d submissions which had no similarity results, but no minimum similarity threshold"
+                " for filtering was found in the configuration"
+            )
     # Set zero max similarity for all submissions that were not in results but were expecting results
-    (exercise.submissions
-        .filter(matching_start_time__isnull=False)
+    (
+        exercise.submissions.filter(matching_start_time__isnull=False)
         .filter(matching_start_time=exercise.matching_start_time)
-        .update(max_similarity=0, matched=True, matching_start_time=None))
+        .update(max_similarity=0, matched=True, matching_start_time=None)
+    )
     exercise.matching_start_time = None
     exercise.save()
 

@@ -10,6 +10,7 @@ from radar.config import provider_config, configured_function
 
 logger = logging.getLogger("radar.hook")
 
+
 @csrf_exempt
 def hook_submission(request, course_key=None):
     """
@@ -24,7 +25,11 @@ def hook_submission(request, course_key=None):
         raise Http404()
 
     if request.method == "GET":
-        return HttpResponse("Received hook submission request for course {}, but doing nothing since GET requests are ignored.".format(course))
+        return HttpResponse(
+            "Received hook submission request for course {}, but doing nothing since GET requests are ignored.".format(
+                course
+            )
+        )
 
     config = provider_config(course.provider)
     try:

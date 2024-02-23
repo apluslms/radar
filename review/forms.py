@@ -13,9 +13,13 @@ class DeleteExerciseFrom(forms.Form):
 class ExerciseForm(forms.Form):
     name = forms.CharField(label="Name", max_length=128)
     paused = forms.BooleanField(label="Pause matching submissions", required=False)
-    tokenizer = forms.ChoiceField(label="Tokenizer type", choices=settings.TOKENIZER_CHOICES)
-    minimum_match_tokens = forms.IntegerField(label="Minimum match tokens",
-        help_text="Minimum number of tokens to consider a match")
+    tokenizer = forms.ChoiceField(
+        label="Tokenizer type", choices=settings.TOKENIZER_CHOICES
+    )
+    minimum_match_tokens = forms.IntegerField(
+        label="Minimum match tokens",
+        help_text="Minimum number of tokens to consider a match",
+    )
 
     def save(self, exercise):
         exercise.name = self.cleaned_data["name"]
@@ -30,19 +34,17 @@ class ExerciseForm(forms.Form):
 
 
 class ExerciseTemplateForm(forms.Form):
-    template = forms.CharField(label="Template code",
+    template = forms.CharField(
+        label="Template code",
         widget=forms.Textarea,
         required=False,
-        help_text="Anything to be excluded from the submission comparison"
+        help_text="Anything to be excluded from the submission comparison",
     )
 
     def save(self, exercise):
         submitted_template = self.cleaned_data["template"]
         tokenizer = exercise.override_tokenizer or exercise.course.tokenizer
-        tokens, _ = tokenize_source(
-            submitted_template,
-            tokenizer_config(tokenizer)
-        )
+        tokens, _ = tokenize_source(submitted_template, tokenizer_config(tokenizer))
         if exercise.template_tokens != tokens:
             exercise.template_tokens = tokens
         exercise.save()

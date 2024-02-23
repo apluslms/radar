@@ -12,8 +12,7 @@ def index_string_to_list(line):
     @param line an input line str
     @return json serializable list of lists
     """
-    return [[int(c) for c in pair.split("-")]
-            for pair in line.split(",")]
+    return [[int(c) for c in pair.split("-")] for pair in line.split(",")]
 
 
 def tokenize(source, config):
@@ -25,7 +24,15 @@ def tokenize(source, config):
 
     """
     try:
-        parsed = run(("scala", "-cp", "tokenizer/scalariform/scalariform.jar", "ScalariformTokens"), source)
+        parsed = run(
+            (
+                "scala",
+                "-cp",
+                "tokenizer/scalariform/scalariform.jar",
+                "ScalariformTokens",
+            ),
+            source,
+        )
         lines = parsed.decode("utf-8").split("\n", 1)
         return lines[0].strip(), index_string_to_list(lines[1].strip())
     except Exception as e:

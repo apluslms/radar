@@ -1,0 +1,42 @@
+inherits:
+  - default
+ignore-paths:
+  - py_venv
+  - src/drf-extensions
+  - docker
+  - migrations
+ignore-patterns:
+  - ^.*\/migrations\/.*$
+
+pycodestyle:
+  disable:
+    - E722
+  options:
+    max-line-length: 119
+
+pylint:
+  enable:
+    - trailing-whitespace
+  disable:
+    - consider-using-f-string
+    - too-many-arguments
+    - import-error
+    - protected-access
+    - django-not-configured
+    - relative-beyond-top-level
+    - cyclic-import
+    - imported-auth-user
+    - consider-using-with
+    - unspecified-encoding
+    - missing-timeout
+    - too-many-locals
+    - broad-exception-raised
+    - consider-using-from-import
+    - secret
+    - unused-argument
+    - super-with-arguments
+    - logging-format-interpolation
+    - used-before-assignment
+
+pyflakes:
+  run: false

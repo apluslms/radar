@@ -1,0 +1,20 @@
+<style>
+    .comparison {
+        display: flex;
+        flex-wrap: wrap; /* this allows the items to wrap onto new lines if there are too many */
+    }
+
+    .comparison div {
+		display: flex;
+		border-collapse: separate;
+		border-spacing: 2px;
+		border-color: gray;
+    }
+</style>
+
+{% load review %}
+<div class="comparison">
+		{% for comparison in comparisons %}
+			<div>{% student_td course comparison %}</div>
+		{% endfor %}
+</div>

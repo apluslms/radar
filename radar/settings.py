@@ -1,7 +1,11 @@
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-import os, sys
-from django.core.exceptions import ImproperlyConfigured
+import os
 from typing import Dict, Optional
+from r_django_essentials.conf import (
+    update_settings_with_file,
+    update_secret_from_file,
+    update_settings_from_environment,
+)
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
@@ -10,7 +14,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 AUTH_LTI_LOGIN = {
     'ACCEPTED_ROLES': ['Instructor', 'TA'],
-    'STAFF_ROLES': ['Instructor', 'TA']
+    'STAFF_ROLES': ['Instructor', 'TA'],
 }
 
 AUTH_USER_MODEL = "accounts.RadarUser"
@@ -20,17 +24,17 @@ APP_NAME = "Radar"
 # Authentication and authorization library settings
 # see https://pypi.org/project/aplus-auth/ for explanations
 APLUS_AUTH_LOCAL = {
-    #"UID": "...", # set to "radar" below, can be changed
+    # "UID": "...", # set to "radar" below, can be changed
     "PRIVATE_KEY": None,
     "PUBLIC_KEY": None,
-    "REMOTE_AUTHENTICATOR_UID": None, # The UID of the remote authenticator, e.g. "aplus"
-    "REMOTE_AUTHENTICATOR_KEY": None, # The public key of the remote authenticator
-    "REMOTE_AUTHENTICATOR_URL": None, # probably "https://<A+ domain>/api/v2/get-token/"
-    #"UID_TO_KEY": {...}
-    #"TRUSTED_UIDS": [...],
-    #"TRUSTING_REMOTES": [...],
-    #"DISABLE_JWT_SIGNING": False,
-    #"DISABLE_LOGIN_CHECKS": False,
+    "REMOTE_AUTHENTICATOR_UID": None,  # The UID of the remote authenticator, e.g. "aplus"
+    "REMOTE_AUTHENTICATOR_KEY": None,  # The public key of the remote authenticator
+    "REMOTE_AUTHENTICATOR_URL": None,  # probably "https://<A+ domain>/api/v2/get-token/"
+    # "UID_TO_KEY": {...}
+    # "TRUSTED_UIDS": [...],
+    # "TRUSTING_REMOTES": [...],
+    # "DISABLE_JWT_SIGNING": False,
+    # "DISABLE_LOGIN_CHECKS": False,
 }
 
 # Messaging library
@@ -72,8 +76,8 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.memcached.PyLibMCCache",
         "LOCATION": "127.0.0.1:11211",
     },
-    # Exercise template sources are not stored in the database, but fetched from the provider API each time before the exercise settings view is rendered.
-    # This cache stores the fetched templates for 1 hour.
+    # Exercise template sources are not stored in the database, but fetched from the provider API each time before
+    # the exercise settings view is rendered. This cache stores the fetched templates for 1 hour.
     "exercise_templates": {
         "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
         "LOCATION": "/var/tmp/django_cache",
@@ -96,38 +100,23 @@ TOKENIZER_CHOICES = (
 # Tokenizer functions and the separator string injected into the first line
 # of each file.
 TOKENIZERS = {
-    "skip": {
-        "tokenize": "tokenizer.skip.tokenize",
-        "separator": "###### %s ######"
-    },
+    "skip": {"tokenize": "tokenizer.skip.tokenize", "separator": "###### %s ######"},
     "scala": {
         "tokenize": "tokenizer.scala.tokenize",
-        "separator": "/****** %s ******/"
+        "separator": "/****** %s ******/",
     },
     "python": {
         "tokenize": "tokenizer.python.tokenize",
-        "separator": "###### %s ######"
+        "separator": "###### %s ######",
     },
-    "text": {
-        "tokenize": "tokenizer.text.tokenize",
-        "separator": "###### %s ######"
-    },
-    "java": {
-        "tokenize": "tokenizer.java.tokenize",
-        "separator": "/****** %s ******/"
-    },
+    "text": {"tokenize": "tokenizer.text.tokenize", "separator": "###### %s ######"},
+    "java": {"tokenize": "tokenizer.java.tokenize", "separator": "/****** %s ******/"},
     "js": {
         "tokenize": "tokenizer.javascript.tokenize",
-        "separator": "/****** %s ******/"
+        "separator": "/****** %s ******/",
     },
-    "html": {
-        "tokenize": "tokenizer.html.tokenize",
-        "separator": "<!-- %s -->"
-    },
-    "css": {
-        "tokenize": "tokenizer.css.tokenize",
-        "separator": "/****** %s ******/"
-    },
+    "html": {"tokenize": "tokenizer.html.tokenize", "separator": "<!-- %s -->"},
+    "css": {"tokenize": "tokenizer.css.tokenize", "separator": "/****** %s ******/"},
 }
 
 PROVIDER_CHOICES = (("a+", "A+"), ("filesystem", "File system"))
@@ -135,7 +124,8 @@ PROVIDERS = {
     "a+": {
         # For creating new submissions that were POSTed from the provider
         "hook": "provider.aplus.hook",
-        # Deletes all submissions and matches, then reloads everything from the API and compares all reloaded submissions
+        # Deletes all submissions and matches, then reloads everything from the API and
+        # compares all reloaded submissions
         "full_reload": "provider.aplus.reload",
         # Deletes matches, then compares all existing submissions
         "recompare": "provider.aplus.recompare",
@@ -179,31 +169,11 @@ REVIEW_CHOICES = (
     (10, "Plagiate"),
 )
 REVIEWS = (
-    {
-        "value": REVIEW_CHOICES[4][0],
-        "name": REVIEW_CHOICES[4][1],
-        "class": "danger"
-    },
-    {
-        "value": REVIEW_CHOICES[0][0],
-        "name": REVIEW_CHOICES[0][1],
-        "class": "success"
-    },
-    {
-        "value": REVIEW_CHOICES[1][0],
-        "name": REVIEW_CHOICES[1][1],
-        "class": "default"
-    },
-    {
-        "value": REVIEW_CHOICES[2][0],
-        "name": REVIEW_CHOICES[2][1],
-        "class": "info"
-    },
-    {
-        "value": REVIEW_CHOICES[3][0],
-        "name": REVIEW_CHOICES[3][1],
-        "class": "warning"
-    },
+    {"value": REVIEW_CHOICES[4][0], "name": REVIEW_CHOICES[4][1], "class": "danger"},
+    {"value": REVIEW_CHOICES[0][0], "name": REVIEW_CHOICES[0][1], "class": "success"},
+    {"value": REVIEW_CHOICES[1][0], "name": REVIEW_CHOICES[1][1], "class": "default"},
+    {"value": REVIEW_CHOICES[2][0], "name": REVIEW_CHOICES[2][1], "class": "info"},
+    {"value": REVIEW_CHOICES[3][0], "name": REVIEW_CHOICES[3][1], "class": "warning"},
 )
 
 MATCH_ALGORITHM = "matchlib.matchers.greedy_string_tiling"
@@ -214,15 +184,14 @@ MATCH_ALGORITHMS = {
         "description": "Greedy string tiling, longest matching substring",
         "callable": "matcher.jplag_ext.match",
         "tokenized_input": True,
-        "weight": 1.0
+        "weight": 1.0,
     },
     "md5sum": {
         "description": "MD5 checksum of the submission source",
         "callable": None,
         "tokenized_input": False,
-        "weight": 1.0
+        "weight": 1.0,
     },
-
     # # Example
     # "jplag": {
     #     # Reference to a known algorithm, or a one line explanation on how the algorithm computes the similarity
@@ -230,7 +199,8 @@ MATCH_ALGORITHMS = {
     #     # Python-importable dotted path to the function within the Django project
     #     "callable": "matcher.jplag.match",
     #     # True if the callable accepts tokenized strings as input (regular match algorithm).
-    #     # False if the similarity is produced using some custom scheme that is hand coded (e.g. md5sum of the submission source, yielding binary similarity)
+    #     # False if the similarity is produced using some custom scheme that is hand coded
+    #     (e.g. md5sum of the submission source, yielding binary similarity)
     #     "tokenized_input": True,
     #     # Decimal number that is multiplied with the output of the callable to produce the final similarity.
     #     "weight": 0.5
@@ -318,53 +288,47 @@ STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
 SUBMISSION_DIRECTORY = os.path.join(BASE_DIR, "submission_files")
 
 LOGGING = {
-  'version': 1,
-  'disable_existing_loggers': False,
-  'formatters': {
-    'verbose': {
-      'format': '[%(asctime)s: %(levelname)s/%(module)s] %(message)s'
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {'format': '[%(asctime)s: %(levelname)s/%(module)s] %(message)s'},
+        'colored': {
+            '()': 'r_django_essentials.logging.SourceColorizeFormatter',
+            'format': '[%(asctime)s: %(levelname)s/%(module)s] %(message)s',
+            'colors': {
+                'django.db.backends': {'fg': 'cyan'},
+                'django.db.deferred': {'fg': 'yellow'},
+                'radar': {'fg': 'blue'},
+            },
+        },
     },
-    'colored': {
-      '()': 'r_django_essentials.logging.SourceColorizeFormatter',
-      'format': '[%(asctime)s: %(levelname)s/%(module)s] %(message)s',
-      'colors': {
-        'django.db.backends': {'fg': 'cyan'},
-        'django.db.deferred': {'fg': 'yellow'},
-        'radar': {'fg': 'blue'},
-      },
+    'handlers': {
+        'debug_console': {
+            'level': 'DEBUG',
+            'filters': ['require_debug_true'],
+            'class': 'logging.StreamHandler',
+            'stream': 'ext://sys.stdout',
+            'formatter': 'colored',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'stream': 'ext://sys.stdout',
+            'formatter': 'verbose',
+        },
+        'email': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+        },
     },
-  },
-  'handlers': {
-    'debug_console': {
-      'level': 'DEBUG',
-      'filters': ['require_debug_true'],
-      'class': 'logging.StreamHandler',
-      'stream': 'ext://sys.stdout',
-      'formatter': 'colored',
+    'loggers': {
+        'radar': {'level': 'INFO', 'handlers': ['email', 'console'], 'propagate': True},
     },
-    'console': {
-      'level': 'DEBUG',
-      'class': 'logging.StreamHandler',
-      'stream': 'ext://sys.stdout',
-      'formatter': 'verbose',
+    'filters': {
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
     },
-    'email': {
-      'level': 'ERROR',
-      'class': 'django.utils.log.AdminEmailHandler',
-    },
-  },
-  'loggers': {
-    'radar': {
-      'level': 'INFO',
-      'handlers': ['email', 'console'],
-      'propagate': True
-    },
-  },
-  'filters': {
-    'require_debug_true': {
-      '()': 'django.utils.log.RequireDebugTrue',
-    },
-  }
 }
 
 # Celery
@@ -372,14 +336,15 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_BROKER_URL = "amqp://localhost:5672"
-# celery.chord tasks (used by matcher.tasks.match_submissions) are not supported with the RPC backend, therefore we use Memcached
+# celery.chord tasks (used by matcher.tasks.match_submissions) are not supported with the RPC backend,
+# therefore we use Memcached
 CELERY_RESULT_BACKEND = "cache+memcached://127.0.0.1:11211/"
 
-from r_django_essentials.conf import update_settings_with_file, update_secret_from_file, update_settings_from_environment
-
-update_settings_with_file(__name__,
-                          os.environ.get('RADAR_LOCAL_SETTINGS', 'local_settings'),
-                          quiet='RADAR_LOCAL_SETTINGS' in os.environ)
+update_settings_with_file(
+    __name__,
+    os.environ.get('RADAR_LOCAL_SETTINGS', 'local_settings'),
+    quiet='RADAR_LOCAL_SETTINGS' in os.environ,
+)
 update_settings_from_environment(__name__, 'RADAR_')
 update_secret_from_file(__name__, os.environ.get('RADAR_SECRET_KEY_FILE', 'secret_key'))
 
