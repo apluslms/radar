@@ -2,6 +2,7 @@
 Parse course data from LTI login requests.
 If the OAuth data in the request contains new course data, add new Course instances to the database.
 """
+
 import logging
 from django.conf import settings
 from django.contrib.auth.signals import user_logged_in
@@ -29,16 +30,23 @@ def add_course_permissions(sender, **kwargs):
         course_api = getattr(oauth, 'custom_context_api', None)
         course_title = getattr(oauth, 'context_title', None)
         context_id = getattr(oauth, 'context_id', None)
-        if api_token is None or course_api_id is None or course_api is None or context_id is None:
-            logger.error("LTI login request doesn't contain all required "
-                         "fields (custom_user_api_token, custom_context_api_id, "
-                         "custom_context_api, context_id) for course membership update."
-                         "User in question is {}".format(user))
+        if (
+            api_token is None
+            or course_api_id is None
+            or course_api is None
+            or context_id is None
+        ):
+            logger.error(
+                "LTI login request doesn't contain all required "
+                "fields (custom_user_api_token, custom_context_api_id, "
+                "custom_context_api, context_id) for course membership update."
+                "User in question is {}".format(user)
+            )
             raise PermissionDenied("LTI request is missing some fields to allow login")
 
         # store API token
         site = Site.get_by_url(course_api)
-        user.add_api_token(api_token, site) # will not add duplicates
+        user.add_api_token(api_token, site)  # will not add duplicates
 
         course_key = URLKeyField.safe_version(context_id)
 
@@ -50,26 +58,29 @@ def add_course_permissions(sender, **kwargs):
             url, params = apiclient.normalize_url(course_api)
             apiclient.update_params(params)
             course_obj = apiclient.load_data(url)
-            course = Course.objects.get_new_or_updated(course_obj, namespace=site, key=course_key)
+            course = Course.objects.get_new_or_updated(
+                course_obj, namespace=site, key=course_key
+            )
             course.save()
 
         # add course membership for permissions
         user.courses.add(course)
 
-        logger.info("New authentication by {user} for {key} {name}.".format(
-            user=user,
-            key=course_key,
-            name=course_title,
-        ))
+        logger.info(
+            "New authentication by {user} for {key} {name}.".format(
+                user=user,
+                key=course_key,
+                name=course_title,
+            )
+        )
 
-#         oauth.redirect_url = reverse('index')
+        #         oauth.redirect_url = reverse('index')
 
         # List LTI params in debug
         if settings.DEBUG:
             logger.debug("LTI login accepted for user %s", user)
             for k, v in sorted(oauth.params):
-                logger.debug("  \w param -- %s: %s", k, v)
-
+                logger.debug("  \\w param -- %s: %s", k, v)
 
     # if request and user:
     #     # add courses to users session

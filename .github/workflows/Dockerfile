@@ -8,6 +8,7 @@ RUN pip3 install --upgrade pip setuptools wheel
 
 # install python requirements
 COPY requirements.txt requirements.txt
+RUN pip install prospector
 RUN pip install -r requirements.txt
 
 ENV APLUS_BASE_URL="-"

@@ -1,6 +1,6 @@
 """
-This module extends the HTMLParser from the html.parser to implement an HTML parser that tokenizes HTML source code into custom tokens.
-After parsing, the parser instance contains a list of Token namedtuple instances,
+This module extends the HTMLParser from the html.parser to implement an HTML parser that tokenizes HTML source code
+into custom tokens. After parsing, the parser instance contains a list of Token namedtuple instances,
 that contain the name of the token, a one dimensional source mapping,
 and the raw content of the token.
 
@@ -23,6 +23,7 @@ Usage:
  ...]
 >>> # Tokens can be compressed single characters with export_tokens
 """
+
 import collections
 import functools
 import html.parser
@@ -49,6 +50,7 @@ TOKEN_TYPE_TO_CHAR = util.parse_from_json("tokenizer/HTML_token_map.json")
 
 Token = collections.namedtuple("Token", ["type", "range", "data"])
 
+
 # Add a hook to HTMLParser.updatepos that captures the single dimensional source
 # mappings before they are converted to two dimensional, row-column mappings.
 def updatepos_hook(updatepos):
@@ -58,13 +60,16 @@ def updatepos_hook(updatepos):
 
     @functools.wraps(updatepos)
     def set_token_range_and_call_updatepos(parser, i, j, *args, **kwargs):
-        assert isinstance(parser, TokenizingHTMLParser), "Expected parser to be an instance of TokenizingHTMLParser but it was not"
+        assert isinstance(
+            parser, TokenizingHTMLParser
+        ), "Expected parser to be an instance of TokenizingHTMLParser but it was not"
         if parser.tokens and parser.tokens[-1].range is None:
             # Replace the newest Token instance with an updated range
             parser.tokens[-1] = parser.tokens[-1]._replace(range=[i, j])
         return updatepos(parser, i, j, *args, **kwargs)
 
     return set_token_range_and_call_updatepos
+
 
 html.parser.HTMLParser.updatepos = updatepos_hook(html.parser.HTMLParser.updatepos)
 
@@ -75,9 +80,8 @@ def tokenize_data_token(data_token, tokenizer):
     """
     index_offset = data_token.range[0]
     for token_name, t_range in zip(*tokenizer(data_token.data)):
-        range_in_data = [index_offset + t_range[0],
-                         index_offset + t_range[1]]
-        token_data = data_token.data[t_range[0]:t_range[1]]
+        range_in_data = [index_offset + t_range[0], index_offset + t_range[1]]
+        token_data = data_token.data[t_range[0] : t_range[1]]
         yield Token(token_name, range_in_data, token_data)
 
 
@@ -86,6 +90,7 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
     html.parser.HTMLParser subclass that accumulates custom HTML tokens
     (Token namedtuple instances) into a self.tokens list.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.reset()
@@ -100,8 +105,10 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
         super().reset()
 
     def export_tokens(self):
-        return (''.join(TOKEN_TYPE_TO_CHAR[t.type] for t in self.tokens),
-                [t.range for t in self.tokens])
+        return (
+            ''.join(TOKEN_TYPE_TO_CHAR[t.type] for t in self.tokens),
+            [t.range for t in self.tokens],
+        )
 
     def tokenize_js_and_css(self):
         new_tokens = []
@@ -132,10 +139,7 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
             token_type = 'html-other-elements'
         else:
             token_type = 'html-' + HTML_ELEMENT_TO_GROUP[tag]
-        self.tokens.append(Token(
-            token_type,
-            None,
-            self.get_starttag_text()))
+        self.tokens.append(Token(token_type, None, self.get_starttag_text()))
 
     def handle_endtag(self, tag):
         if tag == "style":
@@ -150,10 +154,16 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
         starttag_text = self.get_starttag_text()
         tag_type = None
         if self.in_style_element and not self.in_script_element:
-            assert starttag_text.startswith("<style"), "Inconsistent parsing state, parser was expected to be inside a style element, but the opening tag for this element does not start with '<style'"
+            assert starttag_text.startswith(
+                "<style"
+            ), ("Inconsistent parsing state, parser was expected to be inside a style element,"
+                " but the opening tag for this element does not start with '<style'")
             tag_type = "html-style-data"
         elif self.in_script_element and not self.in_style_element:
-            assert starttag_text.startswith("<script"), "Inconsistent parsing state, parser was expected to be inside a script element, but the opening tag for this element does not start with '<script'"
+            assert starttag_text.startswith(
+                "<script"
+            ), ("Inconsistent parsing state, parser was expected to be inside a script element,"
+                " but the opening tag for this element does not start with '<script'")
             tag_type = "html-script-data"
         else:
             tag_type = "html-other-data"
@@ -181,4 +191,3 @@ class TokenizingHTMLParser(html.parser.HTMLParser):
     def handle_charref(self, name):
         # e.g. &#40; &#61; &#62; etc.
         pass
-

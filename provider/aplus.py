@@ -30,9 +30,11 @@ def hook(request, course, config):
     """
     sid = _detect_submission_id(request)
     if sid is None:
-        raise AplusProviderError("Received invalid request to A+ submission hook: invalid submission id.")
+        raise AplusProviderError(
+            "Received invalid request to A+ submission hook: invalid submission id."
+        )
     # Create submission asynchronously but do not match
-    submission_url = config["host"] + API_SUBMISSION_URL % { "sid": sid }
+    submission_url = config["host"] + API_SUBMISSION_URL % {"sid": sid}
     tasks.create_submission.delay(sid, course.key, submission_url)
 
 
@@ -45,7 +47,7 @@ def reload(exercise, config):
     # Similarity is no longer valid because there are new matches
     exercise.course.similarity_graph_json = ''
     exercise.course.save()
-    submissions_url = config["host"] + API_SUBMISSION_LIST_URL % { "eid": exercise.key }
+    submissions_url = config["host"] + API_SUBMISSION_LIST_URL % {"eid": exercise.key}
     # Queue exercise for asynchronous handling,
     # all submissions to this exercise are created in parallel while matching is sequential
     tasks.reload_exercise_submissions.delay(exercise.id, submissions_url)
@@ -65,7 +67,8 @@ def recompare(exercise, config):
     matcher_tasks.match_exercise.delay(exercise.id)
 
 
-# TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself and not use someones LTI login tokens to fetch stuff from the API
+# TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself
+#  and not use someones LTI login tokens to fetch stuff from the API
 def get_api_client(course):
     """
     Return the AplusTokenClient of the first user with staff status from list of course reviewers.
@@ -87,30 +90,39 @@ def request_template_content(url, course):
         response_content_type = response.headers.get("Content-Type")
         if response_content_type.find("text/plain") < 0:
             raise requests.exceptions.InvalidHeader(
-                    "Expected response content with MIME type text/plain but got content type {}".format(response_content_type),
-                    response=response)
+                "Expected response content with MIME type text/plain but got content type {}".format(
+                    response_content_type
+                ),
+                response=response,
+            )
         response.encoding = "utf-8"
         return response.text
-    except (requests.exceptions.ConnectionError,
-            requests.exceptions.ReadTimeout,
-            requests.exceptions.HTTPError,
-            requests.exceptions.InvalidHeader) as err:
+    except (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.ReadTimeout,
+        requests.exceptions.HTTPError,
+        requests.exceptions.InvalidHeader,
+    ) as err:
         logger.error(
             "%s when requesting template contents from %s: %s",
             err.__class__.__name__,
             url,
-            err)
+            err,
+        )
         return ''
 
 
-# FIXME the A+ API does not support fetching submission data containing information about which language was enabled when a submission was posted
+# FIXME the A+ API does not support fetching submission data containing information about which language
+#  was enabled when a submission was posted
 # i18n for exercise templates are encoded into the urls, e.g. as:
 # "|en:<external url to template in english>|fi:<external url to template in finnish>|"
 # Therefore, if i18n exercise template urls are found,
-# we use a heuristic to first select the english template and if not available, the finnish template, and if not available, fail miserably
+# we use a heuristic to first select the english template and if not available, the finnish template,
+# and if not available, fail miserably
 def load_exercise_template_from_api_data(exercise_data, course):
     """
-    Do a GET request for each exercise template url in exercise, and return the template source of response, concatenated with newlines.
+    Do a GET request for each exercise template url in exercise, and return the template source of response,
+    concatenated with newlines.
     """
     # It is possible to define multiple templates from multiple urls for
     # a single exercise.
@@ -130,7 +142,12 @@ def load_exercise_template_from_api_data(exercise_data, course):
                         template_url = template_url.split("|", 1)[0]
                         break
                 else:
-                    raise AplusProviderError("Unknown exercise template url format: {}, expected i18n urls but did not find any language prefixes from '{}'. Complete url was: {}".format(template_url, lang_prefixes, template_urls_str))
+                    raise AplusProviderError(
+                        "Unknown exercise template url format: {}, expected i18n urls but did not find any"
+                        " language prefixes from '{}'. Complete url was: {}".format(
+                            template_url, lang_prefixes, template_urls_str
+                        )
+                    )
             if template_url:
                 parsed_urls.append(template_url)
         template_data = (request_template_content(url, course) for url in parsed_urls)
@@ -173,12 +190,14 @@ def get_radar_config(exercise_data, course):
     if not radar_config:
         return None
     data = {
-       "name": exercise_data.get("display_name"),
-       "exercise_key": URLKeyField.safe_version(str(exercise_data["id"])),
-       "url": exercise_data.get("html_url"),
-       "tokenizer": radar_config.get("tokenizer", "skip"),
-       "minimum_match_tokens": radar_config.get("minimum_match_tokens") or 15,
-       "get_template_source": lambda: load_exercise_template_from_api_data(exercise_data, course)
+        "name": exercise_data.get("display_name"),
+        "exercise_key": URLKeyField.safe_version(str(exercise_data["id"])),
+        "url": exercise_data.get("html_url"),
+        "tokenizer": radar_config.get("tokenizer", "skip"),
+        "minimum_match_tokens": radar_config.get("minimum_match_tokens") or 15,
+        "get_template_source": lambda: load_exercise_template_from_api_data(
+            exercise_data, course
+        ),
     }
     return data
 
@@ -218,7 +237,9 @@ def async_api_read(request, course, has_radar_config):
     Queue an read of all exercises on a given course from the A+ REST API.
     Return an id for the celery.result.AsyncResult that was queued.
     """
-    async_task = tasks.get_full_course_config.delay(request.user.id, course.id, has_radar_config)
+    async_task = tasks.get_full_course_config.delay(
+        request.user.id, course.id, has_radar_config
+    )
     return async_task.id
 
 
@@ -227,10 +248,7 @@ def recompare_all_unmatched(course):
 
 
 def _decode_students(students):
-    return [
-        u["student_id"] if u["student_id"] else u["username"]
-        for u in students
-    ]
+    return [u["student_id"] if u["student_id"] else u["username"] for u in students]
 
 
 def _detect_submission_id(request):
@@ -240,5 +258,7 @@ def _detect_submission_id(request):
     try:
         return int(request.POST[POST_KEY])
     except ValueError:
-        logger.exception("Received invalid A+ submission id \"%s\" from hook", request.POST[POST_KEY])
+        logger.exception(
+            "Received invalid A+ submission id \"%s\" from hook", request.POST[POST_KEY]
+        )
         return None

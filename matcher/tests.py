@@ -22,8 +22,20 @@ class TestMatcher(TestCase):
 
         student_a = Student(key=3000, course=course)
         student_b = Student(key=4000, course=course)
-        submission_a = Submission(key=3000, exercise=exercise, student=student_a, matched=False, tokens=TOKENS1)
-        submission_b = Submission(key=4000, exercise=exercise, student=student_b, matched=False, tokens=TOKENS2)
+        submission_a = Submission(
+            key=3000,
+            exercise=exercise,
+            student=student_a,
+            matched=False,
+            tokens=TOKENS1,
+        )
+        submission_b = Submission(
+            key=4000,
+            exercise=exercise,
+            student=student_b,
+            matched=False,
+            tokens=TOKENS2,
+        )
 
         student_a.save()
         student_b.save()
@@ -36,5 +48,6 @@ class TestMatcher(TestCase):
 
         self.assertTrue(submission_a in exercise.valid_matched_submissions)
         self.assertTrue(submission_b in exercise.valid_matched_submissions)
+
 
 # TODO: Create more tests here

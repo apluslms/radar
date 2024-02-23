@@ -1,5 +1,4 @@
 import io
-import json
 import logging
 import tokenize as stdlib_tokenize
 
@@ -94,7 +93,9 @@ def tokenize(source, config=None):
                     index_offset += previous_row_whitespace
             # This is probably redundant.
             else:
-                raise Exception("Unexpected Python token positions, {}".format(source_token))
+                raise Exception(
+                    "Unexpected Python token positions, {}".format(source_token)
+                )
 
             start_index = index_offset
             end_index = start_index + len(string)
@@ -119,4 +120,3 @@ def tokenize(source, config=None):
     except Exception as e:
         logger.info("Failed to tokenize Python source, %s", e)
         return "", "[]"
-

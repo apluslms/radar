@@ -2,6 +2,7 @@
 Celery tasks for asynchronous submission processing.
 Contains some hard-coded A+ specific stuff that should be generalized.
 """
+
 import json
 
 from django.conf import settings
@@ -11,11 +12,15 @@ from celery.utils.log import get_task_logger
 import requests
 
 from accounts.models import RadarUser
-from data import graph
-from data.models import Course, Submission, Exercise, TaskError
+from data.models import Course, Exercise, TaskError
 from matcher import tasks as matcher_tasks
 from provider import aplus
-from provider.insert import submission_exists, insert_submission, prepare_submission, InsertError
+from provider.insert import (
+    submission_exists,
+    insert_submission,
+    prepare_submission,
+    InsertError,
+)
 import radar.config as config_loaders
 
 
@@ -25,21 +30,28 @@ logger = get_task_logger(__name__)
 class ProviderAPIError(Exception):
     pass
 
+
 class APIAuthException(ProviderAPIError):
     pass
 
 
 # Highly I/O bound task, recommended to be consumed by several workers
 @celery.shared_task(bind=True, ignore_result=True)
-def create_submission(task, submission_key, course_key, submission_api_url, matching_start_time=''):
+def create_submission(
+    task, submission_key, course_key, submission_api_url, matching_start_time=''
+):
     """
-    Fetch submission data for a new submission with provider key submission_key from a given API url, create new submission, and tokenize submission content.
-    If matching_start_time timestamp is given, it will be written into the submission object before writing.
+    Fetch submission data for a new submission with provider key submission_key from a given API url,
+    create new submission, and tokenize submission content. If matching_start_time timestamp is given,
+    it will be written into the submission object before writing.
     """
     course = Course.objects.get(key=course_key)
     if submission_exists(submission_key):
-        # raise ProviderTaskError("Submission with key %s already exists, will not create a duplicate." % submission_key)
-        write_error("Submission with key %s already exists, will not create a duplicate." % submission_key, "create_submission")
+        write_error(
+            "Submission with key %s already exists, will not create a duplicate."
+            % submission_key,
+            "create_submission",
+        )
         return
 
     # We need someone with a token to the A+ API.
@@ -47,14 +59,20 @@ def create_submission(task, submission_key, course_key, submission_api_url, matc
     # Request data from provider API
     try:
         data = api_client.load_data(submission_api_url)
-    except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as err:
+    except (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.ReadTimeout,
+    ):
         logger.exception("Unable to read data from the API.")
         data = None
 
     del api_client
 
     if not data:
-        logger.error("API returned nothing for submission %s, skipping submission", submission_key)
+        logger.error(
+            "API returned nothing for submission %s, skipping submission",
+            submission_key,
+        )
         return
 
     exercise_data = data["exercise"]
@@ -72,7 +90,11 @@ def create_submission(task, submission_key, course_key, submission_api_url, matc
         try:
             radar_config["template_source"] = radar_config["get_template_source"]()
         except Exception as e:
-            write_error("Error while attempting to get template source for submission %s\n%s" % (submission_key, str(e)), "create_submission")
+            write_error(
+                "Error while attempting to get template source for submission %s\n%s"
+                % (submission_key, str(e)),
+                "create_submission",
+            )
             radar_config["template_source"] = ''
         exercise.set_from_config(radar_config)
         exercise.save()
@@ -84,7 +106,7 @@ def create_submission(task, submission_key, course_key, submission_api_url, matc
     # set as approved plagiate and show this in the UI
     ## for submitter_id in _decode_students(data["submitters"]):
     submitter_id = "_".join(aplus._decode_students(data["submitters"]))
-    
+
     try:
         submission = insert_submission(exercise, submission_key, submitter_id, data)
         prepare_submission(submission, matching_start_time)
@@ -96,14 +118,20 @@ def create_submission(task, submission_key, course_key, submission_api_url, matc
 @celery.shared_task(ignore_result=True)
 def reload_exercise_submissions(exercise_id, submissions_api_url):
     """
-    Fetch the current submission list from the API url, clear existing submissions, create new submissions, and match all submissions.
+    Fetch the current submission list from the API url, clear existing submissions, create new submissions,
+    and match all submissions.
     """
     exercise = Exercise.objects.get(pk=exercise_id)
     api_client = aplus.get_api_client(exercise.course)
     submissions_data = api_client.load_data(submissions_api_url)
     if submissions_data is None:
-        # raise ProviderTaskError("Invalid submissions data returned from %s for exercise %s: expected an iterable but got None" % (submissions_api_url, exercise))
-        write_error("Invalid submissions data returned from %s for exercise %s: expected an iterable but got None" % (submissions_api_url, exercise), "reload_exercise_submissions")
+        # raise ProviderTaskError("Invalid submissions data returned from %s for exercise %s:
+        # expected an iterable but got None" % (submissions_api_url, exercise))
+        write_error(
+            "Invalid submissions data returned from %s for exercise %s: expected an iterable but got None"
+            % (submissions_api_url, exercise),
+            "reload_exercise_submissions",
+        )
         return
     # We got new submissions data from the provider, delete all current submissions to this exercise
     exercise.submissions.all().delete()
@@ -111,7 +139,12 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
     exercise.touch_all_timestamps()
     # Create every submission and set timestamp
     for submission in submissions_data:
-        create_submission(submission["id"], exercise.course.key, submission["url"], exercise.matching_start_time)
+        create_submission(
+            submission["id"],
+            exercise.course.key,
+            submission["url"],
+            exercise.matching_start_time,
+        )
     # All submissions created, now match them
     matcher_tasks.match_all_new_submissions_to_exercise.delay(exercise_id)
 
@@ -138,10 +171,15 @@ def get_full_course_config(api_user_id, course_id, has_radar_config=True):
         exercises = response.get("exercises", [])
     except APIAuthException:
         exercises = []
-        result.setdefault("errors", []).append("This user does not have correct credentials to use the API of %s" % repr(course))
+        result.setdefault("errors", []).append(
+            "This user does not have correct credentials to use the API of %s"
+            % repr(course)
+        )
 
     if not exercises:
-        result.setdefault("errors", []).append("No exercises found for %s" % repr(course))
+        result.setdefault("errors", []).append(
+            "No exercises found for %s" % repr(course)
+        )
 
     if has_radar_config:
         # Exercise API data is expected to contain Radar configurations
@@ -161,12 +199,16 @@ def get_full_course_config(api_user_id, course_id, has_radar_config=True):
             "new_json": json.dumps(new_exercises),
         }
     else:
-        # Exercise API data is not expected to contain Radar data, choose all submittable exercises and patch them with a default Radar config
+        # Exercise API data is not expected to contain Radar data,
+        # choose all submittable exercises and patch them with a default Radar config
         new_exercises = []
         # Note that the type of 'exercise' is AplusApiDict
         for exercise in aplus.submittable_exercises(exercises):
             # Avoid overwriting exercise_info if it is defined
-            patched_exercise_info = dict(exercise["exercise_info"] or {}, radar={"tokenizer": "skip", "minimum_match_tokens": 15})
+            patched_exercise_info = dict(
+                exercise["exercise_info"] or {},
+                radar={"tokenizer": "skip", "minimum_match_tokens": 15},
+            )
             exercise.add_data({"exercise_info": patched_exercise_info})
             radar_config = aplus.get_radar_config(exercise, course)
             if radar_config:
@@ -175,7 +217,7 @@ def get_full_course_config(api_user_id, course_id, has_radar_config=True):
                 new_exercises.append(radar_config)
         result["exercises"] = {
             "new": new_exercises,
-            "tokenizer_choices": settings.TOKENIZER_CHOICES
+            "tokenizer_choices": settings.TOKENIZER_CHOICES,
         }
 
     return result

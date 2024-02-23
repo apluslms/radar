@@ -13,5 +13,6 @@ ENV PATH /home/prospector/.local/bin:${PATH}
 
 
 COPY requirements.txt /app/
+RUN pip3 install prospector
 RUN pip3 install --compile -r requirements.txt
 RUN rm /app/requirements.txt

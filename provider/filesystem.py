@@ -2,7 +2,6 @@ import os
 import logging
 
 from data import files
-from data.models import Submission
 from radar.config import tokenizer_config
 from provider.insert import submission_exists, insert_submission, prepare_submission
 from provider import tasks
@@ -37,6 +36,7 @@ def _path_name_to_submission(path):
     timestamp = os.path.basename(p)
     submitter_id = os.path.basename(os.path.dirname(p))
     return (submitter_id, "{}/{}".format(submitter_id, timestamp))
+
 
 def _read_directory(path):
     file_map = {}

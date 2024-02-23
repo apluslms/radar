@@ -1,6 +1,7 @@
 """
 Example of a deployment configuration
 """
+
 DEBUG = False
 
 ADMINS = [
@@ -22,19 +23,15 @@ PROVIDERS = {
     },
 }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'radar'
-    }
-}
+DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': 'radar'}}
 
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.memcached.PyLibMCCache",
         "LOCATION": "127.0.0.1:11211",
     },
-    # Exercise template sources are not stored in the database, but fetched from the provider API each time before the exercise settings view is rendered.
+    # Exercise template sources are not stored in the database,
+    # but fetched from the provider API each time before the exercise settings view is rendered.
     # This cache stores the fetched templates for 1 hour.
     "exercise_templates": {
         "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
@@ -60,7 +57,7 @@ xxxxxxxxxxxxxxxxxxxxx
     "DISABLE_LOGIN_CHECKS": False,
     # Exercise templates are fetched from gitmanager
     "TRUSTING_REMOTES": {
-         "https://gitmanager.cs.aalto.fi": "gitmanager",
+        "https://gitmanager.cs.aalto.fi": "gitmanager",
     },
 }
 
@@ -72,18 +69,15 @@ CELERY_TASK_ROUTES = {
     # OK to have concurrency > 1
     "provider.tasks.create_submission": {"queue": "io"},
     "provider.tasks.reload_exercise_submissions": {"queue": "io"},
-
     # Long running task, can take a few minutes. Should have its own worker to
     # avoid blocking celery_main, which consumes from the queue celery e.g. if
     # someone fetches configuration data from the A+ API, this is done with
     # celery_main. Also, possible race condition if user clicks rematch for an
     # exercise many times in succession -> do not use concurrency > 1
     "matcher.tasks.handle_match_results": {"queue": "db"},
-
     # Consumed by remote Kubernetes workers
     # https://github.com/apluslms/serve-gst-matchlib
     # "matchlib.tasks.*": {"queue": "gst_matchlib_tasks"},
-
     # If the remote worker is not working or not being used for other reasons
     # Consumed by a local worker
     "matchlib.tasks.*": {"queue": "gst_matchlib_tasks_local"},

@@ -14,8 +14,7 @@ def tokenize_submission(submission, submission_text, p_config):
     """
     logger.info("Tokenizing submission %s", submission)
     tokens, indexes = tokenize_source(
-        submission_text,
-        tokenizer_config(submission.exercise.tokenizer)
+        submission_text, tokenizer_config(submission.exercise.tokenizer)
     )
     return tokens, json.dumps(indexes)
 
@@ -27,5 +26,3 @@ def tokenize_source(source, t_config):
     """
     f = configured_function(t_config, "tokenize")
     return f(source, t_config)
-
-

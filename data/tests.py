@@ -19,12 +19,20 @@ class TestExerciseTable(TestCase):
         comparison_set = []
 
         for i in range(50):
-            student_a = Student(key=i+1000, course=course)
-            student_b = Student(key=i+2000, course=course)
-            submission_a = Submission(key=i+1000, exercise=exercise, student=student_a, matched=True)
-            submission_b = Submission(key=i+2000, exercise=exercise, student=student_b, matched=True)
+            student_a = Student(key=i + 1000, course=course)
+            student_b = Student(key=i + 2000, course=course)
+            submission_a = Submission(
+                key=i + 1000, exercise=exercise, student=student_a, matched=True
+            )
+            submission_b = Submission(
+                key=i + 2000, exercise=exercise, student=student_b, matched=True
+            )
 
-            comparison = Comparison(submission_a=submission_a, submission_b=submission_b, similarity=random.random())
+            comparison = Comparison(
+                submission_a=submission_a,
+                submission_b=submission_b,
+                similarity=random.random(),
+            )
 
             comparison_set.append(comparison)
 
@@ -34,6 +42,10 @@ class TestExerciseTable(TestCase):
             submission_b.save()
             comparison.save()
 
-        sorted_comparison_set = sorted(set(comparison_set), key=lambda comparison: comparison.similarity, reverse=True)
+        sorted_comparison_set = sorted(
+            set(comparison_set),
+            key=lambda comparison: comparison.similarity,
+            reverse=True,
+        )
 
         self.assertQuerySetEqual(sorted_comparison_set, exercise.top_comparisons(100))
