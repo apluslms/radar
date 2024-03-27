@@ -1,5 +1,7 @@
+import datetime
 import logging
 import json
+import time
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -18,7 +20,10 @@ from radar.config import provider_config, configured_function
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTemplateForm, DeleteExerciseFrom
 from util.misc import is_ajax
-
+import requests
+import data.files
+import zipfile
+import os
 
 logger = logging.getLogger("radar.review")
 
@@ -458,6 +463,59 @@ def exercise_settings(
     )
     context["form_delete_exercise"] = DeleteExerciseFrom({"name": ''})
     return render(request, "review/exercise_settings.html", context)
+
+
+def zip_files(directory, output_dir):
+    # Get the base filename from the directory path
+    base = os.path.basename(os.path.normpath(directory))
+
+    # Create a zip file with the same name as the directory in the specified location
+    output_zip_file = os.path.join(output_dir, f'{base}.zip')
+    with zipfile.ZipFile(output_zip_file, 'w') as zip_handle:
+        for foldername, subfolders, filenames in os.walk(directory):  # pylint: disable=unused-variable
+            print(filenames)
+            for filename in filenames:
+                print(filename)
+                # Create complete filepath of file in directory
+                file_path = os.path.join(foldername, filename)
+
+                # Add file to zip
+                zip_handle.write(file_path, arcname=filename)
+
+
+@access_resource
+def dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None):
+    """
+    Create a Dolos report of this exercise
+
+    Submit a ZIP-file to the Dolos API for plagiarism detection
+    and return the URL where the resulting HTML report can be found.
+    """
+    zip_files(data.files.path_to_exercise(exercise, ""), os.getcwd())
+
+    timestamp = time.time()
+    date_and_time = datetime.datetime.fromtimestamp(timestamp)
+    formatted_string = date_and_time.strftime('%Y-%m-%d:%H.%M.%S')
+
+    response = requests.post(
+        'http://localhost:3000/reports',
+        files={'dataset[zipfile]': open(os.getcwd() + '/' + exercise.key + ".zip", 'rb')},
+        data={'dataset[name]': exercise.name + " | " + formatted_string, 'dataset[programming_language]': 'python'},
+    )
+    json = response.json()
+    response_url = json['url']
+
+    start_time = time.time()
+    timeout = 120
+
+    while (requests.get(response_url)).json()['status'] != 'finished':
+        if time.time() - start_time > timeout:
+            print("timeout")
+            break
+        time.sleep(1)
+
+    return redirect(to=json['html_url'])
+
 
 
 @access_resource

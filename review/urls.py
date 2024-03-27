@@ -17,6 +17,7 @@ from review.views import (
     pair_view,
     pair_view_summary,
     flagged_pairs,
+    dolos_view,
 )
 
 
@@ -69,4 +70,10 @@ urlpatterns = [
         comparison,
         name='comparison',
     ),
+    re_path(
+        r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/dolos$',
+        dolos_view,
+        name='dolos',
+    ),
+
 ]
