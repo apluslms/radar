@@ -1,6 +1,7 @@
 import datetime
 import logging
 import json
+import shutil
 import time
 
 from django.conf import settings
@@ -24,6 +25,8 @@ import requests
 import data.files
 import zipfile
 import os
+import subprocess
+import csv
 
 logger = logging.getLogger("radar.review")
 
@@ -473,9 +476,7 @@ def zip_files(directory, output_dir):
     output_zip_file = os.path.join(output_dir, f'{base}.zip')
     with zipfile.ZipFile(output_zip_file, 'w') as zip_handle:
         for foldername, subfolders, filenames in os.walk(directory):  # pylint: disable=unused-variable
-            print(filenames)
             for filename in filenames:
-                print(filename)
                 # Create complete filepath of file in directory
                 file_path = os.path.join(foldername, filename)
 
@@ -491,32 +492,46 @@ def dolos_view(request, course_key=None, exercise_key=None, course=None, exercis
     Submit a ZIP-file to the Dolos API for plagiarism detection
     and return the URL where the resulting HTML report can be found.
     """
-    zip_files(data.files.path_to_exercise(exercise, ""), os.getcwd())
 
-    timestamp = time.time()
-    date_and_time = datetime.datetime.fromtimestamp(timestamp)
-    formatted_string = date_and_time.strftime('%Y-%m-%d:%H.%M.%S')
+    submissions = exercise.valid_submissions | exercise.invalid_submissions
 
-    response = requests.post(
-        'http://localhost:3000/reports',
-        files={'dataset[zipfile]': open(os.getcwd() + '/' + exercise.key + ".zip", 'rb')},
-        data={'dataset[name]': exercise.name + " | " + formatted_string, 'dataset[programming_language]': 'python'},
-    )
-    json = response.json()
-    response_url = json['url']
+    # Write metadata to CSV file
+    with open(data.files.path_to_exercise(exercise, "") + 'info.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
 
-    start_time = time.time()
-    timeout = 120
+        writer.writerow(['filename', 'label', 'created_at'])
 
-    while (requests.get(response_url)).json()['status'] != 'finished':
-        if time.time() - start_time > timeout:
-            print("timeout")
-            break
-        time.sleep(1)
+        for submission in submissions:
+            filename = data.files.get_submission_file_name(submission)
+            created_at = submission.provider_submission_time
 
-    return redirect(to=json['html_url'])
+            if isinstance(created_at, datetime.datetime):
+                created_at = created_at.strftime('%Y-%m-%d %H:%M:%S %z')
 
+            writer.writerow([filename, 'label', created_at])
 
+    zip_files(data.files.path_to_exercise(exercise, ""), os.getcwd() + "")
+
+    report_directory = os.path.join(os.getcwd(), 'dolos-reps', exercise.key)
+
+    if os.path.exists(report_directory):
+        shutil.rmtree(report_directory)
+
+    if exercise.tokenizer == 'skip':
+        return HttpResponseBadRequest('Cannot determine exercise language')
+    else:
+        language = exercise.tokenizer
+
+    command = ("dolos run -f web -l " + language + " -o " + report_directory + " " +
+               os.getcwd() + "/" + exercise.key + ".zip")
+
+    print(command)
+
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+    print(result.stdout)
+
+    return redirect("http://localhost:3000")
 
 @access_resource
 def students_view(request, course=None, course_key=None):

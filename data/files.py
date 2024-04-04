@@ -36,6 +36,10 @@ def put_text(exercise, name, text):
         f.write(text)
 
 
+def get_submission_file_name(submission):
+    return "%s.%d" % (submission.student.key, submission.pk)
+
+
 def get_submission_text(submission, config=None):
     return get_text(
         submission.exercise, "%s.%d" % (submission.student.key, submission.pk)
