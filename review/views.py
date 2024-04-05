@@ -25,6 +25,7 @@ import requests
 import data.files
 import zipfile
 import os
+import psutil
 import subprocess
 import csv
 
@@ -484,6 +485,14 @@ def zip_files(directory, output_dir):
                 zip_handle.write(file_path, arcname=filename)
 
 
+def kill_process(port):
+    for proc in psutil.process_iter(['pid', 'name']):
+        if str(proc.info['name']).startswith('node'):
+            print("Killing process: " + str(proc.info))
+            proc.kill()
+            return 0
+
+
 @access_resource
 def dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None):
     """
@@ -522,6 +531,8 @@ def dolos_view(request, course_key=None, exercise_key=None, course=None, exercis
     else:
         language = exercise.tokenizer
 
+    kill_process(3000)
+
     command = ("dolos run -f web -l " + language + " -o " + report_directory + " " +
                os.getcwd() + "/" + exercise.key + ".zip")
 
@@ -530,8 +541,6 @@ def dolos_view(request, course_key=None, exercise_key=None, course=None, exercis
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
     print(result.stdout)
-
-    return redirect("http://localhost:3000")
 
 @access_resource
 def students_view(request, course=None, course_key=None):
