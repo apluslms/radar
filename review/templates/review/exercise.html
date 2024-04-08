@@ -8,9 +8,21 @@
     </a>
 </h4>
 
+<h6>
+{% if exercise.dolos_report_generated %}
+	Rodos report generated on {{ exercise.dolos_report_timestamp }} with status {{ exercise.dolos_report_status }}
+{% endif %}
+</h6>
+
 <a href="{% url 'dolos' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xl"}">
-	Open Rodos for this exercise (TEST)
+	Generate new Rodos report
 </a>
+
+{% if exercise.dolos_report_generated %}
+<a href="{% url 'go_to_dolos' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xl"}">
+	Open Rodos report
+</a>
+{% endif %}
 
 <h4>Similarity distribution of matches</h4>
 <div class="histogram"></div>

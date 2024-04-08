@@ -1,13 +1,12 @@
 import datetime
 import logging
 import json
-import shutil
 import time
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
-from django.http.response import JsonResponse, HttpResponse, HttpResponseBadRequest
+from django.http.response import JsonResponse, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template import loader as template_loader
 from celery.result import AsyncResult
@@ -25,8 +24,6 @@ import requests
 import data.files
 import zipfile
 import os
-import psutil
-import subprocess
 import csv
 
 logger = logging.getLogger("radar.review")
@@ -485,27 +482,11 @@ def zip_files(directory, output_dir):
                 zip_handle.write(file_path, arcname=filename)
 
 
-def kill_process(port):
-    for proc in psutil.process_iter(['pid', 'name']):
-        if str(proc.info['name']).startswith('node'):
-            print("Killing process: " + str(proc.info))
-            proc.kill()
-            return 0
-
-
-@access_resource
-def dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None):
-    """
-    Create a Dolos report of this exercise
-
-    Submit a ZIP-file to the Dolos API for plagiarism detection
-    and return the URL where the resulting HTML report can be found.
-    """
-
-    submissions = exercise.valid_submissions | exercise.invalid_submissions
+def write_metadata_for_rodos(local_exercise):
+    submissions = local_exercise.valid_submissions | local_exercise.invalid_submissions
 
     # Write metadata to CSV file
-    with open(data.files.path_to_exercise(exercise, "") + 'info.csv', 'w', newline='') as csvfile:
+    with open(data.files.path_to_exercise(local_exercise, "") + 'info.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
 
         writer.writerow(['filename', 'label', 'created_at'])
@@ -519,28 +500,77 @@ def dolos_view(request, course_key=None, exercise_key=None, course=None, exercis
 
             writer.writerow([filename, 'label', created_at])
 
+
+def go_to_dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None):
+    print(course)
+    course = Course.objects.get(key=course_key)
+    print("New course:", course)
+    exercise = course.get_exercise(exercise_key)
+    if exercise.dolos_report_key != "":
+        return redirect(to=exercise.dolos_report_key)
+    else:
+        # No exercise report generated yet
+        return HttpResponseRedirect(request.path_info)
+
+
+@access_resource
+def generate_dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None):
+    """
+    Create a Dolos report of this exercise and redirect to the report visualization
+
+    Submit a ZIP-file to the Dolos API for plagiarism detection
+    and return the URL where the resulting HTML report can be found.
+    """
+
+    write_metadata_for_rodos(exercise)
+
     zip_files(data.files.path_to_exercise(exercise, ""), os.getcwd() + "")
 
-    report_directory = os.path.join(os.getcwd(), 'dolos-reps', exercise.key)
+    timestamp = time.time()
+    date_and_time = datetime.datetime.fromtimestamp(timestamp)
+    time_string = date_and_time.strftime('%Y-%m-%d:%H.%M.%S')
 
-    if os.path.exists(report_directory):
-        shutil.rmtree(report_directory)
+    programming_language = exercise.tokenizer
+    print(programming_language)
+    if exercise.tokenizer == "skip":
+            programming_language = "chars"
 
-    if exercise.tokenizer == 'skip':
-        return HttpResponseBadRequest('Cannot determine exercise language')
-    else:
-        language = exercise.tokenizer
+    response = requests.post(
+        'http://localhost:3000/reports',
+        files={'dataset[zipfile]': open(os.getcwd() + '/' + exercise.key + ".zip", 'rb')},
+        data={'dataset[name]': exercise.name + " | " + time_string,
+              'dataset[programming_language]': programming_language},
+    )
+    json = response.json()
+    response_url = json['url']
 
-    kill_process(3000)
+    start_time = time.time()
+    timeout = 120
 
-    command = ("dolos run -f web -l " + language + " -o " + report_directory + " " +
-               os.getcwd() + "/" + exercise.key + ".zip")
+    request_result = requests.get(response_url).json()
 
-    print(command)
+    while request_result['status'] != 'finished':
+        print(request_result['status'])
+        if time.time() - start_time > timeout:
+            print("Timeout")
+            break
+        if request_result['status'] == 'failed':
+            print("Analysis failed")
+            break
+        if request_result['status'] == 'error':
+            print("Error in analysis: " + request_result['error'])
+            break
+        request_result = requests.get(response_url).json()
+        time.sleep(1)
 
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    exercise = course.get_exercise(exercise_key)
+    exercise.dolos_report_status = request_result['status'].upper()
+    exercise.dolos_report_timestamp = time_string
+    exercise.dolos_report_generated = True
+    exercise.dolos_report_key = json['html_url']
+    exercise.save()
 
-    print(result.stdout)
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
 @access_resource
 def students_view(request, course=None, course_key=None):
@@ -569,7 +599,6 @@ def students_view(request, course=None, course_key=None):
 
 @access_resource
 def student_view(request, course=None, course_key=None, student=None, student_key=None):
-
     comparisons = (
         Comparison.objects.filter(submission_a__exercise__course=course)
         .filter(similarity__gt=0.75)
@@ -601,7 +630,6 @@ def student_view(request, course=None, course_key=None, student=None, student_ke
         "comparisons": comparisons,
         "row": range(5),
     }
-
     return render(request, "review/student_view.html", context)
 
 
@@ -609,6 +637,7 @@ def student_view(request, course=None, course_key=None, student=None, student_ke
 def pair_view(
     request, course=None, course_key=None, a=None, a_key=None, b=None, b_key=None
 ):
+    print("Course:", course)
 
     authors = {a_key, b_key}
     comparisons = (
