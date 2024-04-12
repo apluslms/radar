@@ -498,19 +498,20 @@ def write_metadata_for_rodos(local_exercise):
             if isinstance(created_at, datetime.datetime):
                 created_at = created_at.strftime('%Y-%m-%d %H:%M:%S %z')
 
-            writer.writerow([filename, 'label', created_at])
+            writer.writerow([filename, submission.student.key, created_at])
 
 
-def go_to_dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None):
-    print(course)
+def go_to_dolos_view(request, course_key=None, exercise_key=None):
     course = Course.objects.get(key=course_key)
-    print("New course:", course)
     exercise = course.get_exercise(exercise_key)
     if exercise.dolos_report_key != "":
         return redirect(to=exercise.dolos_report_key)
-    else:
-        # No exercise report generated yet
-        return HttpResponseRedirect(request.path_info)
+
+    # No exercise report generated yet or deleted from server
+    exercise.dolos_report_status = exercise.dolos_report_status + "\n Could not find report"
+    exercise.save()
+
+    return HttpResponseRedirect(request.path_info)
 
 
 @access_resource
@@ -531,9 +532,8 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     time_string = date_and_time.strftime('%Y-%m-%d:%H.%M.%S')
 
     programming_language = exercise.tokenizer
-    print(programming_language)
     if exercise.tokenizer == "skip":
-            programming_language = "chars"
+        programming_language = "chars"
 
     response = requests.post(
         'http://localhost:3000/reports',
@@ -555,7 +555,7 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
             print("Timeout")
             break
         if request_result['status'] == 'failed':
-            print("Analysis failed")
+            print("Analysis failed: " + request_result['error'])
             break
         if request_result['status'] == 'error':
             print("Error in analysis: " + request_result['error'])
