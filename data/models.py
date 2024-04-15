@@ -171,6 +171,7 @@ class Exercise(models.Model):
     )
     override_minimum_match_tokens = models.IntegerField(blank=True, null=True)
     template_tokens = models.TextField(blank=True, default="")
+    template_text = models.TextField(blank=True, default="")
     paused = models.BooleanField(default=False)
     matching_start_time = models.CharField(
         max_length=50,

@@ -47,4 +47,5 @@ class ExerciseTemplateForm(forms.Form):
         tokens, _ = tokenize_source(submitted_template, tokenizer_config(tokenizer))
         if exercise.template_tokens != tokens:
             exercise.template_tokens = tokens
+            exercise.template_text = submitted_template
         exercise.save()

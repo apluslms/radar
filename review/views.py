@@ -466,6 +466,32 @@ def exercise_settings(
     return render(request, "review/exercise_settings.html", context)
 
 
+# Go through all the files in *directory* and remove the lines from them that are the same in the template and write
+# these new files to the output_dir
+def template_remover(directory, output_dir, local_exercise):
+    template = local_exercise.template_text
+
+    # Walk through all directories under "new_files"
+    for root, dirs, files in os.walk(directory):
+        for filename in files:
+            # Construct the full path to each file
+            filepath = os.path.join(root, filename)
+
+            # Read the lines from each new file into a list
+            with open(filepath, 'r', errors='ignore') as f:
+                new_lines = [line for line in f]
+
+            # Remove any lines that are also in the template
+            filtered_lines = [line for line in new_lines if line not in template]
+
+            new_filepath = os.path.join(output_dir, filename)
+
+            # Write the filtered lines back to the file
+            with open(new_filepath, 'w') as f:
+                print(new_filepath)
+                f.writelines(filtered_lines)
+
+
 def zip_files(directory, output_dir):
     # Get the base filename from the directory path
     base = os.path.basename(os.path.normpath(directory))
@@ -515,17 +541,24 @@ def go_to_dolos_view(request, course_key=None, exercise_key=None):
 
 
 @access_resource
-def generate_dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None):
+def generate_dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None, ):
     """
     Create a Dolos report of this exercise and redirect to the report visualization
 
     Submit a ZIP-file to the Dolos API for plagiarism detection
     and return the URL where the resulting HTML report can be found.
     """
-
+    print(exercise.template_tokens)
     write_metadata_for_rodos(exercise)
 
-    zip_files(data.files.path_to_exercise(exercise, ""), os.getcwd() + "")
+    new_submissions_dir = os.path.join(os.getcwd(),exercise.key)
+    if not os.path.exists(new_submissions_dir):
+        os.mkdir(new_submissions_dir)
+
+    # Remove same lines that are in the template from the student exercises
+    template_remover(data.files.path_to_exercise(exercise, ""),new_submissions_dir , exercise)
+
+    zip_files(new_submissions_dir, os.getcwd() + "")
 
     timestamp = time.time()
     date_and_time = datetime.datetime.fromtimestamp(timestamp)
