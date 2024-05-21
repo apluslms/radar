@@ -19,7 +19,7 @@
 </a>
 
 {% if exercise.dolos_report_generated %}
-<a href="{% url 'go_to_dolos' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xl"}">
+<a href="{% url 'go_to_dolos' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xl"} target="_blank"">
 	Open Rodos report
 </a>
 {% endif %}

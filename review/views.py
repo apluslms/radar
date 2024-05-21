@@ -492,12 +492,18 @@ def template_remover(directory, output_dir, local_exercise):
             with open(new_filepath, 'w') as f:
                 f.writelines(filtered_lines)
 
-def download_files(output_dir, local_exercise):
+def download_files(output_dir, local_exercise, local_course):
     # Download the files of all the submissions to the output directory
     for submission in local_exercise.valid_submissions | local_exercise.invalid_submissions:
-        filename = data.files.get_submission_file_name(submission)
+
+        filename = "student" + submission.student.key
+        p_config = provider_config(local_course.provider)
+        get_submission_text = configured_function(p_config, "get_submission_text")
+
         with open(os.path.join(output_dir, filename + "|" + str(submission.id)), 'w') as f:
-            f.write(data.files.get_submission_text(submission))
+            submission_text = get_submission_text(submission, p_config)
+            print("Writing something with length: ", len(submission_text))
+            f.write(submission_text)
         
 
 def zip_files(directory, output_dir):
@@ -545,7 +551,7 @@ def go_to_dolos_view(request, course_key=None, exercise_key=None):
     exercise.dolos_report_status = exercise.dolos_report_status + "\n Could not find report"
     exercise.save()
 
-    return HttpResponseRedirect(request.path_info)
+    return HttpResponse('<script>window.open("' + request.path_info + '", "_blank");</script>')
 
 
 @access_resource
@@ -560,16 +566,15 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     print(exercise.template_tokens)
     #write_metadata_for_rodos(exercise)
 
-    new_submissions_dir = os.path.join(os.getcwd(), exercise.key)
-    #new_submissions_dir = data.files.path_to_exercise(exercise, "")
+    new_submissions_dir = os.path.join(os.path.abspath(os.getcwd()), exercise.key)
     if not os.path.exists(new_submissions_dir):
         os.mkdir(new_submissions_dir)
 
     # Remove same lines that are in the template from the student exercises
     #template_remover(data.files.path_to_exercise(exercise, ""), new_submissions_dir, exercise)
 
-    download_files(data.files.path_to_exercise(exercise, ""), exercise)
-    zip_files(data.files.path_to_exercise(exercise, ""), new_submissions_dir)
+    download_files(new_submissions_dir, exercise, course)
+    zip_files(new_submissions_dir, os.path.abspath(os.getcwd()))
 
     timestamp = time.time()
     date_and_time = datetime.datetime.fromtimestamp(timestamp)
@@ -581,7 +586,7 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
 
     response = requests.post(
         'https://dolos.cs.aalto.fi/api/reports',
-        files={'dataset[zipfile]': open(os.getcwd() + '/' + exercise.key + ".zip", 'rb')},
+        files={'dataset[zipfile]': open(os.path.abspath(os.getcwd()) + '/' + exercise.key + ".zip", 'rb')},
         data={'dataset[name]': exercise.name + " | " + time_string,
               'dataset[programming_language]': programming_language},
     )
@@ -607,6 +612,10 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
             break
         request_result = requests.get(response_url).json()
         time.sleep(1)
+
+    # Remove the files in the folder new_submissions_dir
+    for file in os.listdir(new_submissions_dir):
+        os.remove(os.path.join(new_submissions_dir, file))
 
     exercise = course.get_exercise(exercise_key)
     exercise.dolos_report_status = request_result['status'].upper()
