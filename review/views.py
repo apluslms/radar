@@ -469,7 +469,9 @@ def exercise_settings(
 # Go through all the files in *directory* and remove the lines from them that are the same in the template and write
 # these new files to the output_dir
 def template_remover(directory, output_dir, local_exercise):
-    template = local_exercise.template_text
+    print(local_exercise.template_text)
+    template = [line.strip() + '\n' for line in local_exercise.template_text.split('\n')]
+    print(template)
 
     # Walk through all directories under "new_files"
     for root, dirs, files in os.walk(directory):
@@ -488,7 +490,6 @@ def template_remover(directory, output_dir, local_exercise):
 
             # Write the filtered lines back to the file
             with open(new_filepath, 'w') as f:
-                print(new_filepath)
                 f.writelines(filtered_lines)
 
 
@@ -548,17 +549,19 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     Submit a ZIP-file to the Dolos API for plagiarism detection
     and return the URL where the resulting HTML report can be found.
     """
+    
     print(exercise.template_tokens)
-    write_metadata_for_rodos(exercise)
+    #write_metadata_for_rodos(exercise)
 
-    new_submissions_dir = os.path.join(os.getcwd(),exercise.key)
+    new_submissions_dir = os.path.join(os.getcwd(), exercise.key)
+    #new_submissions_dir = data.files.path_to_exercise(exercise, "")
     if not os.path.exists(new_submissions_dir):
         os.mkdir(new_submissions_dir)
 
     # Remove same lines that are in the template from the student exercises
-    template_remover(data.files.path_to_exercise(exercise, ""),new_submissions_dir , exercise)
+    #template_remover(data.files.path_to_exercise(exercise, ""), new_submissions_dir, exercise)
 
-    zip_files(new_submissions_dir, os.getcwd() + "")
+    zip_files(data.files.path_to_exercise(exercise, ""), new_submissions_dir)
 
     timestamp = time.time()
     date_and_time = datetime.datetime.fromtimestamp(timestamp)
@@ -569,16 +572,17 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
         programming_language = "chars"
 
     response = requests.post(
-        'http://localhost:3000/reports',
+        'https://dolos.cs.aalto.fi/api/reports',
         files={'dataset[zipfile]': open(os.getcwd() + '/' + exercise.key + ".zip", 'rb')},
         data={'dataset[name]': exercise.name + " | " + time_string,
               'dataset[programming_language]': programming_language},
     )
+    print(response)
     json = response.json()
     response_url = json['url']
 
     start_time = time.time()
-    timeout = 120
+    timeout = 180
 
     request_result = requests.get(response_url).json()
 
