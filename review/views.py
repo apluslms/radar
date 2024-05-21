@@ -492,6 +492,13 @@ def template_remover(directory, output_dir, local_exercise):
             with open(new_filepath, 'w') as f:
                 f.writelines(filtered_lines)
 
+def download_files(output_dir, local_exercise):
+    # Download the files of all the submissions to the output directory
+    for submission in local_exercise.valid_submissions | local_exercise.invalid_submissions:
+        filename = data.files.get_submission_file_name(submission)
+        with open(os.path.join(output_dir, filename + "|" + str(submission.id)), 'w') as f:
+            f.write(data.files.get_submission_text(submission))
+        
 
 def zip_files(directory, output_dir):
     # Get the base filename from the directory path
@@ -561,6 +568,7 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     # Remove same lines that are in the template from the student exercises
     #template_remover(data.files.path_to_exercise(exercise, ""), new_submissions_dir, exercise)
 
+    download_files(data.files.path_to_exercise(exercise, ""), exercise)
     zip_files(data.files.path_to_exercise(exercise, ""), new_submissions_dir)
 
     timestamp = time.time()
