@@ -21,10 +21,10 @@ from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTemplateForm, DeleteExerciseFrom
 from util.misc import is_ajax
 import requests
-import data.files
 import zipfile
 import os
 import csv
+import pytz
 
 logger = logging.getLogger("radar.review")
 
@@ -465,33 +465,6 @@ def exercise_settings(
     context["form_delete_exercise"] = DeleteExerciseFrom({"name": ''})
     return render(request, "review/exercise_settings.html", context)
 
-
-# Go through all the files in *directory* and remove the lines from them that are the same in the template and write
-# these new files to the output_dir
-def template_remover(directory, output_dir, local_exercise):
-    print(local_exercise.template_text)
-    template = [line.strip() + '\n' for line in local_exercise.template_text.split('\n')]
-    print(template)
-
-    # Walk through all directories under "new_files"
-    for root, dirs, files in os.walk(directory):
-        for filename in files:
-            # Construct the full path to each file
-            filepath = os.path.join(root, filename)
-
-            # Read the lines from each new file into a list
-            with open(filepath, 'r', errors='ignore') as f:
-                new_lines = [line for line in f]
-
-            # Remove any lines that are also in the template
-            filtered_lines = [line for line in new_lines if line not in template]
-
-            new_filepath = os.path.join(output_dir, filename)
-
-            # Write the filtered lines back to the file
-            with open(new_filepath, 'w') as f:
-                f.writelines(filtered_lines)
-
 def download_files(output_dir, local_exercise, local_course):
     # Download the files of all the submissions to the output directory
     for submission in local_exercise.valid_submissions | local_exercise.invalid_submissions:
@@ -504,7 +477,7 @@ def download_files(output_dir, local_exercise, local_course):
             submission_text = get_submission_text(submission, p_config)
             print("Writing something with length: ", len(submission_text))
             f.write(submission_text)
-        
+
 
 def zip_files(directory, output_dir):
     # Get the base filename from the directory path
@@ -522,17 +495,17 @@ def zip_files(directory, output_dir):
                 zip_handle.write(file_path, arcname=filename)
 
 
-def write_metadata_for_rodos(local_exercise):
+def write_metadata_for_rodos(exercise_directory, local_exercise):
     submissions = local_exercise.valid_submissions | local_exercise.invalid_submissions
 
     # Write metadata to CSV file
-    with open(data.files.path_to_exercise(local_exercise, "") + 'info.csv', 'w', newline='') as csvfile:
+    with open(exercise_directory + '/info.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
 
         writer.writerow(['filename', 'label', 'created_at'])
 
         for submission in submissions:
-            filename = data.files.get_submission_file_name(submission)
+            filename = "student" + submission.student.key + "|" + str(submission.id)
             created_at = submission.provider_submission_time
 
             if isinstance(created_at, datetime.datetime):
@@ -562,31 +535,32 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     Submit a ZIP-file to the Dolos API for plagiarism detection
     and return the URL where the resulting HTML report can be found.
     """
-    
-    print(exercise.template_tokens)
-    #write_metadata_for_rodos(exercise)
 
-    new_submissions_dir = os.path.join(os.path.abspath(os.getcwd()), exercise.key)
+    print(exercise.template_tokens)
+
+    temp_submissions_dir = os.path.join(os.path.abspath(os.getcwd()), "temp_submission_files")
+    if not os.path.exists(temp_submissions_dir):
+        os.mkdir(temp_submissions_dir)
+
+    new_submissions_dir = os.path.join(temp_submissions_dir, exercise.key)
     if not os.path.exists(new_submissions_dir):
         os.mkdir(new_submissions_dir)
 
-    # Remove same lines that are in the template from the student exercises
-    #template_remover(data.files.path_to_exercise(exercise, ""), new_submissions_dir, exercise)
-
     download_files(new_submissions_dir, exercise, course)
-    zip_files(new_submissions_dir, os.path.abspath(os.getcwd()))
+    write_metadata_for_rodos(new_submissions_dir, exercise)
+    zip_files(new_submissions_dir, temp_submissions_dir)
 
     timestamp = time.time()
-    date_and_time = datetime.datetime.fromtimestamp(timestamp)
-    time_string = date_and_time.strftime('%Y-%m-%d:%H.%M.%S')
+    date_and_time = datetime.datetime.fromtimestamp(timestamp, pytz.timezone('Europe/Helsinki'))
+    time_string = date_and_time.strftime('Day: %Y-%m-%d - Time: %H.%M.%S')
 
     programming_language = exercise.tokenizer
     if exercise.tokenizer == "skip":
-        programming_language = "chars"
+        programming_language = "text"
 
     response = requests.post(
         'https://dolos.cs.aalto.fi/api/reports',
-        files={'dataset[zipfile]': open(os.path.abspath(os.getcwd()) + '/' + exercise.key + ".zip", 'rb')},
+        files={'dataset[zipfile]': open(temp_submissions_dir + "/" + exercise.key + ".zip", 'rb')},
         data={'dataset[name]': exercise.name + " | " + time_string,
               'dataset[programming_language]': programming_language},
     )
@@ -616,6 +590,7 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     # Remove the files in the folder new_submissions_dir
     for file in os.listdir(new_submissions_dir):
         os.remove(os.path.join(new_submissions_dir, file))
+    os.remove(temp_submissions_dir + "/" + exercise.key + ".zip")
 
     exercise = course.get_exercise(exercise_key)
     exercise.dolos_report_status = request_result['status'].upper()
