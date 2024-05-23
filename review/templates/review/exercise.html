@@ -11,6 +11,14 @@
 <h6>
 {% if exercise.dolos_report_generated %}
 	Rodos report generated on {{ exercise.dolos_report_timestamp }} with status {{ exercise.dolos_report_status }}
+
+	{% if messages %}
+		{% for message in messages %}
+			<script>
+				alert('{{ message }}');
+			</script>
+		{% endfor %}
+	{% endif %}
 {% endif %}
 </h6>
 

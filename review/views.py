@@ -5,6 +5,7 @@ import time
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.urls import reverse
 from django.http.response import JsonResponse, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
@@ -598,6 +599,8 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     exercise.dolos_report_generated = True
     exercise.dolos_report_key = json['html_url']
     exercise.save()
+
+    messages.success(request, "Dolos report generation finished")
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
