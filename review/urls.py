@@ -6,6 +6,7 @@ from review.views import (
     configure_course,
     course,
     course_histograms,
+    dolos_proxy_view,
     exercise,
     exercise_settings,
     graph_ui,
@@ -80,6 +81,9 @@ urlpatterns = [
         go_to_dolos_view,
         name='go_to_dolos',
     ),
+    re_path(r'^dolos-proxy/(?P<path>.*)$', 
+            dolos_proxy_view.as_view(), 
+            name='dolos_proxy'),
 
 
 ]

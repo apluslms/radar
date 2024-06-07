@@ -1,6 +1,7 @@
 import datetime
 import logging
 import json
+import tempfile
 import time
 
 from django.conf import settings
@@ -12,6 +13,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.template import loader as template_loader
 from celery.result import AsyncResult
 from django.utils.timezone import now
+from django.http import HttpResponse
+from django.views import View
+import requests
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 from django.db.models import Avg, Max, Q
 
@@ -26,6 +32,7 @@ import zipfile
 import os
 import csv
 import pytz
+from django.http import FileResponse
 
 logger = logging.getLogger("radar.review")
 
@@ -603,6 +610,78 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     messages.success(request, "Dolos report generation finished")
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
+
+@method_decorator(csrf_exempt, name='dispatch')
+class dolos_proxy_view(View):
+    upstream_url = 'https://dolos.cs.aalto.fi'
+
+    def dispatch(self, request, path):
+        # Rewrite the URL: prepend the path with the upstream URL
+        url = f'{self.upstream_url}/{path}'
+
+        # Prepare the headers
+        headers = {key: value for (key, value) in request.META.items() if key.startswith('HTTP_')}
+        headers.update({
+            'content-type': request.content_type,
+            'content-length': str(len(request.body)),
+        })
+
+
+        # Prepare the files
+        files = [(field_name, file) for (field_name, file) in request.FILES.items()]
+
+
+        # Send the proxied request to the upstream service
+        response = requests.request(
+            method=request.method,
+            url=url,
+            data=request.body,
+            files=files,
+            cookies=request.COOKIES,
+            allow_redirects=True,
+        )
+
+        # If the response is a redirect, download the resource and serve it directly
+        if response.status_code == 302:
+            # Download the resource
+            resource_response = requests.get(response.headers['Location'], stream=True)
+
+            # Create a temporary file to store the resource
+            temp_file = tempfile.NamedTemporaryFile(delete=False)
+            for chunk in resource_response.iter_content(chunk_size=8192):
+                temp_file.write(chunk)
+            temp_file.close()
+
+            print("Serving file")
+
+            # Serve the resource directly from the temporary file
+            return FileResponse(open(temp_file.name, 'rb'))
+
+        # Create a Django HttpResponse from the upstream response
+        proxy_response = HttpResponse(
+            content=response.content,
+            status=response.status_code,
+        )
+        
+        # Add the Access-Control-Allow-Origin header
+        proxy_response['Access-Control-Allow-Origin'] = '*'
+
+        print("proxy_response", proxy_response)
+        print("response", response)
+
+        # Set the Content-Type header based on the file type
+        if path.endswith('.css'):
+            proxy_response['Content-Type'] = 'text/css'
+        elif path.endswith('.js'):
+            proxy_response['Content-Type'] = 'application/javascript'
+        elif path.endswith('.ttf'):
+            proxy_response['Content-Type'] = 'font/ttf'
+        elif path.endswith('.woff'):
+            proxy_response['Content-Type'] = 'font/woff'
+        elif path.endswith('.woff2'):
+            proxy_response['Content-Type'] = 'font/woff2'
+
+        return proxy_response
 
 @access_resource
 def students_view(request, course=None, course_key=None):
