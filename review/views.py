@@ -567,13 +567,18 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
         programming_language = "text"
 
     response = requests.post(
+        #'https://radar.minus.cs.aalto.fi/dolos-proxy/api/reports',
         'https://dolos.cs.aalto.fi/api/reports',
         files={'dataset[zipfile]': open(temp_submissions_dir + "/" + exercise.key + ".zip", 'rb')},
         data={'dataset[name]': exercise.name + " | " + time_string,
               'dataset[programming_language]': programming_language},
     )
-    print(response)
-    json = response.json()
+    resp_content = (response._content)
+    try:
+        json = response.json()
+    except ValueError:
+        print("Response is not in JSON format")
+
     response_url = json['url']
 
     start_time = time.time()
