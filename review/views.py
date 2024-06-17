@@ -1,8 +1,10 @@
 import datetime
 import logging
 import json
+import shutil
 import tempfile
 import time
+from urllib.parse import urljoin
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -18,6 +20,7 @@ from django.views import View
 import requests
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.http import StreamingHttpResponse
 
 from django.db.models import Avg, Max, Q
 
@@ -33,6 +36,8 @@ import os
 import csv
 import pytz
 from django.http import FileResponse
+from django.contrib.staticfiles import finders
+from django.views import static
 
 logger = logging.getLogger("radar.review")
 
@@ -579,6 +584,24 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     except ValueError:
         print("Response is not in JSON format")
 
+    html_url = json['html_url']
+
+    # Remove the files in the folder new_submissions_dir
+    for file in os.listdir(new_submissions_dir):
+        os.remove(os.path.join(new_submissions_dir, file))
+    os.remove(temp_submissions_dir + "/" + exercise.key + ".zip")
+
+    exercise = course.get_exercise(exercise_key)
+    exercise.dolos_report_status = "DONE" #request_result['status'].upper()
+    exercise.dolos_report_timestamp = time_string
+    exercise.dolos_report_generated = True
+    exercise.dolos_report_key = json['html_url']
+    exercise.save()
+
+    messages.success(request, "Dolos report generation finished")
+
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
+
     response_url = json['url']
 
     start_time = time.time()
@@ -599,22 +622,8 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
             break
         request_result = requests.get(response_url).json()
         time.sleep(1)
-
-    # Remove the files in the folder new_submissions_dir
-    for file in os.listdir(new_submissions_dir):
-        os.remove(os.path.join(new_submissions_dir, file))
-    os.remove(temp_submissions_dir + "/" + exercise.key + ".zip")
-
-    exercise = course.get_exercise(exercise_key)
-    exercise.dolos_report_status = request_result['status'].upper()
-    exercise.dolos_report_timestamp = time_string
-    exercise.dolos_report_generated = True
-    exercise.dolos_report_key = json['html_url']
-    exercise.save()
-
-    messages.success(request, "Dolos report generation finished")
-
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class dolos_proxy_view(View):
@@ -622,7 +631,12 @@ class dolos_proxy_view(View):
 
     def dispatch(self, request, path):
         # Rewrite the URL: prepend the path with the upstream URL
-        url = f'{self.upstream_url}/{path}'
+
+        base_url = f'{self.upstream_url}/{path}'
+        proxy_url = urljoin(base_url, request.get_full_path())
+        true_url = urljoin(self.upstream_url, path)
+
+        print("PATHS: path: " + path  + " proxy_url: " + proxy_url + " true_url: " + true_url)
 
         # Prepare the headers
         headers = {key: value for (key, value) in request.META.items() if key.startswith('HTTP_')}
@@ -635,37 +649,35 @@ class dolos_proxy_view(View):
         # Prepare the files
         files = [(field_name, file) for (field_name, file) in request.FILES.items()]
 
+        # If the path starts with 'static', use the true_url
+        if path.startswith('static') or path.startswith('assets') or path.startswith('api/rails/active_storage'):
+            response = requests.get(true_url, stream=True)
+            if response.status_code == 200:
+                # Create a FileResponse from the content of the downloaded file
+                file_response = FileResponse(response.content, content_type=response.headers['Content-Type'])
+                
+                file_response['Access-Control-Allow-Origin'] = '*'
+                return file_response
+            else:
+                return HttpResponse(f"Error: {response.status_code}. Could not fetch static file from {true_url}", status=response.status_code)
+        else:
+            # Send the proxied request to the upstream service
+            response = requests.request(
+                method=request.method,
+                url=proxy_url,
+                data=request.body,
+                headers=headers,
+                files=files,
+                cookies=request.COOKIES,
+                allow_redirects=True,
+            )
 
-        # Send the proxied request to the upstream service
-        response = requests.request(
-            method=request.method,
-            url=url,
-            data=request.body,
-            files=files,
-            cookies=request.COOKIES,
-            allow_redirects=True,
-        )
-
-        # If the response is a redirect, download the resource and serve it directly
-        if response.status_code == 302:
-            # Download the resource
-            resource_response = requests.get(response.headers['Location'], stream=True)
-
-            # Create a temporary file to store the resource
-            temp_file = tempfile.NamedTemporaryFile(delete=False)
-            for chunk in resource_response.iter_content(chunk_size=8192):
-                temp_file.write(chunk)
-            temp_file.close()
-
-            print("Serving file")
-
-            # Serve the resource directly from the temporary file
-            return FileResponse(open(temp_file.name, 'rb'))
 
         # Create a Django HttpResponse from the upstream response
         proxy_response = HttpResponse(
             content=response.content,
             status=response.status_code,
+            #content_type=response.headers['Content-Type']
         )
         
         # Add the Access-Control-Allow-Origin header
@@ -685,7 +697,8 @@ class dolos_proxy_view(View):
             proxy_response['Content-Type'] = 'font/woff'
         elif path.endswith('.woff2'):
             proxy_response['Content-Type'] = 'font/woff2'
-
+        elif path.endswith('.csv'):
+            proxy_response['Content-Type'] = 'text/csv'
         return proxy_response
 
 @access_resource
