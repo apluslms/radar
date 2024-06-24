@@ -1,6 +1,8 @@
 import datetime
+from io import BytesIO
 import logging
 import json
+import mimetypes
 import shutil
 import tempfile
 import time
@@ -38,6 +40,7 @@ import pytz
 from django.http import FileResponse
 from django.contrib.staticfiles import finders
 from django.views import static
+import chardet
 
 logger = logging.getLogger("radar.review")
 
@@ -643,41 +646,51 @@ class dolos_proxy_view(View):
         headers.update({
             'content-type': request.content_type,
             'content-length': str(len(request.body)),
-        })
-
+        }) 
 
         # Prepare the files
         files = [(field_name, file) for (field_name, file) in request.FILES.items()]
 
+        # If the path starts with 'static', download and save the file
+        if path.startswith('static') or path.startswith('assets') or path.startswith('api/assets'):
+            local_file_path = settings.BASE_DIR + "/dolos-proxy/" + path
+
+            print("BASEDIR: " + settings.BASE_DIR)
+            print("LOCALFILEPATH: " + local_file_path)
+            print("DIRNAME: " + os.path.dirname(local_file_path))
+
+            # Ensure the directory exists
+            if not os.path.exists(os.path.dirname(local_file_path)):
+                os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
+
+            with requests.get(true_url, stream=True) as r:
+                r.raise_for_status()
+                with open(local_file_path, 'wb') as f:
+                    f.write(r.content)
+            # Determine the file's MIME type
+            content_type, _ = mimetypes.guess_type(local_file_path)
+
+            # Send the file as a response
+            return FileResponse(open(local_file_path, 'rb'), content_type=content_type)
+        
         # If the path starts with 'static', use the true_url
-        if path.startswith('static') or path.startswith('assets') or path.startswith('api/rails/active_storage'):
-            response = requests.get(true_url, stream=True)
-            if response.status_code == 200:
-                # Create a FileResponse from the content of the downloaded file
-                file_response = FileResponse(response.content, content_type=response.headers['Content-Type'])
-                
-                file_response['Access-Control-Allow-Origin'] = '*'
-                return file_response
-            else:
-                return HttpResponse(f"Error: {response.status_code}. Could not fetch static file from {true_url}", status=response.status_code)
-        else:
-            # Send the proxied request to the upstream service
-            response = requests.request(
-                method=request.method,
-                url=proxy_url,
-                data=request.body,
-                headers=headers,
-                files=files,
-                cookies=request.COOKIES,
-                allow_redirects=True,
-            )
+        print("PATHPATHPATHPATHPATH: " + path)
+        # Send the proxied request to the upstream service
+        response = requests.request(
+            method=request.method,
+            url=proxy_url,
+            data=request.body,
+            headers=headers,
+            files=files,
+            cookies=request.COOKIES,
+            allow_redirects=True,
+        )
 
 
         # Create a Django HttpResponse from the upstream response
         proxy_response = HttpResponse(
             content=response.content,
             status=response.status_code,
-            #content_type=response.headers['Content-Type']
         )
         
         # Add the Access-Control-Allow-Origin header
