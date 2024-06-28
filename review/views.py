@@ -595,38 +595,15 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     os.remove(temp_submissions_dir + "/" + exercise.key + ".zip")
 
     exercise = course.get_exercise(exercise_key)
-    exercise.dolos_report_status = "DONE" #request_result['status'].upper()
+    exercise.dolos_report_status = "SENT"
     exercise.dolos_report_timestamp = time_string
     exercise.dolos_report_generated = True
     exercise.dolos_report_key = json['html_url']
     exercise.save()
 
-    messages.success(request, "Dolos report generation finished")
+    messages.success(request, "Dolos report sent to service")
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
-
-    response_url = json['url']
-
-    start_time = time.time()
-    timeout = 180
-
-    request_result = requests.get(response_url).json()
-
-    while request_result['status'] != 'finished':
-        print(request_result['status'])
-        if time.time() - start_time > timeout:
-            print("Timeout")
-            break
-        if request_result['status'] == 'failed':
-            print("Analysis failed: " + request_result['error'])
-            break
-        if request_result['status'] == 'error':
-            print("Error in analysis: " + request_result['error'])
-            break
-        request_result = requests.get(response_url).json()
-        time.sleep(1)
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
-
 
 @method_decorator(csrf_exempt, name='dispatch')
 class dolos_proxy_view(View):
