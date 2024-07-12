@@ -1,4 +1,6 @@
 from django.urls import re_path
+from django.conf import settings
+from django.conf.urls.static import static
 
 from review.views import (
     build_graph,
@@ -7,6 +9,7 @@ from review.views import (
     course,
     course_histograms,
     dolos_proxy_view,
+    generate_dolos_jwt_view,
     exercise,
     exercise_settings,
     graph_ui,
@@ -84,6 +87,11 @@ urlpatterns = [
     re_path(r'^dolos-proxy/(?P<path>.*)$', 
             dolos_proxy_view.as_view(), 
             name='dolos_proxy'),
-
-
+    re_path(
+        r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/dolos-jwt$',
+        generate_dolos_jwt_view,
+        name='go_to_dolos_jwt',
+    ),
 ]
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+

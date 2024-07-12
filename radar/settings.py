@@ -282,8 +282,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.7/howto/static-files/
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
-
+STATICFILES_DIRS = (
+    os.path.join(BASE_DIR, 'static'),
+)
 # Directory to store all the submitted files.
 SUBMISSION_DIRECTORY = os.path.join(BASE_DIR, "submission_files")
 

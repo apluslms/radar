@@ -41,6 +41,9 @@ from django.http import FileResponse
 from django.contrib.staticfiles import finders
 from django.views import static
 import chardet
+import jwt
+import json
+from django.http import JsonResponse
 
 logger = logging.getLogger("radar.review")
 
@@ -534,13 +537,17 @@ def go_to_dolos_view(request, course_key=None, exercise_key=None):
     course = Course.objects.get(key=course_key)
     exercise = course.get_exercise(exercise_key)
     if exercise.dolos_report_key != "":
-        return redirect(to=exercise.dolos_report_key)
+        response = HttpResponse(f"""
+        <script>
+                document.cookie = "DolosToken=" + encodeURIComponent("{exercise.dolos_report_token}") + "; domain=localhost; path=/; SameSite=Lax";
+                setTimeout(function() {{
+                window.location.href = "{exercise.dolos_report_key}";
+            }}, 1000);
+        </script>
+        <p>Redirecting to Dolos report...</p>
+        """)
+        return response
 
-    # No exercise report generated yet or deleted from server
-    exercise.dolos_report_status = exercise.dolos_report_status + "\n Could not find report"
-    exercise.save()
-
-    return HttpResponse('<script>window.open("' + request.path_info + '", "_blank");</script>')
 
 
 @access_resource
@@ -576,7 +583,8 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
 
     response = requests.post(
         #'https://radar.minus.cs.aalto.fi/dolos-proxy/api/reports',
-        'https://dolos.cs.aalto.fi/api/reports',
+        #'https://dolos.cs.aalto.fi/api/reports',
+        'http://localhost:3000/reports',
         files={'dataset[zipfile]': open(temp_submissions_dir + "/" + exercise.key + ".zip", 'rb')},
         data={'dataset[name]': exercise.name + " | " + time_string,
               'dataset[programming_language]': programming_language},
@@ -586,28 +594,37 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
         json = response.json()
     except ValueError:
         print("Response is not in JSON format")
+        print(response.text)
 
-    html_url = json['html_url']
+    try:
+        print("Token: " + json['token'])
+    except KeyError:
+        print("No token in response")
+
+    print(response.content)
 
     # Remove the files in the folder new_submissions_dir
     for file in os.listdir(new_submissions_dir):
         os.remove(os.path.join(new_submissions_dir, file))
     os.remove(temp_submissions_dir + "/" + exercise.key + ".zip")
 
+
     exercise = course.get_exercise(exercise_key)
     exercise.dolos_report_status = "SENT"
     exercise.dolos_report_timestamp = time_string
     exercise.dolos_report_generated = True
     exercise.dolos_report_key = json['html_url']
+    exercise.dolos_report_token = json['token']
     exercise.save()
 
     messages.success(request, "Dolos report sent to service")
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
+
 @method_decorator(csrf_exempt, name='dispatch')
 class dolos_proxy_view(View):
-    upstream_url = 'https://dolos.cs.aalto.fi'
+    upstream_url = 'localhost:8080'
 
     def dispatch(self, request, path):
         # Rewrite the URL: prepend the path with the upstream URL
@@ -629,7 +646,7 @@ class dolos_proxy_view(View):
         files = [(field_name, file) for (field_name, file) in request.FILES.items()]
 
         # If the path starts with 'static', download and save the file
-        if path.startswith('static') or path.startswith('assets') or path.startswith('api/assets'):
+        if path.startswith('static') or path.startswith('assets') or path.startswith('api/assets') or ('api/reports') in path or path.startswith('api/rails'):
             local_file_path = settings.BASE_DIR + "/dolos-proxy/" + path
 
             print("BASEDIR: " + settings.BASE_DIR)
@@ -642,8 +659,21 @@ class dolos_proxy_view(View):
 
             with requests.get(true_url, stream=True) as r:
                 r.raise_for_status()
-                with open(local_file_path, 'wb') as f:
-                    f.write(r.content)
+                if ('api/reports') in path:
+                    # If the response is JSON, parse it
+                    data = r.json()
+                    # Replace the URLs in the JSON data
+                    json_str = json.dumps(data)
+                    json_str = json_str.replace('dolos.cs.aalto.fi', 'radar.minus.cs.aalto.fi/dolos-proxy')
+                    # Write the modified JSON data to the file
+                    with open(local_file_path, 'w') as f:
+                        f.write(json_str)
+                else:
+                    # If the response is not JSON, handle it as bytes
+                    with open(local_file_path, 'wb') as f:
+                        content = r.content.replace(b'dolos.cs.aalto.fi', b'radar.minus.cs.aalto.fi/dolos-proxy')
+                        f.write(content)
+
             # Determine the file's MIME type
             content_type, _ = mimetypes.guess_type(local_file_path)
 
@@ -690,6 +720,22 @@ class dolos_proxy_view(View):
         elif path.endswith('.csv'):
             proxy_response['Content-Type'] = 'text/csv'
         return proxy_response
+
+@access_resource
+def generate_dolos_jwt_view(request, course=None, course_key=None, exercise=None, exercise_key=None):
+    # Generate a JWT token and store it in the local storage using the view such that it is accessible in both this application and dolos.cs.aalto.fi
+    # The token is used to authenticate the user in the Dolos API
+    token = jwt.encode({'user_id': request.user.id}, 'secret_key', algorithm='HS256')
+    response = HttpResponseRedirect('localhost:8080')
+    response.set_cookie(
+        'dolos_jwt',  # cookie name
+        token,  # cookie value
+        max_age=60*60*24*7,  # cookie lifetime in seconds
+        domain='localhost:8080',  # cookie domain
+        secure=True,  # the cookie is sent only over HTTPS
+        httponly=True,  # JavaScript cannot access the cookie
+    )
+    return response
 
 @access_resource
 def students_view(request, course=None, course_key=None):
