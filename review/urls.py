@@ -8,8 +8,6 @@ from review.views import (
     configure_course,
     course,
     course_histograms,
-    dolos_proxy_view,
-    generate_dolos_jwt_view,
     exercise,
     exercise_settings,
     graph_ui,
@@ -84,14 +82,5 @@ urlpatterns = [
         go_to_dolos_view,
         name='go_to_dolos',
     ),
-    re_path(r'^dolos-proxy/(?P<path>.*)$', 
-            dolos_proxy_view.as_view(), 
-            name='dolos_proxy'),
-    re_path(
-        r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/dolos-jwt$',
-        generate_dolos_jwt_view,
-        name='go_to_dolos_jwt',
-    ),
 ]
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-

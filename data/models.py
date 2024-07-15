@@ -183,7 +183,9 @@ class Exercise(models.Model):
     )
     dolos_report_status = models.TextField(blank=True, default="")
     dolos_report_timestamp = models.TextField(blank=True, default="")
+    dolos_report_raw_timestamp = models.IntegerField(blank=True, default=0)
     dolos_report_generated = models.BooleanField(blank=True, default=False)
+    dolos_report_id = models.TextField(blank=True, default="")
     dolos_report_key = models.TextField(blank=True, default="")
     dolos_report_token = models.TextField(blank=True, default="")
 

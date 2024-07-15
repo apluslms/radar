@@ -37,6 +37,10 @@ APLUS_AUTH_LOCAL = {
     # "DISABLE_LOGIN_CHECKS": False,
 }
 
+# Dolos configuration. Replace these with your chosen Dolos host
+DOLOS_API_SERVER_URL = "http://localhost:3000"
+DOLOS_WEB_SERVER_URL = "http://localhost:8080"
+
 # Messaging library
 APLUS_AUTH: Dict[str, Optional[str]] = {
     "UID": "radar",

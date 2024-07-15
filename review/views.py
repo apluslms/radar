@@ -1,34 +1,24 @@
 import datetime
-from io import BytesIO
 import logging
 import json
-import mimetypes
-import shutil
-import tempfile
 import time
-from urllib.parse import urljoin
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.urls import reverse
-from django.http.response import JsonResponse, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
+from django.http.response import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template import loader as template_loader
 from celery.result import AsyncResult
 from django.utils.timezone import now
 from django.http import HttpResponse
-from django.views import View
-import requests
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from django.http import StreamingHttpResponse
 
 from django.db.models import Avg, Max, Q
 
 from data.models import Course, Comparison, Student, Submission
 from data import graph
 from radar.config import provider_config, configured_function
+from radar.settings import DOLOS_API_SERVER_URL, DOLOS_WEB_SERVER_URL
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTemplateForm, DeleteExerciseFrom
 from util.misc import is_ajax
@@ -37,13 +27,6 @@ import zipfile
 import os
 import csv
 import pytz
-from django.http import FileResponse
-from django.contrib.staticfiles import finders
-from django.views import static
-import chardet
-import jwt
-import json
-from django.http import JsonResponse
 
 logger = logging.getLogger("radar.review")
 
@@ -484,6 +467,7 @@ def exercise_settings(
     context["form_delete_exercise"] = DeleteExerciseFrom({"name": ''})
     return render(request, "review/exercise_settings.html", context)
 
+
 def download_files(output_dir, local_exercise, local_course):
     # Download the files of all the submissions to the output directory
     for submission in local_exercise.valid_submissions | local_exercise.invalid_submissions:
@@ -514,7 +498,7 @@ def zip_files(directory, output_dir):
                 zip_handle.write(file_path, arcname=filename)
 
 
-def write_metadata_for_rodos(exercise_directory, local_exercise):
+def write_metadata_for_dolos(exercise_directory, local_exercise):
     submissions = local_exercise.valid_submissions | local_exercise.invalid_submissions
 
     # Write metadata to CSV file
@@ -537,205 +521,75 @@ def go_to_dolos_view(request, course_key=None, exercise_key=None):
     course = Course.objects.get(key=course_key)
     exercise = course.get_exercise(exercise_key)
     if exercise.dolos_report_key != "":
-        response = HttpResponse(f"""
-        <script>
-                document.cookie = "DolosToken=" + encodeURIComponent("{exercise.dolos_report_token}") + "; domain=localhost; path=/; SameSite=Lax";
-                setTimeout(function() {{
-                window.location.href = "{exercise.dolos_report_key}";
-            }}, 1000);
+        js = f"""
+        <script type="text/javascript">
+            window.open("{DOLOS_WEB_SERVER_URL}/#/share/{exercise.dolos_report_id}");
+            window.history.back();
         </script>
-        <p>Redirecting to Dolos report...</p>
-        """)
+        """
+
+        response = HttpResponse(js)
+        response.set_cookie("Authorization", exercise.dolos_report_token)
+        response.set_cookie("ReportID", exercise.dolos_report_id)
         return response
-
-
+    return HttpResponse("No Dolos report available")
 
 @access_resource
 def generate_dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None, ):
     """
     Create a Dolos report of this exercise and redirect to the report visualization
-
-    Submit a ZIP-file to the Dolos API for plagiarism detection
-    and return the URL where the resulting HTML report can be found.
     """
 
-    print(exercise.template_tokens)
+    # Generate new report if timestamp is over 1 hour old or if one does not exist
+    if exercise.dolos_report_key == "" or (time.time() - exercise.dolos_report_raw_timestamp) > (3600):
+        temp_submissions_dir = os.path.join(os.path.abspath(os.getcwd()), "temp_submission_files")
+        if not os.path.exists(temp_submissions_dir):
+            os.mkdir(temp_submissions_dir)
 
-    temp_submissions_dir = os.path.join(os.path.abspath(os.getcwd()), "temp_submission_files")
-    if not os.path.exists(temp_submissions_dir):
-        os.mkdir(temp_submissions_dir)
+        new_submissions_dir = os.path.join(temp_submissions_dir, exercise.key)
+        if not os.path.exists(new_submissions_dir):
+            os.mkdir(new_submissions_dir)
 
-    new_submissions_dir = os.path.join(temp_submissions_dir, exercise.key)
-    if not os.path.exists(new_submissions_dir):
-        os.mkdir(new_submissions_dir)
+        download_files(new_submissions_dir, exercise, course)
+        write_metadata_for_dolos(new_submissions_dir, exercise)
+        zip_files(new_submissions_dir, temp_submissions_dir)
 
-    download_files(new_submissions_dir, exercise, course)
-    write_metadata_for_rodos(new_submissions_dir, exercise)
-    zip_files(new_submissions_dir, temp_submissions_dir)
+        timestamp = time.time()
+        date_and_time = datetime.datetime.fromtimestamp(timestamp, pytz.timezone('Europe/Helsinki'))
+        time_string = date_and_time.strftime('Day: %Y-%m-%d - Time: %H.%M.%S')
 
-    timestamp = time.time()
-    date_and_time = datetime.datetime.fromtimestamp(timestamp, pytz.timezone('Europe/Helsinki'))
-    time_string = date_and_time.strftime('Day: %Y-%m-%d - Time: %H.%M.%S')
+        programming_language = exercise.tokenizer
+        if exercise.tokenizer == "skip":
+            programming_language = "text"
 
-    programming_language = exercise.tokenizer
-    if exercise.tokenizer == "skip":
-        programming_language = "text"
-
-    response = requests.post(
-        #'https://radar.minus.cs.aalto.fi/dolos-proxy/api/reports',
-        #'https://dolos.cs.aalto.fi/api/reports',
-        'http://localhost:3000/reports',
-        files={'dataset[zipfile]': open(temp_submissions_dir + "/" + exercise.key + ".zip", 'rb')},
-        data={'dataset[name]': exercise.name + " | " + time_string,
-              'dataset[programming_language]': programming_language},
-    )
-    resp_content = (response._content)
-    try:
-        json = response.json()
-    except ValueError:
-        print("Response is not in JSON format")
-        print(response.text)
-
-    try:
-        print("Token: " + json['token'])
-    except KeyError:
-        print("No token in response")
-
-    print(response.content)
-
-    # Remove the files in the folder new_submissions_dir
-    for file in os.listdir(new_submissions_dir):
-        os.remove(os.path.join(new_submissions_dir, file))
-    os.remove(temp_submissions_dir + "/" + exercise.key + ".zip")
-
-
-    exercise = course.get_exercise(exercise_key)
-    exercise.dolos_report_status = "SENT"
-    exercise.dolos_report_timestamp = time_string
-    exercise.dolos_report_generated = True
-    exercise.dolos_report_key = json['html_url']
-    exercise.dolos_report_token = json['token']
-    exercise.save()
-
-    messages.success(request, "Dolos report sent to service")
-
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class dolos_proxy_view(View):
-    upstream_url = 'localhost:8080'
-
-    def dispatch(self, request, path):
-        # Rewrite the URL: prepend the path with the upstream URL
-
-        base_url = f'{self.upstream_url}/{path}'
-        proxy_url = urljoin(base_url, request.get_full_path())
-        true_url = urljoin(self.upstream_url, path)
-
-        print("PATHS: path: " + path  + " proxy_url: " + proxy_url + " true_url: " + true_url)
-
-        # Prepare the headers
-        headers = {key: value for (key, value) in request.META.items() if key.startswith('HTTP_')}
-        headers.update({
-            'content-type': request.content_type,
-            'content-length': str(len(request.body)),
-        }) 
-
-        # Prepare the files
-        files = [(field_name, file) for (field_name, file) in request.FILES.items()]
-
-        # If the path starts with 'static', download and save the file
-        if path.startswith('static') or path.startswith('assets') or path.startswith('api/assets') or ('api/reports') in path or path.startswith('api/rails'):
-            local_file_path = settings.BASE_DIR + "/dolos-proxy/" + path
-
-            print("BASEDIR: " + settings.BASE_DIR)
-            print("LOCALFILEPATH: " + local_file_path)
-            print("DIRNAME: " + os.path.dirname(local_file_path))
-
-            # Ensure the directory exists
-            if not os.path.exists(os.path.dirname(local_file_path)):
-                os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
-
-            with requests.get(true_url, stream=True) as r:
-                r.raise_for_status()
-                if ('api/reports') in path:
-                    # If the response is JSON, parse it
-                    data = r.json()
-                    # Replace the URLs in the JSON data
-                    json_str = json.dumps(data)
-                    json_str = json_str.replace('dolos.cs.aalto.fi', 'radar.minus.cs.aalto.fi/dolos-proxy')
-                    # Write the modified JSON data to the file
-                    with open(local_file_path, 'w') as f:
-                        f.write(json_str)
-                else:
-                    # If the response is not JSON, handle it as bytes
-                    with open(local_file_path, 'wb') as f:
-                        content = r.content.replace(b'dolos.cs.aalto.fi', b'radar.minus.cs.aalto.fi/dolos-proxy')
-                        f.write(content)
-
-            # Determine the file's MIME type
-            content_type, _ = mimetypes.guess_type(local_file_path)
-
-            # Send the file as a response
-            return FileResponse(open(local_file_path, 'rb'), content_type=content_type)
-        
-        # If the path starts with 'static', use the true_url
-        print("PATHPATHPATHPATHPATH: " + path)
-        # Send the proxied request to the upstream service
-        response = requests.request(
-            method=request.method,
-            url=proxy_url,
-            data=request.body,
-            headers=headers,
-            files=files,
-            cookies=request.COOKIES,
-            allow_redirects=True,
+        response = requests.post(
+            DOLOS_API_SERVER_URL + '/reports',
+            files={'dataset[zipfile]': open(temp_submissions_dir + "/" + exercise.key + ".zip", 'rb')},
+            data={'dataset[name]': exercise.name + " | " + time_string,
+                'dataset[programming_language]': programming_language},
         )
+        # Remove the files in the folder new_submissions_dir
+        for file in os.listdir(new_submissions_dir):
+            os.remove(os.path.join(new_submissions_dir, file))
+        os.remove(temp_submissions_dir + "/" + exercise.key + ".zip")
 
+        try:
+            json = response.json()
+        except ValueError:
+            print("Response is not in JSON format")
 
-        # Create a Django HttpResponse from the upstream response
-        proxy_response = HttpResponse(
-            content=response.content,
-            status=response.status_code,
-        )
-        
-        # Add the Access-Control-Allow-Origin header
-        proxy_response['Access-Control-Allow-Origin'] = '*'
+        exercise = course.get_exercise(exercise_key)
+        exercise.dolos_report_status = "SENT"
+        exercise.dolos_report_id = json['id']
+        exercise.dolos_report_timestamp = time_string
+        exercise.dolos_report_raw_timestamp = timestamp
+        exercise.dolos_report_generated = True
+        exercise.dolos_report_key = json['html_url']
+        exercise.dolos_report_token = json['token']
+        exercise.save()
 
-        print("proxy_response", proxy_response)
-        print("response", response)
+    return go_to_dolos_view(request, course_key, exercise_key)
 
-        # Set the Content-Type header based on the file type
-        if path.endswith('.css'):
-            proxy_response['Content-Type'] = 'text/css'
-        elif path.endswith('.js'):
-            proxy_response['Content-Type'] = 'application/javascript'
-        elif path.endswith('.ttf'):
-            proxy_response['Content-Type'] = 'font/ttf'
-        elif path.endswith('.woff'):
-            proxy_response['Content-Type'] = 'font/woff'
-        elif path.endswith('.woff2'):
-            proxy_response['Content-Type'] = 'font/woff2'
-        elif path.endswith('.csv'):
-            proxy_response['Content-Type'] = 'text/csv'
-        return proxy_response
-
-@access_resource
-def generate_dolos_jwt_view(request, course=None, course_key=None, exercise=None, exercise_key=None):
-    # Generate a JWT token and store it in the local storage using the view such that it is accessible in both this application and dolos.cs.aalto.fi
-    # The token is used to authenticate the user in the Dolos API
-    token = jwt.encode({'user_id': request.user.id}, 'secret_key', algorithm='HS256')
-    response = HttpResponseRedirect('localhost:8080')
-    response.set_cookie(
-        'dolos_jwt',  # cookie name
-        token,  # cookie value
-        max_age=60*60*24*7,  # cookie lifetime in seconds
-        domain='localhost:8080',  # cookie domain
-        secure=True,  # the cookie is sent only over HTTPS
-        httponly=True,  # JavaScript cannot access the cookie
-    )
-    return response
 
 @access_resource
 def students_view(request, course=None, course_key=None):
