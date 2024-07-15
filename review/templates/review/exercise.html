@@ -7,6 +7,25 @@
         <span class="glyphicon glyphicon-wrench"></span> Settings
     </a>
 </h4>
+
+<h6>
+{% if exercise.dolos_report_generated %}
+	Rodos report generated on {{ exercise.dolos_report_timestamp }} with status {{ exercise.dolos_report_status }}
+
+	{% if messages %}
+		{% for message in messages %}
+			<script>
+				alert('{{ message }}');
+			</script>
+		{% endfor %}
+	{% endif %}
+{% endif %}
+</h6>
+
+<a href="{% url 'dolos' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xl"}">
+	View in Dolos
+</a>
+
 <h4>Similarity distribution of matches</h4>
 <div class="histogram"></div>
 

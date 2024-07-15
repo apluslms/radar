@@ -1,24 +1,32 @@
+import datetime
 import logging
 import json
+import time
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
-from django.http.response import JsonResponse, HttpResponse, HttpResponseBadRequest
+from django.http.response import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template import loader as template_loader
 from celery.result import AsyncResult
 from django.utils.timezone import now
+from django.http import HttpResponse
 
 from django.db.models import Avg, Max, Q
 
 from data.models import Course, Comparison, Student, Submission
 from data import graph
 from radar.config import provider_config, configured_function
+from radar.settings import DOLOS_API_SERVER_URL, DOLOS_WEB_SERVER_URL
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTemplateForm, DeleteExerciseFrom
 from util.misc import is_ajax
-
+import requests
+import zipfile
+import os
+import csv
+import pytz
 
 logger = logging.getLogger("radar.review")
 
@@ -458,6 +466,129 @@ def exercise_settings(
     )
     context["form_delete_exercise"] = DeleteExerciseFrom({"name": ''})
     return render(request, "review/exercise_settings.html", context)
+
+
+def download_files(output_dir, local_exercise, local_course):
+    # Download the files of all the submissions to the output directory
+    for submission in local_exercise.valid_submissions | local_exercise.invalid_submissions:
+
+        filename = "student" + submission.student.key
+        p_config = provider_config(local_course.provider)
+        get_submission_text = configured_function(p_config, "get_submission_text")
+
+        with open(os.path.join(output_dir, filename + "|" + str(submission.id)), 'w') as f:
+            submission_text = get_submission_text(submission, p_config)
+            print("Writing something with length: ", len(submission_text))
+            f.write(submission_text)
+
+
+def zip_files(directory, output_dir):
+    # Get the base filename from the directory path
+    base = os.path.basename(os.path.normpath(directory))
+
+    # Create a zip file with the same name as the directory in the specified location
+    output_zip_file = os.path.join(output_dir, f'{base}.zip')
+    with zipfile.ZipFile(output_zip_file, 'w') as zip_handle:
+        for foldername, subfolders, filenames in os.walk(directory):  # pylint: disable=unused-variable
+            for filename in filenames:
+                # Create complete filepath of file in directory
+                file_path = os.path.join(foldername, filename)
+
+                # Add file to zip
+                zip_handle.write(file_path, arcname=filename)
+
+
+def write_metadata_for_dolos(exercise_directory, local_exercise):
+    submissions = local_exercise.valid_submissions | local_exercise.invalid_submissions
+
+    # Write metadata to CSV file
+    with open(exercise_directory + '/info.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+
+        writer.writerow(['filename', 'label', 'created_at'])
+
+        for submission in submissions:
+            filename = "student" + submission.student.key + "|" + str(submission.id)
+            created_at = submission.provider_submission_time
+
+            if isinstance(created_at, datetime.datetime):
+                created_at = created_at.strftime('%Y-%m-%d %H:%M:%S %z')
+
+            writer.writerow([filename, submission.student.key, created_at])
+
+
+def go_to_dolos_view(request, course_key=None, exercise_key=None):
+    course = Course.objects.get(key=course_key)
+    exercise = course.get_exercise(exercise_key)
+    if exercise.dolos_report_key != "":
+        js = f"""
+        <script type="text/javascript">
+            window.open("{DOLOS_WEB_SERVER_URL}/#/share/{exercise.dolos_report_id}");
+            window.history.back();
+        </script>
+        """
+
+        response = HttpResponse(js)
+        response.set_cookie("Authorization", exercise.dolos_report_token)
+        response.set_cookie("ReportID", exercise.dolos_report_id)
+        return response
+    return HttpResponse("No Dolos report available")
+
+@access_resource
+def generate_dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None, ):
+    """
+    Create a Dolos report of this exercise and redirect to the report visualization
+    """
+
+    # Generate new report if timestamp is over 1 hour old or if one does not exist
+    if exercise.dolos_report_key == "" or (time.time() - exercise.dolos_report_raw_timestamp) > (3600):
+        temp_submissions_dir = os.path.join(os.path.abspath(os.getcwd()), "temp_submission_files")
+        if not os.path.exists(temp_submissions_dir):
+            os.mkdir(temp_submissions_dir)
+
+        new_submissions_dir = os.path.join(temp_submissions_dir, exercise.key)
+        if not os.path.exists(new_submissions_dir):
+            os.mkdir(new_submissions_dir)
+
+        download_files(new_submissions_dir, exercise, course)
+        write_metadata_for_dolos(new_submissions_dir, exercise)
+        zip_files(new_submissions_dir, temp_submissions_dir)
+
+        timestamp = time.time()
+        date_and_time = datetime.datetime.fromtimestamp(timestamp, pytz.timezone('Europe/Helsinki'))
+        time_string = date_and_time.strftime('Day: %Y-%m-%d - Time: %H.%M.%S')
+
+        programming_language = exercise.tokenizer
+        if exercise.tokenizer == "skip":
+            programming_language = "text"
+
+        response = requests.post(
+            DOLOS_API_SERVER_URL + '/reports',
+            files={'dataset[zipfile]': open(temp_submissions_dir + "/" + exercise.key + ".zip", 'rb')},
+            data={'dataset[name]': exercise.name + " | " + time_string,
+                'dataset[programming_language]': programming_language},
+        )
+        # Remove the files in the folder new_submissions_dir
+        for file in os.listdir(new_submissions_dir):
+            os.remove(os.path.join(new_submissions_dir, file))
+        os.remove(temp_submissions_dir + "/" + exercise.key + ".zip")
+
+        try:
+            json = response.json()
+        except ValueError:
+            print("Response is not in JSON format")
+
+        exercise = course.get_exercise(exercise_key)
+        exercise.dolos_report_status = "SENT"
+        exercise.dolos_report_id = json['id']
+        exercise.dolos_report_timestamp = time_string
+        exercise.dolos_report_raw_timestamp = timestamp
+        exercise.dolos_report_generated = True
+        exercise.dolos_report_key = json['html_url']
+        exercise.dolos_report_token = json['token']
+        exercise.save()
+
+    return go_to_dolos_view(request, course_key, exercise_key)
 
 
 @access_resource
