@@ -7,6 +7,11 @@
         <span class="glyphicon glyphicon-wrench"></span> Settings
     </a>
 </h4>
+
+<a href="{% url 'dolos' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xl"}">
+	View in Dolos
+</a>
+
 <h4>Similarity distribution of matches</h4>
 <div class="histogram"></div>
 

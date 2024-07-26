@@ -42,6 +42,12 @@ APLUS_AUTH: Dict[str, Optional[str]] = {
     "UID": "radar",
 }
 
+# Dolos configs
+DOLOS_API_SERVER_URL = "http://localhost:3000"
+DOLOS_WEB_SERVER_URL = "http://localhost:8080"
+DOLOS_PROXY_WEB_URL = "http://localhost:8000/dolos-proxy"
+DOLOS_PROXY_API_URL = "localhost:8000/dolos-api-proxy"
+
 # Application definition
 
 INSTALLED_APPS = (
