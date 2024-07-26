@@ -1,5 +1,9 @@
+import datetime
 import logging
 import json
+import mimetypes
+import time
+from urllib.parse import urljoin
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -9,13 +13,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.template import loader as template_loader
 from celery.result import AsyncResult
 from django.utils.timezone import now
-from django.http import HttpResponse
 from django.views import View
 import requests
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.http import StreamingHttpResponse
-from django.contrib.auth.mixins import LoginRequiredMixin
 
 from django.db.models import Avg, Max, Q
 
@@ -26,7 +27,11 @@ from radar.settings import DOLOS_API_SERVER_URL, DOLOS_PROXY_API_URL, DOLOS_PROX
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTemplateForm, DeleteExerciseFrom
 from util.misc import is_ajax
-
+import zipfile
+import os
+import csv
+import pytz
+from django.http import FileResponse
 
 logger = logging.getLogger("radar.review")
 
@@ -532,8 +537,8 @@ def go_to_dolos_view(request, course_key=None, exercise_key=None):
         exercise.save()
 
         return HttpResponse(js)
-    else:
-        return HttpResponse("No report generated yet")
+
+    return HttpResponse("No report generated yet")
 
 
 @access_resource
@@ -595,7 +600,8 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
 class dolos_proxy_api_view(View):
     # Proxy the request to the Dolos API
     @method_decorator(login_required)
-    def dispatch(self, request, path):
+    def dispatch(self, request, *args, **kwargs):
+        path = kwargs.get('path', '')
         # Rewrite the URL: prepend the path with the upstream URL
         true_url = urljoin(DOLOS_API_SERVER_URL, path)
 
@@ -607,7 +613,7 @@ class dolos_proxy_api_view(View):
         })
 
         # Prepare the files
-        files = [(field_name, file) for (field_name, file) in request.FILES.items()]
+        files = list(request.FILES.items())
 
         # If the path starts with 'static', download and save the file
         if path.startswith('static') or path.startswith('assets') or path.startswith('api/assets'):
@@ -635,7 +641,6 @@ class dolos_proxy_api_view(View):
             # Send the file as a response
             return FileResponse(open(local_file_path, 'rb'), content_type=content_type)
 
-        
         # Send the proxied request to the upstream service
         response = requests.request(
             method=request.method,
@@ -680,7 +685,8 @@ class dolos_proxy_view(View):
     upstream_url = 'http://localhost:8080'
 
     @method_decorator(login_required)
-    def dispatch(self, request, path):
+    def dispatch(self, request, *args, **kwargs):
+        path = kwargs.get('path', '')
         # Rewrite the URL: prepend the path with the upstream URL
         base_url = f'{self.upstream_url}/{path}'
         proxy_url = urljoin(base_url, request.get_full_path())
@@ -691,10 +697,10 @@ class dolos_proxy_view(View):
         headers.update({
             'content-type': "*/*",
             'content-length': str(len(request.body)),
-        }) 
+        })
 
         # Prepare the files
-        files = [(field_name, file) for (field_name, file) in request.FILES.items()]
+        files = list(request.FILES.items())
 
         # If the path starts with 'static', download and save the file
         if path.startswith('static') or path.startswith('assets') or path.startswith('api/assets'):
@@ -708,8 +714,9 @@ class dolos_proxy_view(View):
                 r.raise_for_status()
                 with open(local_file_path, 'wb') as f:
                     f.write(r.content)
-            
-            # If a file contains localhost:3000, replace it with localhost:8000/dolos-api-proxy. But only if the file is not a tff or woff2 file
+
+            # If a file contains localhost:3000, replace it with localhost:8000/dolos-api-proxy.
+            # But only if the file is not a tff or woff2 file
             if not path.endswith('.ttf') and not path.endswith('.woff2'):
                 with open(local_file_path, 'r') as file:
                     filedata = file.read()
@@ -722,7 +729,7 @@ class dolos_proxy_view(View):
 
             # Send the file as a response
             return FileResponse(open(local_file_path, 'rb'), content_type=content_type)
-        
+
         # If the path starts with 'static', use the true_url
         #print("PATHPATHPATHPATHPATH: " + path)
         # Send the proxied request to the upstream service
@@ -742,7 +749,7 @@ class dolos_proxy_view(View):
             content=response.content,
             status=response.status_code,
         )
-        
+
         # Add the Access-Control-Allow-Origin header
         proxy_response['Access-Control-Allow-Origin'] = '*'
 
