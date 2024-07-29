@@ -46,7 +46,7 @@ APLUS_AUTH: Dict[str, Optional[str]] = {
 DOLOS_API_SERVER_URL = "http://localhost:3000"
 DOLOS_WEB_SERVER_URL = "http://localhost:8080"
 DOLOS_PROXY_WEB_URL = "http://localhost:8000/dolos-proxy"
-DOLOS_PROXY_API_URL = "localhost:8000/dolos-api-proxy"
+DOLOS_PROXY_API_URL = "http://localhost:8000/dolos-api-proxy"
 
 # Application definition
 
