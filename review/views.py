@@ -502,7 +502,7 @@ def zip_files(directory, output_dir):
                 zip_handle.write(file_path, arcname=filename)
 
 
-def write_metadata_for_dolos(exercise_directory, local_exercise):
+def write_metadata_for_dolos(exercise_directory, local_exercise) -> None:
     submissions = local_exercise.valid_submissions | local_exercise.invalid_submissions
 
     # Write metadata to CSV file
@@ -521,7 +521,7 @@ def write_metadata_for_dolos(exercise_directory, local_exercise):
             writer.writerow([filename, submission.student.key, created_at])
 
 
-def go_to_dolos_view(request, course_key=None, exercise_key=None):
+def go_to_dolos_view(request, course_key=None, exercise_key=None) -> HttpResponse:
     course = Course.objects.get(key=course_key)
     exercise = course.get_exercise(exercise_key)
     if exercise.dolos_report_key != "":
@@ -542,12 +542,11 @@ def go_to_dolos_view(request, course_key=None, exercise_key=None):
 
 
 @access_resource
-def generate_dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None, ):
+def generate_dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None, ) -> HttpResponse:
     """
     Create a Dolos report of this exercise and redirect to the report visualization
     """
     # Generate new report if timestamp is over 1 hour old or if one does not exist. Disabled for testing
-    #if exercise.dolos_report_key == "" or (time.time() - exercise.dolos_report_raw_timestamp) > (3600):
     temp_submissions_dir = os.path.join(os.path.abspath(os.getcwd()), "temp_submission_files")
     if not os.path.exists(temp_submissions_dir):
         os.mkdir(temp_submissions_dir)
@@ -599,7 +598,7 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
 class dolos_proxy_api_view(View):
     # Proxy the request to the Dolos API
     @method_decorator(login_required)
-    def dispatch(self, request, *args, **kwargs):
+    def dispatch(self, request, *args, **kwargs) -> HttpResponse:
         path = kwargs.get('path', '')
         # Rewrite the URL: prepend the path with the upstream URL
         true_url = urljoin(DOLOS_API_SERVER_URL, path)
@@ -681,7 +680,7 @@ class dolos_proxy_api_view(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class dolos_proxy_view(View):
     @method_decorator(login_required)
-    def dispatch(self, request, *args, **kwargs):
+    def dispatch(self, request, *args, **kwargs) -> HttpResponse:
         path = kwargs.get('path', '')
         # Rewrite the URL: prepend the path with the upstream URL
         true_url = urljoin(DOLOS_WEB_SERVER_URL, path)
