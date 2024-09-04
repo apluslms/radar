@@ -525,19 +525,10 @@ def go_to_dolos_view(request, course_key=None, exercise_key=None) -> HttpRespons
     course = Course.objects.get(key=course_key)
     exercise = course.get_exercise(exercise_key)
     if exercise.dolos_report_key != "":
-        js = f"""
-        <script type="text/javascript">
-            window.open("{DOLOS_PROXY_WEB_URL}/#/share/{exercise.dolos_report_id}");
-            window.history.back();
-        </script>
-        """
-
-        # No exercise report generated yet or deleted from server
         exercise.dolos_report_status = exercise.dolos_report_status + "\n Could not find report"
         exercise.save()
 
-        return HttpResponse(js)
-
+        return redirect(f"{DOLOS_PROXY_WEB_URL}/#/share/{exercise.dolos_report_id}")
     return HttpResponse("No report generated yet")
 
 
