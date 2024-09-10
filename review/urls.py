@@ -6,8 +6,12 @@ from review.views import (
     configure_course,
     course,
     course_histograms,
+    dolos_proxy_api_view,
+    dolos_proxy_view,
     exercise,
     exercise_settings,
+    generate_dolos_view,
+    go_to_dolos_view,
     graph_ui,
     index,
     invalidate_graph_cache,
@@ -21,19 +25,37 @@ from review.views import (
 
 
 urlpatterns = [
-    re_path(r'^$', index, name='index'),
-    re_path(r'^(?P<course_key>\w+)/$', course, name='course'),
     re_path(
-        r'^(?P<course_key>\w+)/histogram/$', course_histograms, name='course_histograms'
+        r'^$',
+        index,
+        name='index'),
+    re_path(
+        r'^(?P<course_key>\w+)/$',
+        course,
+        name='course'),
+    re_path(
+        r'^(?P<course_key>\w+)/histogram/$',
+        course_histograms,
+        name='course_histograms'
     ),
     re_path(
-        r'^(?P<course_key>\w+)/marked/$', marked_submissions, name='marked_submissions'
+        r'^(?P<course_key>\w+)/marked/$',
+        marked_submissions,
+        name='marked_submissions'
     ),
     re_path(
-        r'^(?P<course_key>\w+)/configure/$', configure_course, name='configure_course'
+        r'^(?P<course_key>\w+)/configure/$',
+        configure_course,
+        name='configure_course'
     ),
-    re_path(r'^(?P<course_key>\w+)/graph/$', graph_ui, name='graph_ui'),
-    re_path(r'^(?P<course_key>\w+)/students/$', students_view, name='students_view'),
+    re_path(
+        r'^(?P<course_key>\w+)/graph/$',
+        graph_ui,
+        name='graph_ui'),
+    re_path(
+        r'^(?P<course_key>\w+)/students/$',
+        students_view,
+        name='students_view'),
     re_path(
         r'^(?P<course_key>\w+)/students/(?P<student_key>\w+)/$',
         student_view,
@@ -50,15 +72,23 @@ urlpatterns = [
         name='pair_view_summary',
     ),
     re_path(
-        r'^(?P<course_key>\w+)/flagged_pairs/$', flagged_pairs, name='flagged_pairs'
+        r'^(?P<course_key>\w+)/flagged_pairs/$',
+        flagged_pairs,
+        name='flagged_pairs'
     ),
-    re_path(r'^(?P<course_key>\w+)/graph/build$', build_graph, name='build_graph'),
+    re_path(
+        r'^(?P<course_key>\w+)/graph/build$',
+        build_graph,
+        name='build_graph'),
     re_path(
         r'^(?P<course_key>\w+)/graph/invalidate$',
         invalidate_graph_cache,
         name='invalidate_graph_cache',
     ),
-    re_path(r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/$', exercise, name='exercise'),
+    re_path(
+        r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/$',
+        exercise,
+        name='exercise'),
     re_path(
         r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/settings/$',
         exercise_settings,
@@ -69,4 +99,22 @@ urlpatterns = [
         comparison,
         name='comparison',
     ),
+    re_path(
+        r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/gen_dolos$',
+        generate_dolos_view,
+        name='dolos',
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/dolos$',
+        go_to_dolos_view,
+        name='go_to_dolos',
+    ),
+    re_path(
+        r'^dolos-proxy/(?P<path>.*)$',
+        dolos_proxy_view.as_view(),
+        name='dolos_proxy'),
+    re_path(
+        r'^dolos-api-proxy/(?P<path>.*)$',
+        dolos_proxy_api_view.as_view(),
+        name='dolos_api_proxy'),
 ]

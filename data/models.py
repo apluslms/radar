@@ -180,6 +180,12 @@ class Exercise(models.Model):
         help_text="If not None, then an isoformat timestamp which should match to all incoming matching results."
                   " If None or does not match incoming results, then these results will be ignored.",
     )
+    dolos_report_status = models.TextField(blank=True, default="")
+    dolos_report_timestamp = models.TextField(blank=True, default="")
+    dolos_report_raw_timestamp = models.IntegerField(blank=True, default=0)
+    dolos_report_id = models.TextField(blank=True, default="")
+    dolos_report_generated = models.BooleanField(blank=True, default=False)
+    dolos_report_key = models.TextField(blank=True, default="")
 
     class Meta:
         unique_together = ("course", "key")
