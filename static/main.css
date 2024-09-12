@@ -108,6 +108,43 @@ pre.sample-highlight { display:inline-block; }
     margin-bottom: 1em;
 }
 
+/* Dolos CSS */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(40px);
+  }
+}
+
+.dolos-progress {
+  width: 12.5px;
+  height: 12.5px;
+  background-color: #1d7792;
+  border-radius: 50%;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+.dolos-button {
+  display: flex;
+}
+
+.dolos-progress-parent {
+  margin-left: 10px;
+}
+
+.dolos-description {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  margin-bottom: 20px;
+  overflow-wrap: break-word;
+  max-width: 500px;
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  background-color: #f4f4f4;
+}
 
 /* Only needed in pair_view_summary.html */
 @media print {

@@ -4,6 +4,7 @@ import json
 import mimetypes
 import time
 from urllib.parse import urljoin
+import concurrent.futures
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -472,19 +473,21 @@ def exercise_settings(
     context["form_delete_exercise"] = DeleteExerciseFrom({"name": ''})
     return render(request, "review/exercise_settings.html", context)
 
+def download_file(output_dir, submission, local_course):
+    filename = "student" + submission.student.key
+    p_config = provider_config(local_course.provider)
+    get_submission_text = configured_function(p_config, "get_submission_text")
+
+    with open(os.path.join(output_dir, filename + "|" + str(submission.id)), 'w') as f:
+        submission_text = get_submission_text(submission, p_config)
+        print("Writing something with length: ", len(submission_text))
+        f.write(submission_text)
+
 def download_files(output_dir, local_exercise, local_course):
-    # Download the files of all the submissions to the output directory
-    for submission in local_exercise.valid_submissions | local_exercise.invalid_submissions:
-
-        filename = "student" + submission.student.key
-        p_config = provider_config(local_course.provider)
-        get_submission_text = configured_function(p_config, "get_submission_text")
-
-        with open(os.path.join(output_dir, filename + "|" + str(submission.id)), 'w') as f:
-            submission_text = get_submission_text(submission, p_config)
-            print("Writing something with length: ", len(submission_text))
-            f.write(submission_text)
-
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(download_file, output_dir, sub, local_course) for
+                   sub in local_exercise.valid_submissions | local_exercise.invalid_submissions]
+        concurrent.futures.wait(futures)
 
 def zip_files(directory, output_dir):
     # Get the base filename from the directory path
