@@ -8,9 +8,20 @@
     </a>
 </h4>
 
-<a href="{% url 'dolos' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xl"}">
-	View in Dolos
-</a>
+<div class="dolos-button">
+	<a href="{% url 'dolos' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xl"}">
+		View in Dolos
+	</a>
+
+	<div class="dolos-progress-parent">
+		<div class="dolos-progress"></div>
+		<div class="dolos-progress-text">Preparing files...</div>
+	</div>
+</div>
+
+<p class="dolos-description">
+	Dolos is a modern similarity detection tool for source code. Opening this exercise in Dolos will redirect you to an Aalto hosted version of Dolos. This feature is still in its early stages, so some issues might occur.
+</p>
 
 <h4>Similarity distribution of matches</h4>
 <div class="histogram"></div>
@@ -33,6 +44,19 @@ $(function() {
 	js.buildHeat(similarity);
 	js.histogram($('div.histogram'), similarity, 600, 80);
 	js.applyHeat($('table.comparison'));
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+	const dolosButton = document.querySelector('.dolos-button');
+	const viewInDolosButton = dolosButton.querySelector('a');
+	const dolosProgressParent = dolosButton.querySelector('.dolos-progress-parent');
+
+	viewInDolosButton.addEventListener('click', function() {
+	  dolosProgressParent.style.display = 'block';
+	});
+
+	// Hide dolos-progress-parent initially
+	dolosProgressParent.style.display = 'none';
 });
 </script>
 
