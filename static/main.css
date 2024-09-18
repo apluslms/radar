@@ -126,8 +126,24 @@ pre.sample-highlight { display:inline-block; }
   animation: bounce 1s ease-in-out infinite;
 }
 
-.dolos-button {
+.dolos-div{
   display: flex;
+  align-items: center;
+}
+
+.dolos-filter-container{
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  overflow-wrap: break-word;
+  max-width: 500px;
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  background-color: #f4f4f4;
+}
+
+.dolos-button {
+  margin-top: 10px;
 }
 
 .dolos-progress-parent {
@@ -138,7 +154,6 @@ pre.sample-highlight { display:inline-block; }
   font-size: 14px;
   line-height: 1.5;
   color: #333;
-  margin-bottom: 20px;
   overflow-wrap: break-word;
   max-width: 500px;
   padding: 10px;

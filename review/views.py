@@ -478,15 +478,15 @@ def download_file(output_dir, submission, local_course):
     p_config = provider_config(local_course.provider)
     get_submission_text = configured_function(p_config, "get_submission_text")
 
-    with open(os.path.join(output_dir, filename + "|" + str(submission.id)), 'w') as f:
+    with open(os.path.join(output_dir, filename + "|" + str(str(submission.student.name))), 'w') as f:
         submission_text = get_submission_text(submission, p_config)
         print("Writing something with length: ", len(submission_text))
         f.write(submission_text)
 
-def download_files(output_dir, local_exercise, local_course):
+def download_files(output_dir, local_exercise, local_course, submissions):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [executor.submit(download_file, output_dir, sub, local_course) for
-                   sub in local_exercise.valid_submissions | local_exercise.invalid_submissions]
+                   sub in submissions]
         concurrent.futures.wait(futures)
 
 def zip_files(directory, output_dir):
@@ -505,9 +505,7 @@ def zip_files(directory, output_dir):
                 zip_handle.write(file_path, arcname=filename)
 
 
-def write_metadata_for_dolos(exercise_directory, local_exercise) -> None:
-    submissions = local_exercise.valid_submissions | local_exercise.invalid_submissions
-
+def write_metadata_for_dolos(exercise_directory, local_exercise, submissions) -> None:
     # Write metadata to CSV file
     with open(exercise_directory + '/info.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -515,7 +513,7 @@ def write_metadata_for_dolos(exercise_directory, local_exercise) -> None:
         writer.writerow(['filename', 'label', 'created_at'])
 
         for submission in submissions:
-            filename = "student" + submission.student.key + "|" + str(submission.id)
+            filename = "student" + submission.student.key + "|" + str(submission.student.name)
             created_at = submission.provider_submission_time
 
             if isinstance(created_at, datetime.datetime):
@@ -536,7 +534,9 @@ def go_to_dolos_view(request, course_key=None, exercise_key=None) -> HttpRespons
 
 
 @access_resource
-def generate_dolos_view(request, course_key=None, exercise_key=None, course=None, exercise=None, ) -> HttpResponse:
+def generate_dolos_view(
+    request, course_key=None, exercise_key=None, course=None, exercise=None, best_submissions=False, flagged=False
+                        ) -> HttpResponse:
     """
     Create a Dolos report of this exercise and redirect to the report visualization
     """
@@ -549,8 +549,15 @@ def generate_dolos_view(request, course_key=None, exercise_key=None, course=None
     if not os.path.exists(new_submissions_dir):
         os.mkdir(new_submissions_dir)
 
-    download_files(new_submissions_dir, exercise, course)
-    write_metadata_for_dolos(new_submissions_dir, exercise)
+    submissions = (exercise.valid_submissions | exercise.invalid_submissions)
+    if best_submissions == 'true':
+        submissions = exercise.best_submissions
+    elif flagged == 'true':
+        submissions = exercise.flagged_submissions
+    print("Submissions", submissions)
+
+    download_files(new_submissions_dir, exercise, course, submissions.distinct())
+    write_metadata_for_dolos(new_submissions_dir, exercise, submissions.distinct())
     zip_files(new_submissions_dir, temp_submissions_dir)
 
     timestamp = time.time()

@@ -100,7 +100,7 @@ urlpatterns = [
         name='comparison',
     ),
     re_path(
-        r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/gen_dolos$',
+        r'^(?P<course_key>\w+)/(?P<exercise_key>\w+)/(?P<best_submissions>\w+)/(?P<flagged>\w+)/gen_dolos$',
         generate_dolos_view,
         name='dolos',
     ),
