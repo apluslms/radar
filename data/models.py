@@ -249,11 +249,17 @@ class Exercise(models.Model):
 
     @property
     def flagged_submissions(self):
-        submission_ids = (Comparison.objects.filter(submission_a__exercise=self)
+        submission_ids_a = (Comparison.objects.filter(submission_a__exercise=self)
                                             .filter(review__gte=5)
-                                            .select_related('submission_a')
+                                            .select_related('submission_a', 'submission_b')
                                             .values_list('submission_a', flat=True))
+        submission_ids_b = (Comparison.objects.filter(submission_b__exercise=self)
+                                            .filter(review__gte=5)
+                                            .select_related('submission_b')
+                                            .values_list('submission_b', flat=True))
 
+        submission_ids = list(set(submission_ids_a) | set(submission_ids_b))
+        print(submission_ids)
         submissions = Submission.objects.filter(id__in=submission_ids)
         return submissions
 

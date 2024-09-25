@@ -478,7 +478,7 @@ def download_file(output_dir, submission, local_course):
     p_config = provider_config(local_course.provider)
     get_submission_text = configured_function(p_config, "get_submission_text")
 
-    with open(os.path.join(output_dir, filename + "|" + str(str(submission.student.name))), 'w') as f:
+    with open(os.path.join(output_dir, filename + "|" + str( "Points: " + str(submission.grade))), 'w') as f:
         submission_text = get_submission_text(submission, p_config)
         print("Writing something with length: ", len(submission_text))
         f.write(submission_text)
@@ -513,7 +513,7 @@ def write_metadata_for_dolos(exercise_directory, local_exercise, submissions) ->
         writer.writerow(['filename', 'label', 'created_at'])
 
         for submission in submissions:
-            filename = "student" + submission.student.key + "|" + str(submission.student.name)
+            filename = "student" + submission.student.key + "|" + "Points: " + str(submission.grade)
             created_at = submission.provider_submission_time
 
             if isinstance(created_at, datetime.datetime):
