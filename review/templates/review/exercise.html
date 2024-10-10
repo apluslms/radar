@@ -8,20 +8,36 @@
     </a>
 </h4>
 
-<div class="dolos-button">
-	<a href="{% url 'dolos' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xl"}">
-		View in Dolos
-	</a>
 
-	<div class="dolos-progress-parent">
-		<div class="dolos-progress"></div>
-		<div class="dolos-progress-text">Preparing files...</div>
+<div class="dolos-div">
+	<div class="dolos-filter-container">
+		<h4>View in Dolos</h4>
+		<p>Include only...</p>
+		<div class="filter-select" style="display: flex; flex-direction: row;">
+			<select id="dolos-filter" name="dolos-filter">
+				<option id="all" value="all" title="Include all submissions for all students in this exercise. WARNING: In very large exercises the analysis might fail">All</option>
+				<option id="best_submissions" value="best_submissions" selected="selected" title="Include only one submission per student, that being the one with the most points in A+">Best</option>
+				<option id="flagged" value="flagged" title="Include only submissions that have been tagged with the 'Plagiate' flag in Radar">Flagged</option>
+			</select>
+		</div>
+		<div class="dolos-button">
+			<a id="dolos-gen-button" href="{% url 'dolos' course_key=exercise.course.key exercise_key=exercise.key best_submissions='false' flagged='false' %}" class="btn btn-default btn-xl"}">
+				<p class="dolos-button-text">
+					Run analysis
+				</p>
+			</a>
+		</div>
 	</div>
 </div>
 
 <p class="dolos-description">
 	Dolos is a modern similarity detection tool for source code. Opening this exercise in Dolos will redirect you to an Aalto hosted version of Dolos. This feature is still in its early stages, so some issues might occur.
 </p>
+
+<div class="dolos-progress-parent">
+	<div class="dolos-progress"></div>
+	<div class="dolos-progress-text">Preparing files...</div>
+</div>
 
 <h4>Similarity distribution of matches</h4>
 <div class="histogram"></div>
@@ -49,10 +65,17 @@ $(function() {
 document.addEventListener('DOMContentLoaded', function() {
 	const dolosButton = document.querySelector('.dolos-button');
 	const viewInDolosButton = dolosButton.querySelector('a');
-	const dolosProgressParent = dolosButton.querySelector('.dolos-progress-parent');
+	const dolosProgressParent = document.querySelector('.dolos-progress-parent');
 
 	viewInDolosButton.addEventListener('click', function() {
-	  dolosProgressParent.style.display = 'block';
+		dolosProgressParent.style.display = 'block';
+
+		let bestSubmissions = document.getElementById('best_submissions').selected.toString();
+		let flagged = document.getElementById('flagged').selected.toString();
+
+		console.log(bestSubmissions, flagged);
+		const url = `${bestSubmissions}/${flagged}/gen_dolos`;
+		document.getElementById('dolos-gen-button').href = url;
 	});
 
 	// Hide dolos-progress-parent initially

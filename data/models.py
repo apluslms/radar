@@ -233,6 +233,38 @@ class Exercise(models.Model):
         return self.submissions.filter(invalid=True)
 
     @property
+    def best_submissions(self):
+        students = self.submissions.values_list('student', flat=True).distinct()
+
+        best_submission_ids = []
+
+        for student in students:
+            best_submission = self.submissions.filter(student=student).order_by('-grade').first()
+            if best_submission:
+                best_submission_ids.append(best_submission.id)
+
+        best_submissions_queryset = self.submissions.filter(id__in=best_submission_ids)
+        print("Best submissions queryset:", best_submissions_queryset)
+        return best_submissions_queryset
+
+    @property
+    def flagged_submissions(self):
+        submission_ids_a = (Comparison.objects.filter(submission_a__exercise=self)
+                                            .filter(review__gte=5)
+                                            .select_related('submission_a', 'submission_b')
+                                            .values_list('submission_a', flat=True))
+        submission_ids_b = (Comparison.objects.filter(submission_b__exercise=self)
+                                            .filter(review__gte=5)
+                                            .select_related('submission_b')
+                                            .values_list('submission_b', flat=True))
+
+        submission_ids = list(set(submission_ids_a) | set(submission_ids_b))
+        print(submission_ids)
+        submissions = Submission.objects.filter(id__in=submission_ids)
+        return submissions
+
+
+    @property
     def valid_matched_submissions(self):
         return self.valid_submissions.filter(matched=True)
 
