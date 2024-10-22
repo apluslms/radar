@@ -36,7 +36,7 @@
 {% endif %}
 {% endwith %}
 
-<form method="post">
+<form id="reload-form" method="post">
     {% csrf_token %}
     <button class="btn btn-primary" type="submit" name="full_reload"><span class="glyphicon glyphicon-refresh"></span> Reload all exercise submissions</button>
 </form>
@@ -84,4 +84,43 @@
     {% endfor %}
 </table>
 
+<script>
+    document.getElementById('reload-form').addEventListener('submit', function(event) {
+        event.preventDefault(); // Prevent the default form submission
+        console.log("Trying to reload all exercises.");
+    
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+        const exercises = document.querySelectorAll('#exercises-table tbody tr');
+    
+        exercises.forEach(exercise => {
+            const exerciseButton = exercise.querySelector('.btn');
+            const exerciseHref = exerciseButton.getAttribute('href');
+
+            const formData = new URLSearchParams();
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            formData.append('provider_reload', '');
+
+            fetch(`${exerciseHref}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: formData.toString()
+            }).then(response => {
+                if (response.ok) {
+                    console.log(`Exercise reloaded successfully.`);
+                } else {
+                    console.error(`Failed to reload exercise.`);
+                }
+            }).catch(error => {
+                console.error(`Error reloading exercise`, error);
+            });
+        });
+        setTimeout(() => {
+            history.replaceState(null, null, location.href);
+            location.reload();
+        }, 2000);
+    });
+</script>
 {% endblock %}
