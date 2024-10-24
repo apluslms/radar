@@ -37,6 +37,51 @@ table.comparison td small { display:block; font-size:x-small; white-space:nowrap
 table.comparison td.success { background-color:transparent !important; }
 table.comparison .glyphicon { text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white; }
 
+/* Comparison Grid */
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  border: 1px solid grey;
+  max-width: 2000px;
+}
+
+.comparison-grid .grid-item {
+  border: 1px solid grey;
+  padding: 0.1em 0.3em;
+  line-height: 1em;
+  display: flex;
+  flex-direction: column;
+}
+
+.comparison-grid .grid-item a {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.comparison-grid .grid-item a:hover,
+.comparison-grid .grid-item.selected a {
+  background-color: #333;
+  color: white;
+}
+
+.comparison-grid .grid-item .similarity {
+  font-style: oblique;
+}
+
+.comparison-grid .grid-item small {
+  font-size: x-small;
+  white-space: break-word;
+}
+
+.comparison-grid .grid-item .success {
+  background-color: transparent !important;
+}
+
+.comparison-grid .glyphicon {
+  text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
+}
+
 /* Course histograms */
 ul.course-histograms {
   list-style: none;
