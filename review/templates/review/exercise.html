@@ -59,7 +59,7 @@ $(function() {
 	var similarity = js.parseJSON($('#similarity'));
 	js.buildHeat(similarity);
 	js.histogram($('div.histogram'), similarity, 600, 80);
-	js.applyHeat($('table.comparison'));
+	js.applyHeat($('grid.comparison-grid'));
 });
 
 document.addEventListener('DOMContentLoaded', function() {

@@ -1,11 +1,6 @@
 {% load review %}
-<table class="comparison">
-	<tr>
-		{% for comparison in comparisons %}
-			<td>{% student_td course comparison %}</td>
-			{% if forloop.counter|divisibleby:10 %}
-				</tr><tr>
-			{% endif %}
-		{% endfor %}
-	</tr>
-</table>
+<grid class="comparison-grid">
+	{% for comparison in comparisons %}
+		<div class="grid-item" data-similarity={{comparison.similarity}}>{% student_td course comparison %}</div>
+	{% endfor %}
+</grid>
