@@ -15,7 +15,7 @@ DATABASES = {
     },
 }
 
-PROVIDERS['a+'].update({'host': 'http://plus:8000'})
+PROVIDERS['a+'].update({'host': 'http://localhost:8000'})
 
 CACHES = {
     'default': {
