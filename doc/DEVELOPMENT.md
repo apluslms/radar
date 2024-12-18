@@ -42,3 +42,11 @@ Useful testing actions:
    button at top "Recompare all..." needs to be clicked to feed new submissions for matching.
 
 Tip: create empty file `radar/local_settings.py` in order to get rid of extra warnings.
+
+Note: The root folder contains the script "run_loadsubmission.sh" which correctly distributes submission files in a manner which Radar is happy with. To use the script for testing do the following:
+
+1. Download submission zip file from A+ for example and unzip it. 
+2. `./run_loadsubmissions.sh ${directory_with_submissions} {course}/{exercise} 1`<br>
+   This goes through the directory, places each submission into it's own folder and creates a subfolder inside there to put the submission in. After this folder distribution is done, it runs the manage.py loadsubmissions command for each submission. The last variable is the delay, which determines how long we should wait between sending submissions to the service 
+3. Wait until the script finishes
+4. Run `python manage.py matchsubmissions {course}/exercise` and the submissions should be matched.
