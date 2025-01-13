@@ -8,4 +8,10 @@ git+https://github.com/apluslms/django-essentials.git@1.6.0#egg=django-essential
 git+https://github.com/apluslms/a-plus-client.git@v1.3.0#egg=a_plus_client
 git+https://github.com/apluslms/greedy-string-tiling.git@v0.13.0
 aplus-auth ~= 0.2.3
-django-debug-toolbar
+setuptools ~= 68.1.2
+django-debug-toolbar ~= 4.4.6
+pytz ~= 2024.2
+pylibmc ~= 1.6.3
+pytest-playwright ~=  0.6.2
+pytest-django ~= 4.9.0
+pytest-env ~= 1.1.5
