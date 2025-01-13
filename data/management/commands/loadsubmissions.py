@@ -42,6 +42,10 @@ class Command(BaseCommand):
         exercise = course.get_exercise(exercise_key)
         self.stdout.write("Inserting to exercise %s" % (exercise))
 
+        if exercise.name == 'unknown':
+            exercise.name = exercise_key
+            exercise.save()
+
         for path in options['submission_path']:
             submission = load_submission_dir(exercise, path)
             if submission is not None:
