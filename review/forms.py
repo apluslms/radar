@@ -24,12 +24,19 @@ class ExerciseForm(forms.Form):
     def save(self, exercise):
         exercise.name = self.cleaned_data["name"]
         exercise.paused = self.cleaned_data["paused"]
+
         new_tokenizer = self.cleaned_data["tokenizer"]
         if new_tokenizer != exercise.course.tokenizer:
             exercise.override_tokenizer = new_tokenizer
+        else:
+            exercise.override_tokenizer = None
+
         new_min_match_tokens = self.cleaned_data["minimum_match_tokens"]
         if new_min_match_tokens != exercise.course.minimum_match_tokens:
             exercise.override_minimum_match_tokens = new_min_match_tokens
+        else:
+            exercise.override_minimum_match_tokens = None
+
         exercise.save()
 
 

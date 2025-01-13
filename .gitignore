@@ -30,3 +30,10 @@ tokenizer/scalariform/project/project/target/
 __pycache__
 *.pyc
 *.pdf
+
+dolos-proxy
+package-lock.json
+package.json
+*.Identifier
+settings.json
+temp_submission_files/
