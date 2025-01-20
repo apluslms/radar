@@ -1,4 +1,5 @@
 import logging
+from django.conf import settings
 import requests
 
 from django.core.cache import caches as django_caches
@@ -154,7 +155,15 @@ def load_exercise_template_from_api_data(exercise_data, course):
         # Join all non-empty templates into a single string, separated by newlines.
         # If there is only one non-empty template in template_data,
         # this will simply evaluate to that template, with no extra newline.
-        source = '\n'.join(t for t in template_data if t)
+        try:
+            source = '\n'.join(t for t in template_data if t)
+        except Exception as e:
+            logger.error(
+                "Error while attempting to load exercise template from %s: %s",
+                template_urls_str,
+                str(e),
+            )
+            return source
     return source
 
 
@@ -237,10 +246,13 @@ def async_api_read(request, course, has_radar_config):
     Queue an read of all exercises on a given course from the A+ REST API.
     Return an id for the celery.result.AsyncResult that was queued.
     """
-    async_task = tasks.get_full_course_config.delay(
-        request.user.id, course.id, has_radar_config
-    )
-    return async_task.id
+    if not settings.DEBUG:
+        async_task = tasks.get_full_course_config.delay(
+            request.user.id, course.id, has_radar_config
+        )
+        return async_task.id
+    async_task = tasks.get_full_course_config(request.user.id, course.id, has_radar_config)
+    return async_task
 
 
 def recompare_all_unmatched(course):
