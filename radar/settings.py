@@ -27,14 +27,14 @@ APLUS_AUTH_LOCAL = {
     # "UID": "...", # set to "radar" below, can be changed
     "PRIVATE_KEY": None,
     "PUBLIC_KEY": None,
-    "REMOTE_AUTHENTICATOR_UID": None,  # The UID of the remote authenticator, e.g. "aplus"
+    "REMOTE_AUTHENTICATOR_UID": "aplus",  # The UID of the remote authenticator, e.g. "aplus"
     "REMOTE_AUTHENTICATOR_KEY": None,  # The public key of the remote authenticator
-    "REMOTE_AUTHENTICATOR_URL": None,  # probably "https://<A+ domain>/api/v2/get-token/"
+    "REMOTE_AUTHENTICATOR_URL": "localhost:8000/api/v2/get-token/",  # probably "https://<A+ domain>/api/v2/get-token/"
     # "UID_TO_KEY": {...}
     # "TRUSTED_UIDS": [...],
     # "TRUSTING_REMOTES": [...],
     # "DISABLE_JWT_SIGNING": False,
-    # "DISABLE_LOGIN_CHECKS": False,
+    "DISABLE_LOGIN_CHECKS": True,
 }
 
 # Messaging library

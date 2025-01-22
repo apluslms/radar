@@ -50,3 +50,14 @@ Note: The root folder contains the script "run_loadsubmission.sh" which correctl
    This goes through the directory, places each submission into it's own folder and creates a subfolder inside there to put the submission in. After this folder distribution is done, it runs the manage.py loadsubmissions command for each submission. The last variable is the delay, which determines how long we should wait between sending submissions to the service 
 3. Wait until the script finishes
 4. Run `python manage.py matchsubmissions {course}/exercise` and the submissions should be matched.
+
+## Testing with A+ locally
+
+To test the LTI integration and features between Radar and A+ locally, you first should follow the instructions in the root directory's README.rst on "Configuring with A+".
+
+After this, ensure Radar is not running on the default localhost:8000. Use for example localhost:8009. This can be achieved by adding the desired port to the end of the runserver command `python manage.py runserver 8009`
+
+Also ensure that DEBUG = True is set in the settings at root/radar/settings.py
+
+Now you should be able to login to Radar using LTI from A+ as well as import automatically or manually configured exercises from A+. Only thing not working is automatic fetching of submissions and automatic matching. To match submissions you will still have to run
+`python manage.py matchsubmissions <course_id>/<exercise_id>`

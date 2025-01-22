@@ -201,7 +201,7 @@ def marked_submissions(request, course_key=None, course=None):
 
 
 @access_resource
-def configure_course(request, course_key=None, course=None):
+def configure_course(request, course_key=None, course=None): #pylint: disable=too-many-branches
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
@@ -307,21 +307,31 @@ def configure_course(request, course_key=None, course=None):
     if pending_api_read["task_id"]:
         # Task is pending, check state and return result if ready
         async_result = AsyncResult(pending_api_read["task_id"])
-        if async_result.ready():
+        if not settings.DEBUG:
+            if async_result.ready():
+                pending_api_read["ready"] = True
+                pending_api_read["task_id"] = None
+                if async_result.state == "SUCCESS":
+                    exercise_data = async_result.get()
+                    async_result.forget()
+                    config_table = template_loader.get_template(
+                        "review/configure_table.html"
+                    )
+                    exercise_data["config_type"] = pending_api_read["config_type"]
+                    pending_api_read["resultHTML"] = config_table.render(
+                        exercise_data, request
+                    )
+                else:
+                    pending_api_read["resultHTML"] = ''
+        else:
+            # Debug mode, return result immediately
+            print("DEBUG MODE")
             pending_api_read["ready"] = True
+            exercise_data = pending_api_read['task_id']
+            config_table = template_loader.get_template("review/configure_table.html")
+            exercise_data["config_type"] = pending_api_read["config_type"]
+            pending_api_read["resultHTML"] = config_table.render(exercise_data, request)
             pending_api_read["task_id"] = None
-            if async_result.state == "SUCCESS":
-                exercise_data = async_result.get()
-                async_result.forget()
-                config_table = template_loader.get_template(
-                    "review/configure_table.html"
-                )
-                exercise_data["config_type"] = pending_api_read["config_type"]
-                pending_api_read["resultHTML"] = config_table.render(
-                    exercise_data, request
-                )
-            else:
-                pending_api_read["resultHTML"] = ''
         return JsonResponse(pending_api_read)
 
     if pending_api_read["ready"]:

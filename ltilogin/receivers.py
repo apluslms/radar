@@ -44,6 +44,9 @@ def add_course_permissions(sender, **kwargs):
             )
             raise PermissionDenied("LTI request is missing some fields to allow login")
 
+        if 'plus:8000' in course_api:
+            course_api = course_api.replace('plus:8000', 'localhost:8000')
+
         # store API token
         site = Site.get_by_url(course_api)
         user.add_api_token(api_token, site)  # will not add duplicates
