@@ -102,6 +102,9 @@ TOKENIZER_CHOICES = (
     ("js", "JavaScript (ECMA 2016)"),
     ("html", "HTML5"),
     ("css", "CSS"),
+    ("c", "C"),
+    ("cpp", "C++"),
+    ("matlab", "MATLAB"),
 )
 # Tokenizer functions and the separator string injected into the first line
 # of each file.
@@ -123,6 +126,9 @@ TOKENIZERS = {
     },
     "html": {"tokenize": "tokenizer.html.tokenize", "separator": "<!-- %s -->"},
     "css": {"tokenize": "tokenizer.css.tokenize", "separator": "/****** %s ******/"},
+    "c": {"tokenize": "tokenizer.c.tokenize", "separator": "/****** %s ******/"},
+    "cpp": {"tokenize": "tokenizer.cpp.tokenize", "separator": "/****** %s ******/"},
+    "matlab": {"tokenize": "tokenizer.matlab.tokenize", "separator": "%%%%%%%%%%%% %s %%%%%%%%%%%%"},
 }
 
 PROVIDER_CHOICES = (("a+", "A+"), ("filesystem", "File system"))

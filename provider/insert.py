@@ -28,6 +28,16 @@ def insert_submission(exercise, submission_key, submitter_id, data=None):
     )
 
 
+# Function to remove first and last comment from the submission text if it is a comment by Radar
+def remove_first_and_last_comment(text: str) -> str:
+    lines = text.splitlines()
+    if lines[0].startswith(('######', '/******', '<!--', '%%%%%%%%%%%%')):
+        lines = lines[1:]
+    if lines[-1].startswith(('######', '/******', '<!--', '%%%%%%%%%%%%')):
+        lines = lines[:-1]
+    return '\n'.join(lines)
+
+
 def prepare_submission(submission, matching_start_time=''):
 
     if matching_start_time:
@@ -64,7 +74,8 @@ def prepare_submission(submission, matching_start_time=''):
     # Compute checksum of submitted source code for finding exact character matches quickly
     # This line will not be reached if submission_text contains data not encodable in utf-8,
     # since it is checked in tokenizer.tokenize_submission
-    submission_hash = hashlib.md5(submission_text.encode("utf-8"))
+    submission_text_without_newlines = remove_first_and_last_comment(submission_text)
+    submission_hash = hashlib.md5(submission_text_without_newlines.encode("utf-8"))
     submission.source_checksum = submission_hash.hexdigest()
     submission.save()
 
