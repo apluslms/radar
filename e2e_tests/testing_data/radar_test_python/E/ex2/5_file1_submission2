@@ -1,0 +1,9 @@
+import math
+import datetime
+import random
+
+def print_random_number():
+    print(f'Random number: {random.randint(1, 100)}')
+
+if __name__ == '__main__':
+    print_random_number()

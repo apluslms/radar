@@ -2,7 +2,7 @@
 
 This document provides a guide to create and run end-to-end tests for Radar using [Playwright](https://playwright.dev/python/).
 
-## Set up environment
+## Run Radar
 
 Make sure everything is set up following this [Radar development guide](https://github.com/apluslms/radar/blob/master/doc/DEVELOPMENT.md) before continuing.
 
@@ -17,22 +17,19 @@ Make sure everything is set up following this [Radar development guide](https://
 
 4. Load submissions: `./run_loadsubmissions.sh ${directory_with_submissions} {course} {exercise} 1`
 
-5. In a browser navigate to: `http://localhost:8000/{course}/{exercise}/settings/`
-    * Press the "Recompare all" button
+5. Match submissions: ` python manage.py recompare {course}/{exercise}`
 
-6. Match submissions: `python manage.py matchsubmissions {course}/{exercise}`
-
-## Set up Dolos
+## Run Dolos
 
 Dolos is required for `test_dolos` in `e2e_tests/test_dolos.py`.
 
-1. Clone the [Dolos](https://github.com/dodona-edu/dolos) repository
+Launch Docker daemon if Docker is not running: ` sudo dockerd`
 
-2. Launch Docker daemon: `dockerd`
+1. Change to Dolos directory: `cd dolos`
 
-3. In a new terminal at the root of the Dolos repository run: `docker compose up`
+2. Run Dolos: `docker compose up`
 
-Now Dolos should be running in a separate window and work with Radar.
+Now Dolos should be running in a separate window and works with Radar.
 
 ## Create tests
 
