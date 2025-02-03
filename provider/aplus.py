@@ -51,7 +51,10 @@ def reload(exercise, config):
     submissions_url = config["host"] + API_SUBMISSION_LIST_URL % {"eid": exercise.key}
     # Queue exercise for asynchronous handling,
     # all submissions to this exercise are created in parallel while matching is sequential
-    tasks.reload_exercise_submissions.delay(exercise.id, submissions_url)
+    if not settings.DEBUG:
+        tasks.reload_exercise_submissions.delay(exercise.id, submissions_url)
+    else:
+        tasks.reload_exercise_submissions(exercise.id, submissions_url)
 
 
 def recompare(exercise, config):
@@ -65,7 +68,10 @@ def recompare(exercise, config):
     # Drop all existing comparisons and queue for recomparison
     exercise.clear_all_matches()
     exercise.touch_all_timestamps()
-    matcher_tasks.match_exercise.delay(exercise.id)
+    if not settings.DEBUG:
+        matcher_tasks.match_exercise.delay(exercise.id)
+    else:
+        matcher_tasks.match_exercise(exercise.id)
 
 
 # TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself
@@ -256,7 +262,10 @@ def async_api_read(request, course, has_radar_config):
 
 
 def recompare_all_unmatched(course):
-    tasks.recompare_all_unmatched.delay(course.id)
+    if not settings.DEBUG:
+        tasks.recompare_all_unmatched.delay(course.id)
+    else:
+        tasks.recompare_all_unmatched(course.id)
 
 
 def _decode_students(students):
