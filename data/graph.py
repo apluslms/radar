@@ -79,6 +79,7 @@ def generate_match_graph(
     result = graph.as_dict(min_matches)
     result["min_similarity"] = format(min_similarity, ".2f")
     result["min_matches"] = format(min_matches, "d")
+    result["unique_exercises"] = unique_exercises
     # Cache graph definition
     course.similarity_graph_json = json.dumps(result)
     course.save()

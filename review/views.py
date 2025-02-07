@@ -356,6 +356,7 @@ def graph_ui(request, course, course_key):
         ),
         "course": course,
         "minimum_similarity_threshold": settings.MATCH_STORE_MIN_SIMILARITY,
+        "number_of_exercises": course.exercises.count(),
     }
     return render(request, "review/graph.html", context)
 
@@ -380,14 +381,16 @@ def build_graph(request, course, course_key):
                 task_state["graph_data"] = {}
     elif not task_state["ready"]:
         graph_data = json.loads(course.similarity_graph_json or '{}')
-        min_similarity, min_matches = (
+        min_similarity, min_matches, use_unique_ex = (
             task_state["min_similarity"],
             task_state["min_matches"],
+            task_state["unique_exercises"],
         )
         if (
             graph_data
             and graph_data["min_similarity"] == min_similarity
             and graph_data["min_matches"] == min_matches
+            and graph_data["unique_exercises"] == use_unique_ex
         ):
             # Graph was already cached
             task_state["graph_data"] = graph_data
@@ -397,12 +400,12 @@ def build_graph(request, course, course_key):
             p_config = provider_config(course.provider)
             if not p_config.get("async_graph", True):
                 task_state["graph_data"] = graph.generate_match_graph(
-                    course.key, float(min_similarity), int(min_matches)
+                    course.key, float(min_similarity), int(min_matches), use_unique_ex
                 )
                 task_state["ready"] = True
             else:
                 async_task = graph.generate_match_graph.delay(
-                    course.key, float(min_similarity), int(min_matches)
+                    course.key, float(min_similarity), int(min_matches), use_unique_ex
                 )
                 task_state["task_id"] = async_task.id
 
