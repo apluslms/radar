@@ -85,6 +85,9 @@ def course_histograms(request, course_key=None, course=None):
 @access_resource
 def exercise(request, course_key=None, exercise_key=None, course=None, exercise=None):
     rows = int(request.GET.get('rows', settings.SUBMISSION_VIEW_HEIGHT))
+    one_pair_per_match = request.GET.get('one_pair_per_match', 'false').lower() == 'true'
+    best_submissions = request.GET.get('best_submissions', 'false').lower() == 'true'
+
     return render(
         request,
         "review/exercise.html",
@@ -96,7 +99,7 @@ def exercise(request, course_key=None, exercise_key=None, course=None, exercise=
             ),
             "course": course,
             "exercise": exercise,
-            "comparisons": exercise.top_comparisons(rows),
+            "comparisons": exercise.top_comparisons(rows, one_pair_per_match, best_submissions),
         },
     )
 

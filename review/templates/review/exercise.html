@@ -45,9 +45,19 @@
 <pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
 
 <h4>Comparison pairs with highest similarity</h4>
-<a href="{% url 'exercise' course_key=exercise.course.key exercise_key=exercise.key %}?rows=100" class="btn btn-default btn-xs"}">
-    Show 100 rows
+<a href="#" class="btn btn-default btn-xs" onclick="updateUrl('rows', 100)">
+	Show 100 rows
 </a>
+
+<a href="#" class="btn btn-default btn-xs" id="one-pair-button" onclick="toggleOnePairPerMatch()">
+	Show only one pair per match
+</a>
+
+<a href="#" class="btn btn-default btn-xs" id="best-submissions-button" onclick="toggleBestSubmission()">
+	Include only one submission per student (Best points)
+</a>
+
+
 {% include 'review/_comparisontable_unique.html' %}
 
 <pre id="js" class="well">
@@ -67,6 +77,15 @@ document.addEventListener('DOMContentLoaded', function() {
 	const viewInDolosButton = dolosButton.querySelector('a');
 	const dolosProgressParent = document.querySelector('.dolos-progress-parent');
 
+	const url = new URL(window.location.href);
+	const onePairButton = document.getElementById('one-pair-button');
+	const currentPairValue = url.searchParams.get('one_pair_per_match');
+	onePairButton.textContent = currentPairValue === 'true' ? 'Show all pairs' : 'Show only one pair per match';
+
+	const bestSubmissionsButton = document.getElementById('best-submissions-button');
+	const currentBestSubmissionsValue = url.searchParams.get('best_submissions');
+	bestSubmissionsButton.textContent = currentBestSubmissionsValue === 'true' ? 'Include all submissions' : 'Include only one submission per student (Best points)';
+
 	viewInDolosButton.addEventListener('click', function() {
 		dolosProgressParent.style.display = 'block';
 
@@ -81,6 +100,36 @@ document.addEventListener('DOMContentLoaded', function() {
 	// Hide dolos-progress-parent initially
 	dolosProgressParent.style.display = 'none';
 });
+
+function toggleOnePairPerMatch() {
+	const url = new URL(window.location.href);
+	const currentValue = url.searchParams.get('one_pair_per_match');
+	const newValue = currentValue === 'true' ? 'false' : 'true';
+	url.searchParams.set('one_pair_per_match', newValue);
+
+	const onePairButton = document.getElementById('one-pair-button');
+	onePairButton.textContent = newValue === 'true' ? 'Show all pairs' : 'Show only one pair per match';
+
+	window.location.href = url.toString();
+}
+
+function toggleBestSubmission() {
+	const url = new URL(window.location.href);
+	const currentValue = url.searchParams.get('best_submissions');
+	const newValue = currentValue === 'true' ? 'false' : 'true';
+	url.searchParams.set('best_submissions', newValue);
+
+	const onePairButton = document.getElementById('best-submissions-button');
+	onePairButton.textContent = newValue === 'true' ? 'Include all submissions' : 'Include only one submission per student (Best points)';
+
+	window.location.href = url.toString();
+}
+
+function updateUrl(param, value) {
+	const url = new URL(window.location.href);
+	url.searchParams.set(param, value);
+	window.location.href = url.toString();
+}
 </script>
 
 {% endblock %}
