@@ -564,6 +564,9 @@ def generate_dolos_view(
         submissions = exercise.best_submissions
     elif flagged == 'true':
         submissions = exercise.flagged_submissions
+
+    # Remove staff submissions
+    submissions = submissions.exclude(student__is_staff=True)
     print("Submissions", submissions)
 
     download_files(new_submissions_dir, exercise, course, submissions.distinct())
