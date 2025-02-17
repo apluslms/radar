@@ -23,6 +23,17 @@ form.well h4,
 
 li.paused, tr.paused { opacity: 0.4; }
 
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  text-align: center;
+  background-color: #f1f1f1;
+  padding: 5px 0;
+  border-top: 1px solid #e7e7e7;
+  font-weight: bold;
+}
+
 /* The heat */
 .heat-1 { background-color:#e96e5c !important; fill:#e96e5c !important; }
 .heat-2 { background-color:#fdbb83 !important; fill:#fdbb83 !important; }
