@@ -281,6 +281,11 @@ class Exercise(models.Model):
         )
 
     @property
+    def non_staff_submissions(self):
+        # Exclude staff submissions from the list of submissions
+        return self.submissions_currently_matching.exclude(student__is_staff=True)
+
+    @property
     def has_unassigned_submissions(self):
         return self.valid_unmatched_submissions.exists()
 
@@ -433,6 +438,7 @@ class Student(models.Model):
         help_text="Full name of the student",
     )
     email = models.EmailField(blank=True, default='No Email')
+    is_staff = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ("course", "key")
