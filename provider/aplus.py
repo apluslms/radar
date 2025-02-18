@@ -5,6 +5,7 @@ import requests
 from django.core.cache import caches as django_caches
 from aplus_auth.requests import get as aplus_get
 from aplus_auth.payload import Permission, Permissions
+from aplus_client.client import AplusTokenClient
 
 from data.models import URLKeyField
 from provider import tasks
@@ -74,14 +75,11 @@ def recompare(exercise, config):
         matcher_tasks.match_exercise(exercise.id)
 
 
-# TODO a better solution would probably be to configure A+ to allow API access to the Radar service itself
-#  and not use someones LTI login tokens to fetch stuff from the API
 def get_api_client(course):
     """
-    Return the AplusTokenClient of the first user with staff status from list of course reviewers.
+    Return the AplusTokenClient of the radar robot user.
     """
-    api_user = course.reviewers.filter(is_staff=True).first()
-    return api_user.get_api_client(course.namespace)
+    return AplusTokenClient(settings.APLUS_ROBOT_TOKEN)
 
 
 def request_template_content(url, course):

@@ -59,5 +59,7 @@ After this, ensure Radar is not running on the default localhost:8000. Use for e
 
 Also ensure that DEBUG = True is set in the settings at root/radar/settings.py
 
+To fetch submissions from A+ you need to also configure the APLUS_ROBOT_TOKEN variable in the settings.py file. For testing you may set it to the Api token for the root account. You should find it here: http://localhost:8000/accounts/accounts/
+
 Now you should be able to login to Radar using LTI from A+ as well as import automatically or manually configured exercises from A+. Only thing not working is automatic fetching of submissions and automatic matching. To match submissions you will still have to run
 `python manage.py matchsubmissions <course_id>/<exercise_id>`
