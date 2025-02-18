@@ -64,6 +64,7 @@ Below is a brief checklist of the steps required.
 * Generate the consumer key and secret with `Django LTI login`_ (in the Radar repo): ``python manage.py add_lti_key --desc aplus``.
 * Verify in your Django settings file that ``PROVIDERS["a+"]["host"]`` matches the URL of your A+ service.
 * Radar can now be added into an A+ course instance menu as an external service.
+* Additionally you should create a robot account in A+ for Radar to use. This account should have access to the course instances that Radar is monitoring. (Such an account can be created through the admin panel)
 
 If you want Radar to fetch new submissions automatically as they are submitted into A+, you can add a course hook into A+.
 
