@@ -21,7 +21,7 @@
 			</select>
 		</div>
 		<div class="dolos-button">
-			<a id="dolos-gen-button" href="{% url 'dolos' course_key=exercise.course.key exercise_key=exercise.key best_submissions='false' flagged='false' %}" class="btn btn-default btn-xl"}">
+			<a id="dolos-gen-button" href="{% url 'dolos' course_key=exercise.course.key exercise_key=exercise.key best_submissions='false' flagged='false' %}" class="btn btn-default btn-xl">
 				<p class="dolos-button-text">
 					Run analysis
 				</p>
@@ -45,7 +45,7 @@
 <pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
 
 <h4>Comparison pairs with highest similarity</h4>
-<a href="{% url 'exercise' course_key=exercise.course.key exercise_key=exercise.key %}?rows=100" class="btn btn-default btn-xs"}">
+<a href="{% url 'exercise' course_key=exercise.course.key exercise_key=exercise.key %}?rows=100" class="btn btn-default btn-xs">
     Show 100 rows
 </a>
 {% include 'review/_comparisontable_unique.html' %}

@@ -77,7 +77,7 @@ def test_histogram_visibility(page: Page) -> None:
 def test_student_view(page: Page) -> None:
     login(page)
     page.get_by_role('link', name=' Students view').click()
-    page.locator('.sorting_1 > a').first.click()
+    page.locator('.dt-left > a').first.click()
     expect(page.locator('.content.container-fluid > p').first).to_contain_text(
         re.compile(r'All comparisons for .+ with similarity greater than .+%')
     )
