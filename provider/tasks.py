@@ -11,7 +11,6 @@ from celery.utils.log import get_task_logger
 
 import requests
 
-from accounts.models import RadarUser
 from data.models import Course, Exercise, TaskError
 from matcher import tasks as matcher_tasks
 from provider import aplus
@@ -173,7 +172,7 @@ def get_full_course_config(api_user_id, course_id, has_radar_config=True):
     """
     result = {}
     course = Course.objects.get(pk=course_id)
-    api_user = RadarUser.objects.get(pk=api_user_id)
+    api_user = aplus.get_api_client(course)
     client = api_user.get_api_client(course.namespace)
 
     try:

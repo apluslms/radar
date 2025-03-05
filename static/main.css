@@ -23,6 +23,17 @@ form.well h4,
 
 li.paused, tr.paused { opacity: 0.4; }
 
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  text-align: center;
+  background-color: #f1f1f1;
+  padding: 5px 0;
+  border-top: 1px solid #e7e7e7;
+  font-weight: bold;
+}
+
 /* The heat */
 .heat-1 { background-color:#e96e5c !important; fill:#e96e5c !important; }
 .heat-2 { background-color:#fdbb83 !important; fill:#fdbb83 !important; }
@@ -42,7 +53,6 @@ table.comparison .glyphicon { text-shadow: -1px 0 white, 0 1px white, 1px 0 whit
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   border: 1px solid grey;
-  max-width: 2000px;
 }
 
 .comparison-grid .grid-item {
@@ -126,13 +136,25 @@ pre.sample-highlight { display:inline-block; }
   max-width: 300px;
 }
 
-#graph-container {
+#network-graph{
   min-width: 300px;
   min-height: 600px;
   width: 100%;
   height: 100%;
   border: 1px solid #ccc;
   border-radius: 5px;
+}
+
+#network-graph-legend {
+	display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+	border: 1px solid #ccc;
+  border-radius: 5px;
+	margin-bottom: 14px;
+}
+
+.checkbox-container {
+	margin-bottom: 14px;
 }
 
 #pair-comparisons-summary-modal .modal-body ul>li>ul {
@@ -211,14 +233,14 @@ pre.sample-highlight { display:inline-block; }
   .ex {
     display: block !important;
   }
-  .code-comparison { 
-    clear:both; 
+  .code-comparison {
+    clear:both;
     overflow:visible !important;
   }
-  .code-comparison a.provider { 
-    display:block; 
-    width:100% !important; 
-    float:left; 
+  .code-comparison a.provider {
+    display:block;
+    width:100% !important;
+    float:left;
   }
   pre.code-view {
 	  display:block;
@@ -234,11 +256,11 @@ pre.sample-highlight { display:inline-block; }
     background-color:#fff !important;
   }
   .source a {
-    color:#333 !important; 
-    text-decoration:none !important; 
+    color:#333 !important;
+    text-decoration:none !important;
   }
   .source a.template {
-    background-color:#f8f8f8 !important; 
+    background-color:#f8f8f8 !important;
   }
   .source a.match {
     background-color:#ffff99 !important;

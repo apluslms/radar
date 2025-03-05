@@ -245,7 +245,6 @@ class Exercise(models.Model):
                 best_submission_ids.append(best_submission.id)
 
         best_submissions_queryset = self.submissions.filter(id__in=best_submission_ids)
-        print("Best submissions queryset:", best_submissions_queryset)
         return best_submissions_queryset
 
     @property
@@ -260,7 +259,6 @@ class Exercise(models.Model):
                                             .values_list('submission_b', flat=True))
 
         submission_ids = list(set(submission_ids_a) | set(submission_ids_b))
-        print(submission_ids)
         submissions = Submission.objects.filter(id__in=submission_ids)
         return submissions
 
@@ -311,32 +309,42 @@ class Exercise(models.Model):
     def submissions_max_similarity_json(self):
         return json.dumps(list(self.submissions_max_similarity))
 
-    def top_comparisons(self, rows):
+    def top_comparisons(self, rows, one_pair_per_match=False, best_submissions=False):
         max_list = (
             self.valid_matched_submissions.values('student__id')
             .annotate(m=models.Max('max_similarity'))
             .order_by('-m')[:rows]
         )
-
-        compared_list = self._comparisons_by_submission(
-            self.valid_matched_submissions.filter(student__id=each['student__id'])
-            .order_by('-max_similarity')
-            .first()
-            .id
-            for each in max_list
-        )
+        if best_submissions:
+            compared_list = self._comparisons_by_submission(
+                submission.id
+                for each in max_list
+                for submission in self.best_submissions.filter(student__id=each['student__id'])
+            )
+        else:
+            compared_list = self._comparisons_by_submission(
+                submission.id
+                for each in max_list
+                for submission in self.valid_matched_submissions.filter(student__id=each['student__id'])
+            )
 
         # Filter the comparisons such that only unique ones are maintained, while identical ones are removed.
         # Done using Python sets which cannot have duplicate values.
         unique_set = set()
+        student_pairs = set()
 
         for comparison_row in compared_list:
-            unique_set.update(comparison_row["matches"])
+            for match in comparison_row["matches"]:
+                student_pair = frozenset([match.submission_a.student.id, match.submission_b.student.id])
+                if student_pair not in student_pairs:
+                    unique_set.add(match)
+                    student_pairs.add(student_pair)
+                elif not one_pair_per_match:
+                    unique_set.add(match)
 
         sorted_unique_set = sorted(
             unique_set, key=lambda comparison: comparison.similarity, reverse=True
         )
-
         return sorted_unique_set
 
     def comparisons_for_student(self, local_student):
