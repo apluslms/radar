@@ -25,7 +25,6 @@ Requirements
 Optional
 ........
 
-* Scala 2.11 (for Scala tokenizer)
 * Node.js 4.2 (for JavaScript tokenizer)
 * Esprima 4.0 (for JavaScript tokenizer)
 * Write access to ``submission_files/`` (By default, submission files are downloaded when needed and stay only in main memory)

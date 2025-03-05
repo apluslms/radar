@@ -170,6 +170,7 @@ class Exercise(models.Model):
         max_length=8, choices=settings.TOKENIZER_CHOICES, blank=True, null=True
     )
     override_minimum_match_tokens = models.IntegerField(blank=True, null=True)
+    use_staff_submissions = models.BooleanField(default=False)
     template_tokens = models.TextField(blank=True, default="")
     paused = models.BooleanField(default=False)
     matching_start_time = models.CharField(
@@ -279,6 +280,17 @@ class Exercise(models.Model):
             matching_start_time__isnull=False,
             matching_start_time=self.matching_start_time,
         )
+
+    @property
+    def non_staff_submissions(self):
+        # Exclude staff submissions from the list of submissions
+        return self.submissions_currently_matching.exclude(student__is_staff=True)
+
+    @property
+    def get_submissions(self):
+        if self.use_staff_submissions:
+            return self.submissions_currently_matching
+        return self.non_staff_submissions
 
     @property
     def has_unassigned_submissions(self):
@@ -433,6 +445,7 @@ class Student(models.Model):
         help_text="Full name of the student",
     )
     email = models.EmailField(blank=True, default='No Email')
+    is_staff = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ("course", "key")

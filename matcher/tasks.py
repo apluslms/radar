@@ -19,7 +19,7 @@ def match_exercise(exercise_id, delay=True):
     Match all valid, yet unmatched submissions for a given exercise.
     """
     exercise = Exercise.objects.get(pk=exercise_id)
-    for submission in exercise.submissions_currently_matching:
+    for submission in exercise.get_submissions:
         match_against_template(submission.id)
     if delay:
         match_all_new_submissions_to_exercise.delay(exercise_id)
@@ -61,7 +61,7 @@ def match_all_new_submissions_to_exercise(exercise_id, delay=True):
         "matching_start_time": exercise.matching_start_time,
     }
     # JSON serializable list of submissions
-    compare_list = [s.as_dict() for s in exercise.submissions_currently_matching]
+    compare_list = [s.as_dict() for s in exercise.get_submissions]
     # Match all, then handle results when all matches are available
     if delay:
         match_all_task = match_all_combinations.si(config, compare_list)
@@ -82,7 +82,7 @@ def handle_match_results(matches):
         "Handling match results, got %d pairs of submissions", len(matches["results"])
     )
     exercise = Exercise.objects.get(pk=matches["config"]["exercise_id"])
-    expected_result_count = exercise.submissions_currently_matching.count()
+    expected_result_count = exercise.get_submissions.count()
     if expected_result_count == 0:
         logger.error("Exercise %s is not expecting match results", exercise)
         return

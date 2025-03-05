@@ -20,6 +20,8 @@ def acquire_lock():
 
 
 def get_text(exercise, name):
+    # Remove _STAFF suffix, so the file can be found with its original name.
+    name = name.replace("_STAFF", "")
     path = path_to_exercise(exercise, name)
     if os.path.exists(path):
         with codecs.open(path, "r", "utf-8", "replace") as f:

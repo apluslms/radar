@@ -2,7 +2,7 @@
 
 ### Currently implemented
 * Python 3, using tokens from the stdlib [tokenize](https://github.com/python/cpython/blob/3.5/Lib/tokenize.py) module
-* Scala, using scalariform
+* Scala, using Pygments Python library
 * JavaScript, using tokens from [Esprima 4](https://github.com/jquery/esprima/tree/4.0/)
 * (source mappings not working properly) CSS, using custom tokens parsed with CSSLint's [parser-lib](https://github.com/CSSLint/parser-lib/tree/v1.1.1).
 * HTML, using custom tokens parsed with the Python stdlib [html.parser](https://github.com/python/cpython/blob/3.5/Lib/html/parser.py) module.
