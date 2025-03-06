@@ -139,32 +139,35 @@ def comparison(
 
     p_config = provider_config(course.provider)
     get_submission_text = configured_function(p_config, "get_submission_text")
+
+    context = {
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            (
+                exercise.name,
+                reverse(
+                    "exercise",
+                    kwargs={"course_key": course.key, "exercise_key": exercise.key},
+                ),
+            ),
+            ("%s vs %s" % (a.student.key, b.student.key), None),
+        ),
+        "course": course,
+        "exercise": exercise,
+        "comparisons": exercise.comparisons_for_student(a.student),
+        "comparison": comparison,
+        "reverse": reverse_flag,
+        "a": a,
+        "b": b,
+        "source_a": get_submission_text(a, p_config),
+        "source_b": get_submission_text(b, p_config),
+    }
+
     return render(
         request,
         "review/comparison.html",
-        {
-            "hierarchy": (
-                (settings.APP_NAME, reverse("index")),
-                (course.name, reverse("course", kwargs={"course_key": course.key})),
-                (
-                    exercise.name,
-                    reverse(
-                        "exercise",
-                        kwargs={"course_key": course.key, "exercise_key": exercise.key},
-                    ),
-                ),
-                ("%s vs %s" % (a.student.key, b.student.key), None),
-            ),
-            "course": course,
-            "exercise": exercise,
-            "comparisons": exercise.comparisons_for_student(a.student),
-            "comparison": comparison,
-            "reverse": reverse_flag,
-            "a": a,
-            "b": b,
-            "source_a": get_submission_text(a, p_config),
-            "source_b": get_submission_text(b, p_config),
-        },
+        context,
     )
 
 
@@ -451,9 +454,11 @@ def exercise_settings(
                 form_template.save(exercise)
                 context["change_success"].add("override_template")
         elif "clear_and_recompare" in request.POST:
+            set_use_staff_submissions(request, exercise)
             configured_function(p_config, "recompare")(exercise, p_config)
             context["change_success"].add("clear_and_recompare")
         elif "provider_reload" in request.POST:
+            set_use_staff_submissions(request, exercise)
             configured_function(p_config, "full_reload")(exercise, p_config)
             context["change_success"].add("provider_reload")
         elif "delete_exercise" in request.POST:
@@ -487,7 +492,16 @@ def exercise_settings(
         }
     )
     context["form_delete_exercise"] = DeleteExerciseFrom({"name": ''})
+    context["use_staff_submissions"] = exercise.use_staff_submissions
     return render(request, "review/exercise_settings.html", context)
+
+# Functions for toggling the use of staff submissions
+def set_use_staff_submissions(request, exercise):
+    if "use_staff_submissions" in request.POST:
+        exercise.use_staff_submissions = True
+    else:
+        exercise.use_staff_submissions = False
+    exercise.save()
 
 def download_file(output_dir, submission, local_course):
     filename = "student" + submission.student.key
@@ -570,6 +584,11 @@ def generate_dolos_view(
         submissions = exercise.best_submissions
     elif flagged == 'true':
         submissions = exercise.flagged_submissions
+
+    # Remove staff submissions
+    if exercise.use_staff_submissions is False:
+        submissions = submissions.exclude(student__is_staff=True)
+
     print("Submissions", submissions)
 
     download_files(new_submissions_dir, exercise, course, submissions.distinct())
@@ -784,7 +803,7 @@ def students_view(request, course=None, course_key=None):
 
     submissions = (
         Submission.objects.filter(exercise__course=course)
-        .values('student__key')
+        .values('student__key', 'student__is_staff')
         .annotate(max_avg=Avg('max_similarity'), max=Max('max_similarity'))
     )
 
