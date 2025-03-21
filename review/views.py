@@ -19,7 +19,8 @@ import requests
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
-from django.db.models import Avg, Max, Q
+from django.db.models import Avg, Q
+from django.core.handlers.wsgi import WSGIRequest
 
 from data.models import Course, Comparison, Student, Submission
 from data import graph
@@ -139,7 +140,6 @@ def comparison(
 
     p_config = provider_config(course.provider)
     get_submission_text = configured_function(p_config, "get_submission_text")
-
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
@@ -796,16 +796,61 @@ class dolos_proxy_view(View):
         return proxy_response
 
 @access_resource
-def students_view(request, course=None, course_key=None):
+def students_view(request: WSGIRequest, course: Course | None = None, course_key: str | None = None) -> HttpResponse:
     """
     Students view listing students and average/max similarity scores of their submissions
     """
 
+    # Get all submissions for the course
     submissions = (
         Submission.objects.filter(exercise__course=course)
-        .values('student__key', 'student__is_staff')
-        .annotate(max_avg=Avg('max_similarity'), max=Max('max_similarity'))
+        .values('student__key', 'student__is_staff', 'exercise__name')
+        .annotate(
+            avg_similarity=Avg('max_similarity'),
+        )
     )
+
+    # Exercise names as a list
+    exercise_names = sorted(course.exercises.all().values_list('name', flat=True))
+
+    # Student keys
+    student_info = submissions.values_list('student__key', 'student__is_staff').distinct()
+
+    students = []
+
+    # Loop through students and their submissions
+    for student in student_info:
+        # Get all submissions and their similarity for the student
+        exercise_similarities = list(
+            submissions.filter(student__key=student[0])
+            .values_list('exercise__name', 'avg_similarity')
+        )
+
+        similarities = list(map(lambda x: x[1], exercise_similarities))
+
+        # Append the student to the list of students
+        students.append(
+            {
+                'key': student[0],
+                'is_staff': student[1],
+                'exercises': exercise_similarities,
+                'avg_similarity': sum(similarities) / len(similarities) if len(similarities) > 0 else 0.0,
+            }
+        )
+
+        # Check if their submissions are missing for some exercises
+        if len(exercise_similarities) == len(exercise_names):
+            students[-1]['exercises'] = sorted(students[-1]['exercises'], key=lambda x: x[0])
+            continue
+
+        # Add missing exercises
+        for exercise in exercise_names:
+            if not any(d[0] == exercise for d in students[-1]['exercises']):
+                students[-1]['exercises'].append((exercise,-1))
+
+                if len(students[-1]['exercises']) == len(exercise_names):
+                    students[-1]['exercises'] = sorted(students[-1]['exercises'], key=lambda x: x[0])
+                    break
 
     context = {
         "hierarchy": (
@@ -814,7 +859,8 @@ def students_view(request, course=None, course_key=None):
             ("Students", None),
         ),
         "course": course,
-        "submissions": submissions,
+        "exercise_names": exercise_names,
+        "students": students,
     }
 
     return render(request, "review/students_view.html", context)
@@ -836,7 +882,6 @@ def student_view(request, course=None, course_key=None, student=None, student_ke
         )
         .filter(
             Q(submission_a__student__key=student_key)
-            | Q(submission_b__student__key=student_key)
         )
         .exclude(submission_b__isnull=True)
     )

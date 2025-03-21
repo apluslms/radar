@@ -284,3 +284,19 @@ pre.sample-highlight { display:inline-block; }
     margin: 0;
   }
 }
+
+/* Students View */
+#list_of_exercises {
+	list-style: none;
+	padding-bottom: 50px;
+}
+
+#list_of_exercises li {
+	display: block;
+	width: 20%;
+	float:left;
+}
+
+#dt-length-0 {
+	margin-right: 5px;
+}

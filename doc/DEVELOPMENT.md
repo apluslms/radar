@@ -8,7 +8,9 @@ The core of the system is written in [Python 3](https://www.python.org/) and ins
 
 Following terminal commands create an environment and install required packages.
 
-Linux & OS X:<br>
+Linux:<br>
+`source setup_for_linux.sh`<br>
+OS X:<br>
 `python3 -m virtualenv -p python3 py_venv`<br>
 `source py_venv/bin/activate`<br>
 `pip install -r requirements.txt`<br>
@@ -17,7 +19,14 @@ Windows:<br>
 `py_venv\Scripts\activate.bat`<br>
 `pip install -r requirements.txt`
 
-When starting a new terminal for development, access the same virtual enviroment by entering the activate command alone (2nd line).
+When starting a new terminal for development, access the same virtual environment by entering the activate command alone (2nd line).
+
+## Greedy String Tiling
+
+The library has been copied into Radar `matcher/greedy_string_tiling` from the [original repo](https://github.com/apluslms/greedy-string-tiling). The library needs to be separately installed:
+
+`cd matcher/greedy_string_tiling`<br>
+`pip install .`
 
 ## Django
 

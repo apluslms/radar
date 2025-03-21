@@ -1,12 +1,9 @@
 from django.conf import settings
-
 import celery
 from celery.utils.log import get_task_logger
-
 # Matchlib can also be deployed to a Kubernetes node, easing the task load by allowing elastic parallel task processing
-from matchlib.tasks import match_all_combinations
+from matcher.greedy_string_tiling.matchlib.tasks import match_all_combinations
 from matcher import matcher
-
 from data.models import Exercise, Submission, TaskError, Comparison
 
 
@@ -72,12 +69,13 @@ def match_all_new_submissions_to_exercise(exercise_id, delay=True):
 
 
 @celery.shared_task(ignore_result=True)
-def handle_match_results(matches):
+def handle_match_results(matches: dict[str, any]):
     """
     Create Comparison instances from matchlib results and update max similarities of the submission pairs.
     If the exercise with an id given in 'matches' has a different timestamp than the 'matches' object,
     all results will be discarded.
     """
+
     logger.info(
         "Handling match results, got %d pairs of submissions", len(matches["results"])
     )
@@ -101,12 +99,15 @@ def handle_match_results(matches):
         )
         return
 
+    # Get keys for the matchlib results
     submissions_updated = set()
     meta = matches["meta"]
     id_a_key = meta.index("id_a")
     id_b_key = meta.index("id_b")
-    similarity_key = meta.index("similarity")
+    similarity_key_a = meta.index("similarity_a")
+    similarity_key_b = meta.index("similarity_b")
     matches_json_key = meta.index("match_indexes")
+
     # Update max similarity for every submission
     for match in matches["results"]:
         a = Submission.objects.get(pk=match[id_a_key])
@@ -115,17 +116,30 @@ def handle_match_results(matches):
             continue
         submissions_updated.add(id_a_key)
         submissions_updated.add(id_b_key)
-        similarity = match[similarity_key]
+        similarity_a = match[similarity_key_a]
+        similarity_b = match[similarity_key_b]
         matches_json = match[matches_json_key]
+
+        # Create Comparison instances for both submissions
         Comparison.objects.create(
             submission_a=a,
             submission_b=b,
-            similarity=similarity,
+            similarity=similarity_a,
             matches_json=matches_json,
         )
-        matcher.update_submission(a, similarity, b)
-        matcher.update_submission(b, similarity, a)
+        Comparison.objects.create(
+            submission_a=b,
+            submission_b=a,
+            similarity=similarity_b,
+            matches_json=swap_positions(matches_json),
+        )
+
+        # Update max similarity for both submissions
+        matcher.update_submission(a, similarity_a, b)
+        matcher.update_submission(b, similarity_b, a)
+
     logger.info("Match results processed for %d submissions", len(submissions_updated))
+
     if len(submissions_updated) < expected_result_count:
         num_missing = expected_result_count - len(submissions_updated)
         if "minimum_similarity" in matches["config"]:
@@ -152,3 +166,12 @@ def handle_match_results(matches):
 def write_error(message, namespace):
     logger.error(message)
     TaskError(package="matcher", namespace=namespace, error_string=message).save()
+
+
+# Helper function to swap start positions of matches.
+def swap_positions(matches_list: list[list[int]]) -> list[list[int]]:
+    for match in matches_list:
+        swap = match[0]
+        match[0] = match[1]
+        match[1] = swap
+    return matches_list
