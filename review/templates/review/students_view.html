@@ -1,76 +1,79 @@
 {% extends 'base.html' %}
+
 {% load review %}
 {% load static %}
+
+{% block head_includes %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+<script src=//cdn.datatables.net/2.2.2/js/dataTables.min.js></script>
+<script src="https://cdn.datatables.net/plug-ins/2.2.2/sorting/natural.min.js"></script>
+<script src="{% static '/views/students_view.js' %}"></script>
+{% endblock head_includes %}
+
 {% block css %}
 <link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css" />
 {% endblock %}
+
 {% block content %}
+
 <h2>Students View</h2>
+
 <p>Green rows are staff members.</p>
 <input type="checkbox" id="show_staff" checked> Show staff members <br>
-<script>
 
-</script>
+<h3>Hide exercises</h3>
+<button id="show_all_exercises">Show All</button>
+<button id="hide_all_exercises">Hide All</button>
+<div>
+	<ol id="list_of_exercises">
+		{% for exercise in exercise_names %}
+			<li>
+				<input type="checkbox" id="show_{{ exercise }}" checked> {{ exercise }} <br>
+			</li>
+		{% endfor %}
+	</ol>
+</div>
+
+<h4>Negative percentages refers to no submission(s) by the student</h4>
+
 <div>
     <table class="table" id="studentdatatable">
         <thead>
             <tr>
                 <th>Student</th>
-                <th>Average of highest similarity scores</th>
-                <th>Highest similarity score</th>
+				<th>Average of highest similarity scores</th>
+				{% for exercise in exercise_names %}
+					<th class="{{ exercise }}_column exercise_name">
+						<a href="{{ hierarchy.1.1 }}{{ exercise }}/">{{ exercise }}</a>
+					</th>
+				{% endfor %}
             </tr>
         </thead>
         <tbody>
-                {% for submission in submissions %}
-                <tr {% if submission.student__is_staff %} class="is_staff" {% endif %}>
+			{% for student in students %}
+				<tr {% if student.is_staff %} class="is_staff" {% endif %}>
+					<td {% if student.is_staff %} style="background-color: lightgreen;"{% endif %}>
+						<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.key }}</a>
+					</td>
 					<td {% if submission.student__is_staff %} style="background-color: lightgreen;"{% endif %}>
-						<a href="{% url 'student_view' course_key=course.key student_key=submission.student__key %}">{{ submission.student__key }}</a>
+						{{ student.avg_similarity|percent }}
 					</td>
-                    <td {% if submission.student__is_staff %} style="background-color: lightgreen;"{% endif %}>
-						{{ submission.max_avg|percent }}
-					</td>
-                    <td {% if submission.student__is_staff %} style="background-color: lightgreen;"{% endif %}>
-						{{ submission.max|percent }}
-					</td>
-                </tr>
-                {% endfor %}
+					{% for exercise in student.exercises %}
+						<td class="{{ exercise.0 }}_column" {% if student.is_staff %} style="background-color: lightgreen;"{% endif %}>
+							{{ exercise.1|percent }}
+						</td>
+					{% endfor %}
+				</tr>
+			{% endfor %}
         <tfoot>
             <tr>
                 <th>Student</th>
-                <th>Average similarity score</th>
-                <th>Highest similarity score</th>
+				<th>Average of highest similarity scores</th>
+				{% for exercise in exercise_names %}
+					<th class="{{ exercise }}_column">{{ exercise }}</th>
+				{% endfor %}
             </tr>
         </tfoot>
     </table>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
-<script src=//cdn.datatables.net/2.2.2/js/dataTables.min.js></script>
-<script src="https://cdn.datatables.net/plug-ins/2.2.2/sorting/natural.min.js"></script>
-<script>
-    $(document).ready( function () {
-        $('#studentdatatable').DataTable( {
-            lengthMenu: [ [-1, 10, 25, 100], ["All", 10, 25, 100] ],
-			columnDefs: [
-				{ type: 'natural', target: 0 },
-				{ className: 'dt-left', targets: '_all' },
-			]
-        } );
-
-		//On reload, check if the checkbox is checked and show staff members if it is
-		if ($('#show_staff').is(':checked')) {
-			$('.is_staff').show();
-		} else {
-			$('.is_staff').hide();
-		}
-
-		//Show or hide staff members based on the checkbox
-		$('#show_staff').change(function() {
-			if (this.checked) {
-				$('.is_staff').show();
-			} else {
-				$('.is_staff').hide();
-			}
-		});
-    });
-</script>
 {% endblock %}

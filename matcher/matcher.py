@@ -1,9 +1,6 @@
 import logging
-
 from django.conf import settings
-
-from matchlib.util import TokenMatch
-
+from matcher.greedy_string_tiling.matchlib.util import TokenMatch
 from data.models import Comparison
 import radar.config as config_loaders
 
