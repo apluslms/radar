@@ -5,7 +5,7 @@ Automatic similarity analysis for source code and other tokenizable data.
 
 Accepts HTTP hook requests that record new data submissions, which are then fetched from some provider API.
 Recorded submissions will be processed asynchronously using Celery.
-Submission sources are matched using the `greedy string tiling`_ library, which also provides a simple Celery interface.
+Submission sources are matched using the `greedy string tiling`_ library, which also provides a simple Celery interface. The library has been copied and modified into Radar.
 
 Similarity matches will form submission groups for easy evaluation of the cases.
 Views are provided to follow submitters over series of exercises.
@@ -15,7 +15,7 @@ Views are provided to follow submitters over series of exercises.
 
 Requirements
 ------------
-* Python 3.8+
+* Python 3.11+
 * RabbitMQ 3.8+
 * Django 4.2
 * Celery 5.2
@@ -25,7 +25,6 @@ Requirements
 Optional
 ........
 
-* Scala 2.11 (for Scala tokenizer)
 * Node.js 4.2 (for JavaScript tokenizer)
 * Esprima 4.0 (for JavaScript tokenizer)
 * Write access to ``submission_files/`` (By default, submission files are downloaded when needed and stay only in main memory)
@@ -36,7 +35,7 @@ Directory structure
 * ``accounts/`` Django app: user models that have A+ API access
 * ``data/`` Django app: models, commands and cron
 * ``ltilogin/`` Django app: handling user creation on first login using LTI access
-* ``matcher/`` Task definitions for matching token string
+* ``matcher/`` Task definitions for matching token string and matching library
 * ``provider/`` Data integrations for different sources
 * ``radar/`` Django main
 * ``review/`` Django app: reviewer interface

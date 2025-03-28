@@ -46,10 +46,10 @@ if $SHOULD_MOVE_FILES; then
       # Create the index and ex2 directories
       DEST_DIR="$SRC_DIR/$INDEX/ex2"
       mkdir -p "$DEST_DIR"
-      
+
       # Move the file to the destination directory
       mv "$FILE" "$DEST_DIR"
-      
+
       # Increment the counter
       INDEX=$((INDEX + 1))
     fi
@@ -66,10 +66,10 @@ for SUBDIR in "$SRC_DIR"/*; do
     COMMAND="python manage.py loadsubmissions $COURSE_NAME/$EXERCISE_NAME $DEST_DIR"
     echo "Running command for $DEST_DIR"
     echo "Command: $COMMAND"
-    
+
     # Execute the command
     eval $COMMAND
-    
+
     # Wait for the specified delay before continuing to the next one
     sleep $DELAY
   fi

@@ -190,7 +190,7 @@ REVIEWS = (
     {"value": REVIEW_CHOICES[3][0], "name": REVIEW_CHOICES[3][1], "class": "warning"},
 )
 
-MATCH_ALGORITHM = "matchlib.matchers.greedy_string_tiling"
+MATCH_ALGORITHM = "matcher.greedy_string_tiling.matchlib.matchers.greedy_string_tiling"
 
 # Weigths are obsolete
 MATCH_ALGORITHMS = {

@@ -7,7 +7,9 @@ register = template.Library()
 
 @register.filter
 def percent(value):
-    return "{:d}%".format(round(100 * value))
+    if value >= 0:
+        return "{:d}%".format(round(100 * value))
+    return '-1%'
 
 
 @register.filter

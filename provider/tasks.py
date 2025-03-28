@@ -106,8 +106,21 @@ def create_submission(
     ## for submitter_id in _decode_students(data["submitters"]):
     submitter_id = "_".join(aplus._decode_students(data["submitters"]))
 
+    # Check if any of the submitters is a staff member
+    is_staff = check_if_staff(data, course)
+
+    if is_staff:
+        submitter_id += "_STAFF"
+
     try:
         submission = insert_submission(exercise, submission_key, submitter_id, data)
+
+        # If any of the submitters is a staff member, set the student as staff
+        if is_staff:
+            staff = submission.student
+            staff.is_staff = True
+            staff.save()
+
         prepare_submission(submission, matching_start_time)
     except InsertError as err:
         write_error(str(err), 'create_submission')
@@ -239,3 +252,33 @@ def task_error_handler(task_id, *args, **kwargs):
 def write_error(message, namespace):
     logger.error(message)
     TaskError(package="provider", namespace=namespace, error_string=message).save()
+
+
+# Check if any of the submitters is a staff member
+def check_if_staff(data, course):
+    is_staff = False
+
+    # Check if any group submission submitters are staff
+    for submitter in data["submitters"]:
+        # Get the user data from the API
+        try:
+            api_client = aplus.get_api_client(course)
+            submitter_data = api_client.load_data(submitter["url"])
+            del api_client
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ReadTimeout,
+        ):
+            logger.exception("Unable to read data from the API.")
+            continue
+
+        # Check if the user is a staff member for this course
+        for course_data in submitter_data["staff_courses"]:
+            if course_data["id"] == course.api_id:
+                is_staff = True
+                break
+
+        if is_staff:
+            break
+
+    return is_staff

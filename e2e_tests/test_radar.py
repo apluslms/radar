@@ -80,14 +80,14 @@ def test_graph_view(page: Page) -> None:
     page.get_by_role('button', name='Build graph').click()
     page.locator("svg > line").last.click()
     expect(page.locator('#pair-comparisons-summary-modal')).to_contain_text(
-        re.compile(r'.+ and .+ have .+ submission pair with high similarity')
+        re.compile(r'.+ and .+ have .+ submission pair.? with high similarity')
     )
 
 # Test visibility of student view
 def test_student_view(page: Page) -> None:
     login(page)
     page.get_by_role('link', name=' Students view').click()
-    page.locator('.sorting_1 > a').first.click()
+    page.locator('.dt-left > a').first.click()
     expect(page.locator('.content.container-fluid > p').first).to_contain_text(
         re.compile(r'All comparisons for .+ with similarity greater than .+%')
     )
