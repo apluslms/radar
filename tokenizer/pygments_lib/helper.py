@@ -49,7 +49,9 @@ def tokenize_code(source: str, lexer: RegexLexer) -> tuple[str, list]:
 
                 # Check for lexer error
                 if token_type_value == 4:
-                    raise Exception("Token type is not supported")
+                    #raise Exception("Token type is not supported")
+                    #logger.error("Token type is not supported")
+                    pass
 
                 # Convert token type to a single character
                 tokenized_source += token_type_to_chr(token_type_value)

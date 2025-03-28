@@ -159,8 +159,7 @@ def get_full_course_config(api_user_id, course_id, has_radar_config=True):
     """
     result = {}
     course = Course.objects.get(pk=course_id)
-    api_user = aplus.get_api_client(course)
-    client = api_user.get_api_client(course.namespace)
+    client = aplus.get_api_client(course.namespace)
 
     try:
         if client is None:
