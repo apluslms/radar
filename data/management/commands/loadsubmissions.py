@@ -38,6 +38,7 @@ class Command(BaseCommand):
                 minimum_match_tokens=15,
                 archived=False,
                 similarity_graph_json='',
+                clusters_json='',
             )
         exercise = course.get_exercise(exercise_key)
         self.stdout.write("Inserting to exercise %s" % (exercise))

@@ -19,7 +19,7 @@ import requests
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
-from django.db.models import Avg, Q
+from django.db.models import Avg, Q, F
 from django.core.handlers.wsgi import WSGIRequest
 
 from data.models import Course, Comparison, Student, Submission
@@ -421,6 +421,7 @@ def build_graph(request, course, course_key):
 @access_resource
 def invalidate_graph_cache(request, course, course_key):
     course.similarity_graph_json = ''
+    course.clusters_json = ''
     course.save()
     return HttpResponse("Graph cache invalidated")
 
@@ -834,7 +835,7 @@ def students_view(request: WSGIRequest, course: Course | None = None, course_key
                 'key': student[0],
                 'is_staff': student[1],
                 'exercises': exercise_similarities,
-                'avg_similarity': sum(similarities) / len(similarities) if len(similarities) > 0 else 0.0,
+                'avg_similarity': sum(similarities) / len(similarities) if len(similarities) > 0 else "",
             }
         )
 
@@ -846,7 +847,7 @@ def students_view(request: WSGIRequest, course: Course | None = None, course_key
         # Add missing exercises
         for exercise in exercise_names:
             if not any(d[0] == exercise for d in students[-1]['exercises']):
-                students[-1]['exercises'].append((exercise,-1))
+                students[-1]['exercises'].append((exercise, ""))
 
                 if len(students[-1]['exercises']) == len(exercise_names):
                     students[-1]['exercises'] = sorted(students[-1]['exercises'], key=lambda x: x[0])
@@ -1064,6 +1065,109 @@ def flagged_pairs(request, course=None, course_key=None):
     }
 
     return render(request, "review/flagged_pairs.html", context)
+
+
+# Render the clusters view
+@access_resource
+def clusters_view(request: WSGIRequest, course: Course | None = None, course_key: str | None = None) -> HttpResponse:
+
+    context = {
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            ("Clusters", None),
+        ),
+        "minimum_similarity_threshold": settings.MATCH_STORE_MIN_SIMILARITY,
+        "number_of_exercises": course.exercises.count(),
+    }
+
+    return render(request, "review/clusters_view.html", context)
+
+
+# Render the cluster view
+@access_resource
+def cluster_view(
+    request: WSGIRequest,
+    cluster_key: str,
+    course: Course | None = None,
+    course_key: str | None = None
+    ) -> HttpResponse:
+
+    # Get the cluster data from the course object
+    cluster_data = json.loads(course.clusters_json or '{}')
+    if not cluster_data:
+        return HttpResponseBadRequest("No cluster data found")
+
+    # Get the cluster data
+    min_similarity = cluster_data["min_similarity"]
+    min_matches = cluster_data["min_matches"]
+    use_unique_ex = cluster_data["unique_exercises"]
+    date_time = cluster_data["date_time"]
+    cluster = cluster_data["clusters"][int(cluster_key) - 1]
+    students = cluster["students"]
+
+    # Get all student similarities for the course
+    comparisons = (
+        Comparison.objects.filter(submission_a__exercise__course=course)
+        .filter(submission_a__student__key__in=students, submission_b__student__key__in=students)
+        .annotate(
+            student_a=F("submission_a__student__key"),
+            student_b=F("submission_b__student__key"),
+        )
+        .values("student_a", "student_b")
+        .annotate(
+            avg_similarity=Avg("similarity"),
+        )
+    )
+
+    # Get the max similarity for each student
+    students_sorted = list(
+        comparisons.values("student_b")
+        .annotate(max_similarity=Avg("similarity"))
+        .order_by("-max_similarity")
+        .values_list("student_b", flat=True)
+    )
+
+    # Create a grid of student pairs and their average similarity
+    grid = {}
+    for comparison in comparisons:
+        grid[comparison["student_a"] + '_' + comparison["student_b"]] = comparison["avg_similarity"]
+
+    context = {
+        "hierarchy": (
+            (settings.APP_NAME, reverse("index")),
+            (course.name, reverse("course", kwargs={"course_key": course.key})),
+            ("Clusters", reverse("course", kwargs={"course_key": course.key})),
+            (cluster_key, None),
+        ),
+        "course": course,
+        "cluster_key": cluster_key,
+        'min_similarity': min_similarity,
+        'min_matches': min_matches,
+        'use_unique_ex': use_unique_ex,
+        'date_time': date_time,
+        "students": students_sorted,
+        "grid": grid,
+    }
+
+    return render(request, "review/cluster_view.html", context)
+
+
+# Save the cluster data to the course object
+@access_resource
+def save_clusters(request: WSGIRequest, course: Course | None = None, course_key: str | None = None) -> HttpResponse:
+    # Check if the request is POST and AJAX
+    if request.method != "POST" or not is_ajax(request):
+        return HttpResponseBadRequest()
+
+    # Get the  cluster data from the request
+    cluster_data = request.body.decode("utf-8")
+
+    # Get the course object and save the cluster data
+    course.clusters_json = cluster_data
+    course.save()
+
+    return JsonResponse(json.loads(cluster_data))
 
 
 # TODO: Move to helper functions

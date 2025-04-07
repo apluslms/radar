@@ -6,6 +6,8 @@ from celery.utils.log import get_task_logger
 from django.urls import reverse
 
 from data.models import Course
+from datetime import datetime
+import pytz
 
 logger = get_task_logger(__name__)
 
@@ -80,6 +82,11 @@ def generate_match_graph(
     result["min_similarity"] = format(min_similarity, ".2f")
     result["min_matches"] = format(min_matches, "d")
     result["unique_exercises"] = unique_exercises
+
+    # Get current date and time
+    now = datetime.now(pytz.timezone("Europe/Helsinki"))
+    result["date_time"] = now.strftime("%d/%m/%Y %H:%M:%S")
+
     # Cache graph definition
     course.similarity_graph_json = json.dumps(result)
     course.save()

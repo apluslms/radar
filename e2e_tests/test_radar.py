@@ -86,7 +86,7 @@ def test_graph_view(page: Page) -> None:
 # Test visibility of student view
 def test_student_view(page: Page) -> None:
     login(page)
-    page.get_by_role('link', name=' Students view').click()
+    page.get_by_role('link', name=' Students view').click()
     page.locator('.dt-left > a').first.click()
     expect(page.locator('.content.container-fluid > p').first).to_contain_text(
         re.compile(r'All comparisons for .+ with similarity greater than .+%')
@@ -100,7 +100,7 @@ def test_flagged_pairs(page: Page) -> None:
     page.locator('[name="review"]').click()
     page.get_by_role('link', name='Plagiate', exact=True).click()
     page.locator('.breadcrumb > li:nth-child(2)').click()
-    page.get_by_role('link', name=' Flagged pairs').click()
+    page.get_by_role('link', name=' Flagged pairs').click()
     page.get_by_role('link', name=re.compile(r'.+ vs .+')).click()
     page.get_by_role('link', name='Get summary of marked').click()
     expect(page.get_by_role('heading')).to_contain_text('Similarity Summary')

@@ -7,12 +7,6 @@ pip install -r requirements.txt
 
 python manage.py migrate
 
-DJANGO_SUPERUSER_PASSWORD=Password \
-        python manage.py createsuperuser \
-        --no-input \
-        --username=Username \
-        --email=Username@email.com
-
 cd matcher/greedy_string_tiling
 pip install .
 

@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
 <script src=//cdn.datatables.net/2.2.2/js/dataTables.min.js></script>
 <script src="https://cdn.datatables.net/plug-ins/2.2.2/sorting/natural.min.js"></script>
+<script src="//cdn.datatables.net/plug-ins/2.2.2/sorting/absolute.min.js"></script>
 <script src="{% static '/views/students_view.js' %}"></script>
 {% endblock head_includes %}
 
@@ -18,8 +19,13 @@
 
 <h2>Students View</h2>
 
+<h4><b>Notes</b></h4>
+Highest similarity score refers to the highest similarity score of a student submission(s) to any other submission in the same exercise. <br>
+Average of highest similarity scores shows the average across all exercises. <br>
+The exercise columns show the average of highest similarity score for each exercise. In case of multiple submissions in an exercise, their average is taken. <br>
 <p>Green rows are staff members.</p>
-<input type="checkbox" id="show_staff" checked> Show staff members <br>
+
+<input type="checkbox" id="show_staff" checked> <b>Show staff members</b> <br>
 
 <h3>Hide exercises</h3>
 <button id="show_all_exercises">Show All</button>
@@ -33,8 +39,6 @@
 		{% endfor %}
 	</ol>
 </div>
-
-<h4>Negative percentages refers to no submission(s) by the student</h4>
 
 <div>
     <table class="table" id="studentdatatable">
@@ -59,12 +63,13 @@
 						{{ student.avg_similarity|percent }}
 					</td>
 					{% for exercise in student.exercises %}
-						<td class="{{ exercise.0 }}_column" {% if student.is_staff %} style="background-color: lightgreen;"{% endif %}>
+						<td data-order="{{ exercise.1 }}" class="{{ exercise.0 }}_column" {% if student.is_staff %} style="background-color: lightgreen;"{% endif %}>
 							{{ exercise.1|percent }}
 						</td>
 					{% endfor %}
 				</tr>
 			{% endfor %}
+		</tbody>
         <tfoot>
             <tr>
                 <th>Student</th>

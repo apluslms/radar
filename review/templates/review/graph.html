@@ -20,7 +20,8 @@ After the graph has been built, it will remain cached until new submissions are 
 <strong>Note</strong><br>
 Submission pairs with similarity lower than {{ minimum_similarity_threshold }} are not stored at all.<br>
 The cache contains only one graph with one minimum match similarity value. Building a graph with a different minimum match similarity will invalidate the older graph.<br>
-If unique exercise checkbox is checked, and two students have several matches in one exercise, return the match with the highest similarity.
+The cache is shared between the graph and the student clusters page. Building a graph will invalidate the cache for the student clusters page and vice-versa.<br>
+If unique exercise checkbox is checked, and students have matches with several other students, return the match with the highest similarity.
 </p>
 
 <div class="graph-ui">
@@ -73,6 +74,14 @@ If unique exercise checkbox is checked, and two students have several matches in
 								aria-pressed="false" autocomplete="off">
 					Apply filter
 				</button>
+
+				<div id="cluster-button-container">
+					<b>View graph in table format</b> <br>
+					<button id="student-clusters-button" type="button" class="btn btn-primary"
+									aria-pressed="false" autocomplete="off">
+						Student Clusters
+					</button>
+				</div>
 		</div>
 	</div>
 
@@ -98,9 +107,5 @@ If unique exercise checkbox is checked, and two students have several matches in
 
 <div id="network-graph" style="display: flex;"></div>
 <grid id="network-graph-legend"></grid>
-
-<script>
-	//$(buildGraph());
-</script>
 
 {% endblock %}
