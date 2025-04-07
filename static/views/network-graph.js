@@ -33,7 +33,9 @@ function initializeUI() {
   graphControl.refreshButton = $("#refresh-graph-button");
   graphControl.minMatchCountSlider = $(".filter-ui .slider-container input.match-count-slider");
   graphControl.minMatchCountSliderValue = $(".filter-ui .slider-container p.match-count-slider-value");
+  graphControl.clustersButton = $("#student-clusters-button");
   graphControl.refreshButton.on("click", handleRefreshClick);
+  graphControl.clustersButton.on("click", handleClustersClick);
   connectSliderValueDisplay(
       graphControl.minMatchCountSlider,
       graphControl.minMatchCountSliderValue,
@@ -113,6 +115,13 @@ function handleRefreshClick() {
 
 
   stopLoader();
+}
+
+
+// Handle the clusters button click
+function handleClustersClick() {
+  //Navigate to the clusters view
+  window.location.href = "../clusters";
 }
 
 
@@ -398,14 +407,14 @@ function getClusters(edges) {
   edges.forEach(function(edge) {
     // Check if the edge source or target node is already in a group
     var found = false;
-    linkedGroups.forEach(function(group) {
-      if (group.has(edge.source) || group.has(edge.target)) {
-        group.add(edge.source);
-        group.add(edge.target);
+    for (let index = 0; index < linkedGroups.size; index++) {
+      if (Array.from(linkedGroups)[index].has(edge.source) || Array.from(linkedGroups)[index].has(edge.target)) {
+        Array.from(linkedGroups)[index].add(edge.source);
+        Array.from(linkedGroups)[index].add(edge.target);
         found = true;
-        return;
+        break;
       }
-    });
+    };
 
     // If the edge source and target nodes are not in a group, create a new group
     if (!found) {
@@ -419,15 +428,15 @@ function getClusters(edges) {
     linkedGroups.forEach(function(group) {
       linkedGroups.forEach(function(otherGroup) {
         if (group !== otherGroup) {
-          group.forEach(function(node) {
-            if (otherGroup.has(node)) {
+          for (let index = 0; index < group.size; index++) {
+            if (otherGroup.has(Array.from(group)[index])) {
               otherGroup.forEach(function(otherNode) {
                 group.add(otherNode);
               });
               linkedGroups.delete(otherGroup);
-              return;
+              break;
             }
-          });
+          };
         }
       });
     });

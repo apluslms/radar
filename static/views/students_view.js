@@ -27,14 +27,19 @@ function getExerciseNames() {
 
 // Initialize the table
 function initializeTable() {
+  var emptyString = DataTable.absoluteOrder( {
+    value: "", position: 'bottom'
+  });
+
   $('#studentdatatable').DataTable( {
     lengthMenu: [
       [-1, 10, 25, 100],
       ["All", 10, 25, 100] ],
     columnDefs: [
-      { type: 'natural', target: 0 },
+      { type: 'natural', targets: [0,1] },
+      { type: emptyString, targets: '_all' },
       { className: 'dt-left', targets: '_all' },
-    ]
+    ],
   });
 }
 

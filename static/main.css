@@ -286,17 +286,22 @@ pre.sample-highlight { display:inline-block; }
 }
 
 /* Students View */
-#list_of_exercises {
+#list_of_exercises, #list_of_students {
 	list-style: none;
 	padding-bottom: 50px;
 }
 
-#list_of_exercises li {
+#list_of_exercises > li, #list_of_students > li {
 	display: block;
 	width: 20%;
 	float:left;
+	margin-top: 15px;
 }
 
 #dt-length-0 {
 	margin-right: 5px;
+}
+
+#cluster-button-container {
+	margin-top: 14px;
 }

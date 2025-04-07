@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% load review %}
+{% load static %}
+
+{% block head_includes %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+<script src=//cdn.datatables.net/2.2.2/js/dataTables.min.js></script>
+<script src="https://cdn.datatables.net/plug-ins/2.2.2/sorting/natural.min.js"></script>
+<script src="{% static 'views/clusters_view.js' %}"></script>
+{% endblock head_includes %}
+
+{% block css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css" />
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+
+<h3>Clusters view</h3>
+
+<h4><b>Notes</b></h4>
+Average max similarity refers to the average of all of the students in the cluster. The highest similarity score of a student submission(s) to any other submission in the same exercise is used to calculate the average. <br>
+Submissions used to calculate the average are the ones that have a maximum similarity score greater than the minimum match similarity. <br>
+Note that building the clusters can take a considerable amount of time depending on server load and/or the amount of submissions to this course instance. After the clusters have been built, they will remain cached until new submissions are matched or the user manually invalidates the cache for this course instance. <br>
+The cache contains only one clusters build with one minimum match similarity value. Building clusters with a different minimum match similarity will invalidate the older clusters. <br>
+The cache is shared between the clusters and the graph page. Building clusters will invalidate the cache for the graph page and vice-versa. <br>
+If unique exercise checkbox is checked, and students have matches with several other students, return the match with the highest similarity. <br>
+
+<div class="graph-ui">
+	<div class="row">
+		<div class="col-md-6 build-args-ui">
+				<h4>Build parameters</h4>
+				<div class="slider-container">
+					<b>Minimum match similarity</b>
+					<input type="range" class="slider similarity-slider" value="0.20" min="{{ minimum_similarity_threshold }}" max="1.00" step="0.01">
+					<p class="similarity-slider-value">0.20</p>
+					<b>Minimum match count</b>
+					<input type="range" class="slider match-count-slider" value="1" min="1" max="{{ number_of_exercises }}" step="1">
+					<p class="match-count-slider-value">1</p>
+				</div>
+				<div class="checkbox-container">
+				<label>
+					<input type="checkbox" id="use-unique-checkbox">
+					Use unique exercise
+				</label>
+			</div>
+				<button id="build-graph-button" type="button" class="btn btn-primary"
+								autocomplete="off">
+					Build table
+				</button>
+				<button id="invalidate-graph-button" type="button" class="btn btn-primary"
+								autocomplete="off">
+					Clear table cache
+				</button>
+		</div>
+	</div>
+
+	<div hidden id="load-progress" class="progress">
+			<div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%">
+					<span class="loader-message"></span>
+			</div>
+	</div>
+
+	<h4 id="datetime"></h4>
+</div>
+
+<div>
+    <table class="table" id="clustersdatatable">
+        <thead>
+            <tr>
+                <th>Cluster</th>
+				<th>Students</th>
+				<th>Average Max Similarity</th>
+				<th>Submissions</th>
+            </tr>
+        </thead>
+        <tfoot>
+            <tr>
+                <th>Cluster</th>
+				<th>Students</th>
+				<th>Average Max Similarity</th>
+				<th>Submissions</th>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+{% endblock %}

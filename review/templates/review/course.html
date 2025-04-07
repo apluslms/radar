@@ -19,11 +19,14 @@
     <a href="{% url 'graph_ui' course_key=course.key %}" class="btn btn-default btn-xs">
         <span class="glyphicon glyphicon-eye-open"></span> Graph view
     </a>
+	<a href="{% url 'clusters_view' course_key=course.key %}" class="btn btn-default btn-xs">
+        <span class="glyphicon glyphicon-eye-open"></span> Clusters view
+    </a>
     <a href="{% url 'students_view' course_key=course.key %}" class="btn btn-default btn-xs">
-        <span class="glyphicon glyphicon-eye-open"></span> Students view
+        <span class="glyphicon glyphicon-user"></span> Students view
     </a>
     <a href="{% url 'flagged_pairs' course_key=course.key %}" class="btn btn-default btn-xs">
-        <span class="glyphicon glyphicon-eye-open"></span> Flagged pairs
+        <span class="glyphicon glyphicon-flag"></span> Flagged pairs
     </a>
 </p>
 

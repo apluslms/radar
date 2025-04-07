@@ -48,6 +48,7 @@ def reload(exercise, config):
     logger.info("Reloading all submissions for exercise %s", exercise)
     # Similarity is no longer valid because there are new matches
     exercise.course.similarity_graph_json = ''
+    exercise.course.clusters_json = ''
     exercise.course.save()
     submissions_url = config["host"] + API_SUBMISSION_LIST_URL % {"eid": exercise.key}
     # Queue exercise for asynchronous handling,
@@ -65,6 +66,7 @@ def recompare(exercise, config):
     logger.info("Recomparing all submissions for exercise %s", exercise)
     # Similarity is no longer valid because there are new matches
     exercise.course.similarity_graph_json = ''
+    exercise.course.clusters_json = ''
     exercise.course.save()
     # Drop all existing comparisons and queue for recomparison
     exercise.clear_all_matches()

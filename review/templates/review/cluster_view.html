@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% load review %}
+{% load static %}
+
+{% block head_includes %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+<script src=//cdn.datatables.net/2.2.2/js/dataTables.min.js></script>
+<script src="https://cdn.datatables.net/plug-ins/2.2.2/sorting/natural.min.js"></script>
+<script src="//cdn.datatables.net/plug-ins/2.2.2/sorting/absolute.min.js"></script>
+<script type="module" src="{% static 'views/helper_functions.js' %}"></script>
+<script type="module" src="{% static 'views/cluster_view.js' %}"></script>
+{% endblock head_includes %}
+
+{% block css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css" />
+{% endblock %}
+
+{% block content %}
+
+<h3>Cluster {{ cluster_key }} view</h3>
+
+<h4><b>Notes</b></h4>
+The first column shows the student name and the rest of the columns show the similarity score between the student in the first column and the student in the header. <br>
+The table cells show the average similarity score of a student submission(s) to any other student's submission in the same course. <br>
+This page will change if the cached clusters are invalidated or if new clusters are built. <br>
+
+<div>
+	<div>
+		<h4>Cluster Info</h2>
+			<b>Minimum match similarity: </b> {{ min_similarity }} <br>
+			<b>Minimum match count: </b> {{ min_matches }} <br>
+			<b>Use unique exercise: </b> {{ use_unique_ex }} <br>
+			<b>Students: </b> {{ students|length }} <br>
+			<b>Date created: </b> {{ date_time }} <br>
+	</div>
+
+	<div class="graph-ui">
+		<div class="row">
+			<div class="col-md-6 build-args-ui">
+				<h4>Filters</h4>
+				<div class="slider-container">
+					<b>Minimum match similarity</b>
+					<input type="range" class="slider similarity-slider" value="0.0" min="0.0" max="1.00" step="0.01">
+					<p class="similarity-slider-value">0.0</p>
+				</div>
+				<div>
+					<button id="filter-cluster-button" type="button" class="btn btn-primary"
+									aria-pressed="false" autocomplete="off">
+						Filter
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<h4>Hide Students</h3>
+	<button id="show_all_students">Show All</button>
+	<button id="hide_all_students">Hide All</button>
+	<div>
+		<ol id="list_of_students">
+			{% for student in students %}
+				<li>
+					<input type="checkbox" id="show_{{ student }}" checked> {{ student }} <br>
+				</li>
+			{% endfor %}
+		</ol>
+	</div>
+</div>
+
+<div>
+    <table class="table cell-border" id="clustersdatatable">
+        <thead>
+            <tr>
+				<th>Student</th>
+				{% for student in students %}
+					<th class="{{ student }}_column student_name">
+						<a href="{% url 'student_view' course_key=course.key student_key=student %}">{{ student }}</a>
+					</th>
+				{% endfor %}
+            </tr>
+        </thead>
+
+		<tbody>
+			{% for student in students %}
+			<tr>
+				<td>
+					<a href="{% url 'student_view' course_key=course.key student_key=student %}">{{ student }}</a>
+				</td>
+
+				{% for student2 in students %}
+					{% if student == student2 %}
+						<td data-order="" class="{{ student2 }}_column"></td>
+					{% else %}
+						{% with student|concat:student2 as student_string %}
+							{% with grid|get_item:student_string as pair_similarity %}
+								<td data-order="{{ pair_similarity }}" class="{{ student2 }}_column">
+									{{ pair_similarity|percent }}
+								</td>
+							{% endwith %}
+						{% endwith %}
+					{% endif %}
+				{% endfor %}
+            </tr>
+			{% endfor %}
+		</tbody>
+
+        <tfoot>
+            <tr>
+				<th>Student</th>
+				{% for student in students %}
+					<th class="{{ student }}_column">
+						<a href="{% url 'student_view' course_key=course.key student_key=student %}">{{ student }}</a>
+					</th>
+				{% endfor %}
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+{% endblock %}

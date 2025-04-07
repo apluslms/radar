@@ -53,6 +53,7 @@ def _read_directory(path):
 def reload(exercise, config):
     logger.info("Clearing all submissions for exercise %s", exercise)
     exercise.course.similarity_graph_json = ''
+    exercise.course.clusters_json = ''
     exercise.course.save()
     exercise.submissions.all().delete()
     exercise.touch_all_timestamps()
@@ -61,6 +62,7 @@ def reload(exercise, config):
 def recompare(exercise, config):
     logger.info("Resetting all submission matches for exercise %s", exercise)
     exercise.course.similarity_graph_json = ''
+    exercise.course.clusters_json = ''
     exercise.course.save()
     exercise.clear_all_matches()
     exercise.touch_all_timestamps()
