@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<title>Radar{% for i in hierarchy %}{% if forloop.counter > 1 %} - {{ i.0 }}{% endif %}{% endfor %}</title>
+		<title>Radar v. 4.0{% for i in hierarchy %}{% if forloop.counter > 1 %} - {{ i.0 }}{% endif %}{% endfor %}</title>
 		{% load static %}
 		{% block css %}{% endblock %}
 		<link rel="stylesheet" href="{% static 'bootstrap-3.3.2-dist/css/bootstrap.min.css' %}" />
@@ -59,7 +59,7 @@
 									{% if i.1 %}
 									<li><a href="{{ i.1 }}">{{ i.0 }}</a></li>
 									{% else %}
-									<li class="active">{{ i.0 }}</li>
+									<li class="active">{{ i.0 }} v. 4.0</li>
 									{% endif %}
 								{% endfor %}
 							</ul>
@@ -83,7 +83,4 @@
 			{% endblock %}
 		</div>
 	</body>
-	<div class="footer">
-		[Last update on 17.2.2025]
-	</div>
 </html>
