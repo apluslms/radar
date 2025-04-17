@@ -110,12 +110,22 @@ JS.prototype.codeviewMatched = function(code, indexes, template, matches, right)
 // Get end of line index
 JS.prototype.getEndOfLine = function(code, start) {
   var output = code.indexOf("\n", start);
+
+  if (output == -1) {
+    output = code.length - 1;
+  }
+
   return output;
 }
 
 // Get start of line index
 JS.prototype.getStartOfLine = function(code, end) {
   var output = code.lastIndexOf("\n", end);
+
+  if (output == -1) {
+    output = 0
+  }
+
   return output;
 }
 
