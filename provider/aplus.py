@@ -10,6 +10,7 @@ from aplus_client.client import AplusTokenClient
 from data.models import URLKeyField
 from provider import tasks
 import matcher.tasks as matcher_tasks
+from radar.settings import DEBUG, CELERY_DEBUG
 
 
 POST_KEY = "submission_id"
@@ -53,7 +54,7 @@ def reload(exercise, config):
     submissions_url = config["host"] + API_SUBMISSION_LIST_URL % {"eid": exercise.key}
     # Queue exercise for asynchronous handling,
     # all submissions to this exercise are created in parallel while matching is sequential
-    if not settings.DEBUG:
+    if not DEBUG or CELERY_DEBUG:
         tasks.reload_exercise_submissions.delay(exercise.id, submissions_url)
     else:
         tasks.reload_exercise_submissions(exercise.id, submissions_url)
@@ -71,7 +72,7 @@ def recompare(exercise, config):
     # Drop all existing comparisons and queue for recomparison
     exercise.clear_all_matches()
     exercise.touch_all_timestamps()
-    if not settings.DEBUG:
+    if not DEBUG or CELERY_DEBUG:
         matcher_tasks.match_exercise.delay(exercise.id)
     else:
         matcher_tasks.match_exercise(exercise.id)
@@ -252,7 +253,7 @@ def async_api_read(request, course, has_radar_config):
     Queue an read of all exercises on a given course from the A+ REST API.
     Return an id for the celery.result.AsyncResult that was queued.
     """
-    if not settings.DEBUG:
+    if not DEBUG or CELERY_DEBUG:
         async_task = tasks.get_full_course_config.delay(
             request.user.id, course.id, has_radar_config
         )
@@ -262,7 +263,7 @@ def async_api_read(request, course, has_radar_config):
 
 
 def recompare_all_unmatched(course):
-    if not settings.DEBUG:
+    if not DEBUG or CELERY_DEBUG:
         tasks.recompare_all_unmatched.delay(course.id)
     else:
         tasks.recompare_all_unmatched(course.id)

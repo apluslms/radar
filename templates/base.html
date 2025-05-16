@@ -56,10 +56,14 @@
 						<li>
 							<ul class="breadcrumb">
 								{% for i in hierarchy %}
-									{% if i.1 %}
+									{% if i.1 and i.0 == 'Radar' %}
+									<li><a href="{{ i.1 }}">{{ i.0 }} v. 4.0</a></li>
+									{% elif i.1 %}
 									<li><a href="{{ i.1 }}">{{ i.0 }}</a></li>
-									{% else %}
+									{% elif i.0 == 'Radar' %}
 									<li class="active">{{ i.0 }} v. 4.0</li>
+									{% else %}
+									<li class="active">{{ i.0 }}</li>
 									{% endif %}
 								{% endfor %}
 							</ul>

@@ -1,16 +1,24 @@
 {% extends 'base.html' %}
+
 {% load static %}
 {% load review %}
+
+{% block head_includes %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+<script src=//cdn.datatables.net/2.2.2/js/dataTables.min.js></script>
+{% endblock head_includes %}
+
 {% block css %}
-<link rel="stylesheet" href="//cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css" />
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css" />
 {% endblock %}
+
 {% block content %}
 
 <h3>Flagged pairs view</h3>
 <p>Student pairs that have flagged plagiates on this course</p>
 
 <div>
-    <table class="table" id="flaggedpairstable">
+    <table class="table colour-rows" id="flaggedpairstable">
         <thead>
             <tr>
                 <th>Students &nbsp;</th>
@@ -30,14 +38,15 @@
     </table>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
-<script src=//cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js></script>
 <script>
     $(document).ready( function () {
-        $('#flaggedpairstable').DataTable( {
-            "lengthMenu": [ [-1, 10, 100], ["All", 10, 100] ]
-        } );
-    } );
+        $('#flaggedpairstable').DataTable({
+            lengthMenu: [
+				[-1, 10, 100],
+				["All", 10, 100]
+			],
+        });
+    });
 </script>
 
 <!-- Removing duplicate pairs -->

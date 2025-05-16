@@ -23,7 +23,6 @@ from review.views import (
     flagged_pairs,
     clusters_view,
     cluster_view,
-    save_clusters,
 )
 
 
@@ -68,11 +67,6 @@ urlpatterns = [
         r'^(?P<course_key>\w+)/clusters/(?P<cluster_key>\d+)/$',
         cluster_view,
         name='cluster_view'
-    ),
-    re_path(
-        r'^(?P<course_key>\w+)/clusters/save$',
-        save_clusters,
-        name='save_clusters'
     ),
     re_path(
         r'^(?P<course_key>\w+)/students/$',
