@@ -6,7 +6,7 @@ from radar.config import tokenizer_config
 from provider.insert import submission_exists, insert_submission, prepare_submission
 from provider import tasks
 from matcher.tasks import match_exercise
-from radar.settings import DEBUG
+from radar.settings import DEBUG, CELERY_DEBUG
 
 
 logger = logging.getLogger("radar.provider")
@@ -66,7 +66,9 @@ def recompare(exercise, config):
     exercise.course.save()
     exercise.clear_all_matches()
     exercise.touch_all_timestamps()
-    if DEBUG:
+    if CELERY_DEBUG:
+        match_exercise(exercise.pk)
+    elif DEBUG:
         match_exercise(exercise.pk, False)
     # Else matching proceeds with CLI command
         # matcher_tasks.match_exercise(exercise.id)

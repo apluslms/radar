@@ -305,3 +305,21 @@ pre.sample-highlight { display:inline-block; }
 #cluster-button-container {
 	margin-top: 14px;
 }
+
+/* Course View */
+#exercises-table > tbody > tr {
+	border-bottom: 2px solid #dddddd;
+}
+
+#unmatched-row {
+	background-color: #fee8c8;
+}
+
+/* Tables */
+td.highlight, th.highlight, tr.highlight > td {
+	background-color: lightgray !important;
+}
+
+.colour-rows > tbody > tr:nth-child(odd) > td {
+	background-color: #f9f9f9;
+}

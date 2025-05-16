@@ -11,6 +11,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 DEBUG = True
 
+# Set to True only if running locally and want to test the application with local Celery
+CELERY_DEBUG = False
+
 ALLOWED_HOSTS = []
 AUTH_LTI_LOGIN = {
     'ACCEPTED_ROLES': ['Instructor', 'TA'],

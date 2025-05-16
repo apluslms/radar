@@ -5,14 +5,16 @@
 
 {% block head_includes %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
-<script src=//cdn.datatables.net/2.2.2/js/dataTables.min.js></script>
-<script src="https://cdn.datatables.net/plug-ins/2.2.2/sorting/natural.min.js"></script>
+<script src="//cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+<script src="//cdn.datatables.net/plug-ins/2.2.2/sorting/natural.min.js"></script>
 <script src="//cdn.datatables.net/plug-ins/2.2.2/sorting/absolute.min.js"></script>
+<script src="//cdn.datatables.net/fixedcolumns/5.0.4/js/dataTables.fixedColumns.min.js"></script>
 <script src="{% static '/views/students_view.js' %}"></script>
 {% endblock head_includes %}
 
 {% block css %}
-<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css" />
+<link rel="stylesheet" href="//cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css" />
+<link rel="stylesheet" href="//cdn.datatables.net/fixedcolumns/5.0.4/css/fixedColumns.dataTables.min.css">
 {% endblock %}
 
 {% block content %}
@@ -27,9 +29,11 @@ The exercise columns show the average of highest similarity score for each exerc
 
 <input type="checkbox" id="show_staff" checked> <b>Show staff members</b> <br>
 
-<h3>Hide exercises</h3>
-<button id="show_all_exercises">Show All</button>
-<button id="hide_all_exercises">Hide All</button>
+<div>
+	<h3>Hide exercises</h3>
+	<button id="show_all_exercises">Show All</button>
+	<button id="hide_all_exercises">Hide All</button>
+</div>
 <div>
 	<ol id="list_of_exercises">
 		{% for exercise in exercise_names %}
@@ -41,7 +45,7 @@ The exercise columns show the average of highest similarity score for each exerc
 </div>
 
 <div>
-    <table class="table" id="studentdatatable">
+    <table class="table colour-rows" id="studentdatatable">
         <thead>
             <tr>
                 <th>Student</th>
@@ -59,7 +63,7 @@ The exercise columns show the average of highest similarity score for each exerc
 					<td {% if student.is_staff %} style="background-color: lightgreen;"{% endif %}>
 						<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.key }}</a>
 					</td>
-					<td {% if submission.student__is_staff %} style="background-color: lightgreen;"{% endif %}>
+					<td {% if student.is_staff %} style="background-color: lightgreen;"{% endif %}>
 						{{ student.avg_similarity|percent }}
 					</td>
 					{% for exercise in student.exercises %}

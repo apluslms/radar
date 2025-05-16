@@ -15,6 +15,7 @@ ExecStart=/srv/radar/venv/bin/celery \
     --app radar \
     worker \
     --pidfile=/run/radar/celery_matcher.pid \
+    -P threads \
     --loglevel=info \
     --concurrency 1 \
     --hostname worker_matcher@radar \

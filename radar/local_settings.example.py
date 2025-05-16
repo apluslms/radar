@@ -3,6 +3,7 @@ Example of a deployment configuration
 """
 
 DEBUG = False
+CELERY_DEBUG = False
 
 ADMINS = [
     ("Admin Name", "name@example.com"),
