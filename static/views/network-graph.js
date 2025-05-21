@@ -111,7 +111,7 @@ function handleRefreshClick() {
   graphLayout = {"nodes": filteredNodes, "edges": filteredEdges};
 
   // Rebuild graph to filter by edge weight
-  buildD3Graph(graphLayout);
+  buildD3Graph(graphLayout, graphDefinition.clusters);
 
 
   stopLoader();
@@ -154,6 +154,7 @@ function buildGraph() {
     min_similarity: buildControl.minSimilaritySlider.val(),
     min_matches: buildControl.minMatchCountSlider.val(),
     unique_exercises: buildControl.uniqueCheckbox.is(":checked"),
+    origin: 'graph',
   };
 
   // Poll timeouts
@@ -169,6 +170,7 @@ function buildGraph() {
     if (taskState.ready) {
       pollIndex = 0;
       graphDefinition = taskState.graph_data;
+      graphDefinition.clusters = taskState.clusters;
       if (graphDefinition.nodes && graphDefinition.edges) {
         // Get nodes
         var nodes = []
@@ -183,7 +185,10 @@ function buildGraph() {
         graphLayout = {"nodes": graphDefinition.nodes, "edges": graphDefinition.edges};
 
         // Build the D3 graph
-        buildD3Graph(graphLayout);
+        buildD3Graph(graphLayout, graphDefinition.clusters);
+
+        // Show the date and time
+        showDatetime(graphDefinition['date_time']);
 
         // Stop the loader
         stopLoader();
@@ -231,15 +236,22 @@ function CSRFpreRequestCallback(xhr) {
 }
 
 
+//Show the date and time
+function showDatetime(dateTime) {;
+  $('#datetime').text("Date & Time graph created: " + dateTime);
+}
+
+
 // Clear the graph and the legend
 function clearGraph() {
   d3.select(element).selectAll("*").remove();
   d3.select(legend).selectAll("*").remove();
+  $('#datetime').text('');
 }
 
 
 // Build the force directed graph using D3.js
-function buildD3Graph(data) {
+function buildD3Graph(data, clusters) {
 
   // Append the svg object to the body of the page
   var svg = d3
@@ -252,9 +264,6 @@ function buildD3Graph(data) {
   width = width.substring(0, width.length - 2);
   var height = d3.select(element).select('svg').style("height");
   height = height.substring(0, height.length - 2);
-
-  // Get clusters of linked nodes
-  var clusters = getClusters(data.edges);
 
   // Initialize the cluster highlight lines
   var clusterHighlight = svg
@@ -399,64 +408,17 @@ function buildD3Graph(data) {
 }
 
 
-// Get all linked nodes from the edge list
-function getClusters(edges) {
-  // Create a set of linked groups
-  var linkedGroups = new Set();
-
-  edges.forEach(function(edge) {
-    // Check if the edge source or target node is already in a group
-    var found = false;
-    for (let index = 0; index < linkedGroups.size; index++) {
-      if (Array.from(linkedGroups)[index].has(edge.source) || Array.from(linkedGroups)[index].has(edge.target)) {
-        Array.from(linkedGroups)[index].add(edge.source);
-        Array.from(linkedGroups)[index].add(edge.target);
-        found = true;
-        break;
-      }
-    };
-
-    // If the edge source and target nodes are not in a group, create a new group
-    if (!found) {
-      linkedGroups.add(new Set([edge.source, edge.target]));
-    }
-  });
-
-  // Check if the unique checkbox is checked
-  if (buildControl.uniqueCheckbox.is(":checked")) {
-    // Merge the linked groups if they share a node
-    linkedGroups.forEach(function(group) {
-      linkedGroups.forEach(function(otherGroup) {
-        if (group !== otherGroup) {
-          for (let index = 0; index < group.size; index++) {
-            if (otherGroup.has(Array.from(group)[index])) {
-              otherGroup.forEach(function(otherNode) {
-                group.add(otherNode);
-              });
-              linkedGroups.delete(otherGroup);
-              break;
-            }
-          };
-        }
-      });
-    });
-  }
-
-  return linkedGroups;
-}
-
-
 // Assign a color to each cluster
 function assignClusterColors(clusterHighlight, clusters) {
 
   // Get the colors for the clusters
-  var clusterColors = getClusterColors(clusters.size);
+  var clusterColors = getClusterColors(clusters.length);
 
   // Assign a color to each cluster
   clusterHighlight.forEach(function(d) {
     var i = 0;
-    clusters.forEach(function(set) {
-      if (set.has(d.__data__.source) || set.has(d.__data__.target)) {
+    clusters.forEach(function(list) {
+      if (list.includes(d.__data__.source) || list.includes(d.__data__.target)) {
         d3.select(d).style("stroke", clusterColors[i]);
         return;
       } else {

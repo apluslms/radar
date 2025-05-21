@@ -18,6 +18,7 @@ function initializeData() {
   initializeTable();
 }
 
+
 // Get exercise names from context
 function getExerciseNames() {
   $('.exercise_name').each(function() {
@@ -34,14 +35,76 @@ function initializeTable() {
   $('#studentdatatable').DataTable( {
     lengthMenu: [
       [-1, 10, 25, 100],
-      ["All", 10, 25, 100] ],
+      ["All", 10, 25, 100]
+    ],
     columnDefs: [
       { type: 'natural', targets: [0,1] },
       { type: emptyString, targets: '_all' },
       { className: 'dt-left', targets: '_all' },
     ],
+    fixedColumns: {
+      start: 1,
+    },
+    scrollX: true,
+    scrollY: '85vh',
+    scrollCollapse: true,
   });
+
+  // Add event listeners to the table cells
+  $('#studentdatatable td').on('mouseenter', handleMouseEnter);
+  $('#studentdatatable td').on('mouseleave', handleMouseLeave);
 }
+
+
+// Handle mouse enter event
+function handleMouseEnter() {
+  var table = $('#studentdatatable').DataTable();
+
+  // Get the index of the cell
+  let colIdx = table.cell(this).index().column;
+  let rowIdx = table.cell(this).index().row;
+
+  //Get head of the column
+  let colHead = table.column(colIdx).header();
+
+  // Change the header color
+  colHead.classList.add('highlight');
+
+  // Get the first cell of the row
+  let rowHead = table.rows(rowIdx).nodes()[0].cells[0];
+
+  // Change the header color
+  rowHead.classList.add('highlight');
+
+  // Change the background color of the cell
+  this.classList.add('highlight');
+}
+
+
+// Handle mouse leave event
+function handleMouseLeave() {
+  var table = $('#studentdatatable').DataTable();
+
+  // Get the index of the cell
+  let colIdx = table.cell(this).index().column;
+  let rowIdx = table.cell(this).index().row;
+
+  //Get head of the column
+  let colHead = table.column(colIdx).header();
+
+  // Change the header color
+  colHead.classList.remove('highlight');
+
+  // Get the first cell of the row
+  let rowHead = table.rows(rowIdx).nodes()[0].cells[0];
+
+  // Change the header color
+  rowHead.classList.remove('highlight');
+
+  // Change the background color of the cell
+  this.classList.remove('highlight');
+}
+
 
 // initialize the UI
 function initializeUI() {
@@ -77,6 +140,7 @@ function initializeUI() {
   }
 }
 
+
 // Show all exercises
 function showAllExercises() {
   // Check all the checkboxes
@@ -85,6 +149,7 @@ function showAllExercises() {
     $(`.${exercise}_column`).show();
   });
 }
+
 
 // Hide all exercises
 function hideAllExercises() {
@@ -95,6 +160,7 @@ function hideAllExercises() {
   });
 }
 
+
 // Show staff
 function showStaff() {
   if (this.checked) {
@@ -103,6 +169,7 @@ function showStaff() {
     $('.is_staff').hide();
   }
 }
+
 
 // Show exercise
 function showExercise() {
@@ -113,6 +180,7 @@ function showExercise() {
     $(`.${exercise}_column`).hide();
   }
 }
+
 
 $(initializeData);
 $(initializeUI);

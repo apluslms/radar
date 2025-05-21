@@ -19,6 +19,7 @@ function getStudentNames() {
   });
 }
 
+
 // Initialize the UI
 function initializeUI() {
   // Build control UI
@@ -93,6 +94,62 @@ function filterCells() {
       $(this).css('visibility', 'visible'); // Show the cell if it meets the criteria
     }
   });
+
+  // Hide empty rows and columns
+  hideEmptyRows();
+  hideEmptyColumns();
+}
+
+
+// Hide empty cells
+function hideEmptyRows() {
+  // Get all the rows
+  var rows = $('#clustersdatatable tr');
+
+  // Loop through each row
+  rows.each(function() {
+    var row = $(this);
+    var emptyCells = row.find('td').filter(filterEmptyCells);
+
+    // If all cells in the row are hidden, hide the row
+    if (emptyCells.length === row.find('td').length - 1) {
+      row.css('display', 'none'); // Hide the row if all cells are empty
+    } else {
+      row.css('display', ''); // Show the row if not all cells are empty
+    }
+  });
+}
+
+
+// Hide empty columns
+function hideEmptyColumns() {
+  // Get all the columns
+  var table = $('#clustersdatatable').DataTable();
+  var columns = table.columns();
+
+  // Loop through each column
+  for (var i = 1; i < columns.count(); i++) {
+    let header = table.column(i).header().innerText.trim();
+    let column = $(`.${header}_column`);
+
+    // Filter the cells in the column
+    var emptyCells = column.filter(filterEmptyCells);
+
+    // If all cells in the column are hidden, hide the column
+    if (emptyCells.length === column.length - 4) {
+      column.css('display', 'none'); // Hide the column if all cells are empty
+    } else {
+      column.css('display', ''); // Show the column if not all cells are empty
+    }
+  }
+}
+
+
+// Filter empty cells
+function filterEmptyCells() {
+  var hide = $(this).css('visibility') === 'hidden' || $(this).text().trim() === '';
+
+  return hide;
 }
 
 
@@ -105,15 +162,33 @@ function initializeTable() {
 	$('#clustersdatatable').DataTable( {
 		lengthMenu: [
 			[-1, 10, 25, 100],
-			["All", 10, 25, 100] ],
+			["All", 10, 25, 100]
+    ],
 		columnDefs: [
 			{ type: 'natural', target: 0 },
 			{ type: emptyString, targets: '_all' },
 			{ className: 'dt-center', targets: '_all' },
 		],
     order: [],
+    fixedColumns: {
+      start: 1,
+    },
+    scrollX: true,
+    scrollY: '85vh',
+    scrollCollapse: true,
 	});
 
+  // Highlight cells based on their percentage value
+  highlightCells();
+
+  // Add event listeners to the table cells
+  $('#clustersdatatable td').on('mouseenter', handleMouseEnter);
+  $('#clustersdatatable td').on('mouseleave', handleMouseLeave);
+}
+
+
+// Highlight cells based on their percentage value
+function highlightCells() {
 	// Get every table cell that has a percentage value
 	var cells = $('#clustersdatatable td').filter(function() {
 		return this.innerText.includes('%');
@@ -136,6 +211,56 @@ function initializeTable() {
 			cell.style.backgroundColor = '#fee8c8';
 		}
 	};
+}
+
+
+// Handle mouse enter event
+function handleMouseEnter() {
+  var table = $('#clustersdatatable').DataTable();
+
+  // Get the index of the cell
+  let colIdx = table.cell(this).index().column;
+  let rowIdx = table.cell(this).index().row;
+
+  //Get head of the column
+  let colHead = table.column(colIdx).header();
+
+  // Change the header color
+  colHead.classList.add('highlight');
+
+  // Get the first cell of the row
+  let rowHead = table.rows(rowIdx).nodes()[0].cells[0];
+
+  // Change the header color
+  rowHead.classList.add('highlight');
+
+  // Change the background color of the cell
+  this.classList.add('highlight');
+}
+
+
+// Handle mouse leave event
+function handleMouseLeave() {
+  var table = $('#clustersdatatable').DataTable();
+
+  // Get the index of the cell
+  let colIdx = table.cell(this).index().column;
+  let rowIdx = table.cell(this).index().row;
+
+  //Get head of the column
+  let colHead = table.column(colIdx).header();
+
+  // Change the header color
+  colHead.classList.remove('highlight');
+
+  // Get the first cell of the row
+  let rowHead = table.rows(rowIdx).nodes()[0].cells[0];
+
+  // Change the header color
+  rowHead.classList.remove('highlight');
+
+  // Change the background color of the cell
+  this.classList.remove('highlight');
 }
 
 

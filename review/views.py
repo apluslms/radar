@@ -25,9 +25,12 @@ from django.core.handlers.wsgi import WSGIRequest
 from data.models import Course, Comparison, Student, Submission
 from data import graph
 from radar.config import provider_config, configured_function
-from radar.settings import DOLOS_API_SERVER_URL, DOLOS_PROXY_API_URL, DOLOS_PROXY_WEB_URL, DOLOS_WEB_SERVER_URL
+from radar.settings import (
+    DOLOS_API_SERVER_URL, DOLOS_PROXY_API_URL, DOLOS_PROXY_WEB_URL, DOLOS_WEB_SERVER_URL, CELERY_DEBUG
+)
 from review.decorators import access_resource
 from review.forms import ExerciseForm, ExerciseTemplateForm, DeleteExerciseFrom
+from review.helpers import handle_async_task, build_clusters_for
 from util.misc import is_ajax
 import zipfile
 import os
@@ -55,7 +58,7 @@ def course(request, course_key=None, course=None):
     context = {
         "hierarchy": ((settings.APP_NAME, reverse("index")), (course.name, None)),
         "course": course,
-        "exercises": course.exercises.all(),
+        "exercises": course.exercises.all().order_by("created"),
     }
     if request.method == "POST":
         # The user can click "Match all unmatched" for a shortcut to match all unmatched submissions for every exercise
@@ -367,53 +370,84 @@ def graph_ui(request, course, course_key):
     return render(request, "review/graph.html", context)
 
 
+# This view is used to build the graph data and clusters for the course.
 @access_resource
-def build_graph(request, course, course_key):
+def build_graph(request: WSGIRequest, course: Course | None = None, course_key: str | None = None) -> JsonResponse:
+    # If the request is not a POST request or not an AJAX request, return a 400 error
     if request.method != "POST" or not is_ajax(request):
         return HttpResponseBadRequest()
 
+    # Load the task state from the request body
     task_state = json.loads(request.body.decode("utf-8"))
 
+    # Check if the task state is pending
     if task_state["task_id"]:
-        # Task is pending, check state and return result if ready
-        async_result = AsyncResult(task_state["task_id"])
-        if async_result.ready():
-            task_state["ready"] = True
-            task_state["task_id"] = None
-            if async_result.state == "SUCCESS":
-                task_state["graph_data"] = async_result.get()
-                async_result.forget()
-            else:
-                task_state["graph_data"] = {}
+        task_state = handle_async_task(task_state, course.key)
+
+    # If the task is ready
     elif not task_state["ready"]:
+        # Check if the graph data is already cached in the database
         graph_data = json.loads(course.similarity_graph_json or '{}')
-        min_similarity, min_matches, use_unique_ex = (
+
+        # Get the provider configuration
+        p_config = provider_config(course.provider)
+
+        # Get the parameters for the graph
+        min_similarity, min_matches, use_unique_ex, origin = (
             task_state["min_similarity"],
             task_state["min_matches"],
             task_state["unique_exercises"],
+            task_state["origin"],
         )
+
+        # Check if the graph data is already cached and matches the parameters
         if (
             graph_data
             and graph_data["min_similarity"] == min_similarity
             and graph_data["min_matches"] == min_matches
             and graph_data["unique_exercises"] == use_unique_ex
         ):
-            # Graph was already cached
-            task_state["graph_data"] = graph_data
-            task_state["ready"] = True
-        else:
-            # No graph cached, build
-            p_config = provider_config(course.provider)
-            if not p_config.get("async_graph", True):
-                task_state["graph_data"] = graph.generate_match_graph(
-                    course.key, float(min_similarity), int(min_matches), use_unique_ex
-                )
+            # Check if the clusters are already cached in the database
+            clusters = json.loads(course.clusters_json or '{}')
+
+            # Check if the clusters match the parameters
+            if (
+            clusters
+            and clusters["min_similarity"] == min_similarity
+            and clusters["min_matches"] == min_matches
+            and clusters["unique_exercises"] == use_unique_ex
+            and clusters["origin"] == origin
+            ):
+                # Clusters and graph was already cached
+                task_state["graph_data"] = graph_data
+                task_state["clusters"] = clusters["clusters"]
                 task_state["ready"] = True
+
             else:
+                # Graph was already cached, but clusters not
+                task_state["graph_data"] = graph_data
+
+                # Build clusters
+                if p_config.get("async_graph", True) or CELERY_DEBUG:
+                    async_task = build_clusters_for(task_state, course.key, delay=True)
+                    task_state["task_id"] = [None, async_task.id]
+                else:
+                    task_state["clusters"] = build_clusters_for(task_state, course.key)
+                    task_state["ready"] = True
+
+        else:
+            # No graph cached, build graph and clusters
+            if p_config.get("async_graph", True) or CELERY_DEBUG:
                 async_task = graph.generate_match_graph.delay(
                     course.key, float(min_similarity), int(min_matches), use_unique_ex
                 )
-                task_state["task_id"] = async_task.id
+                task_state["task_id"] = [async_task.id, None]
+            else:
+                task_state["graph_data"] = graph.generate_match_graph(
+                    course.key, float(min_similarity), int(min_matches), use_unique_ex
+                )
+                task_state["clusters"] = build_clusters_for(task_state, course.key)
+                task_state["ready"] = True
 
     return JsonResponse(task_state)
 
@@ -812,7 +846,7 @@ def students_view(request: WSGIRequest, course: Course | None = None, course_key
     )
 
     # Exercise names as a list
-    exercise_names = sorted(course.exercises.all().values_list('name', flat=True))
+    exercise_names = course.exercises.all().order_by('created').values_list('name', flat=True)
 
     # Student keys
     student_info = submissions.values_list('student__key', 'student__is_staff').distinct()
@@ -1137,7 +1171,7 @@ def cluster_view(
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
             (course.name, reverse("course", kwargs={"course_key": course.key})),
-            ("Clusters", reverse("course", kwargs={"course_key": course.key})),
+            ("Clusters", reverse("clusters_view", kwargs={"course_key": course.key})),
             (cluster_key, None),
         ),
         "course": course,
@@ -1151,28 +1185,3 @@ def cluster_view(
     }
 
     return render(request, "review/cluster_view.html", context)
-
-
-# Save the cluster data to the course object
-@access_resource
-def save_clusters(request: WSGIRequest, course: Course | None = None, course_key: str | None = None) -> HttpResponse:
-    # Check if the request is POST and AJAX
-    if request.method != "POST" or not is_ajax(request):
-        return HttpResponseBadRequest()
-
-    # Get the  cluster data from the request
-    cluster_data = request.body.decode("utf-8")
-
-    # Get the course object and save the cluster data
-    course.clusters_json = cluster_data
-    course.save()
-
-    return JsonResponse(json.loads(cluster_data))
-
-
-# TODO: Move to helper functions
-# Helper function for presenting submissions in chunks of count
-def grouped(iterator, count):
-    # Yield successive n-sized chunks from l.
-    for i in range(0, len(iterator), count):
-        yield iterator[i: i + count]
