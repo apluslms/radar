@@ -1,6 +1,6 @@
 from django import template
 from django.urls import reverse
-from ..views import grouped
+from ..helpers import grouped
 
 register = template.Library()
 

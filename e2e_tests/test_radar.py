@@ -4,10 +4,12 @@ from playwright.sync_api import Page, expect
 from random import randrange
 from e2e_tests.helpers import login, save_and_navigate_back, change_value
 
+
 # Test login
 def test_login(page: Page) -> None:
     login(page)
     expect(page.get_by_role('button', name='Logout')).to_be_visible()
+
 
 # Test logout
 def test_logout(page: Page) -> None:
@@ -16,6 +18,7 @@ def test_logout(page: Page) -> None:
     expect(page.get_by_text('Username')).to_be_visible()
     expect(page.get_by_text('Password')).to_be_visible()
 
+
 # Test change exercise name
 def test_change_exercise_name(page: Page) -> None:
     exercise_num = randrange(9) + 1
@@ -23,6 +26,7 @@ def test_change_exercise_name(page: Page) -> None:
     current_exercise_name = page.locator('td > a').first.inner_text()
     change_value(page, 'Name', f'exercise{exercise_num}')
     change_value(page, 'Name', f'{current_exercise_name}')
+
 
 # Test change exercise tokenizer
 def test_change_tokenizer(page: Page) -> None:
@@ -52,6 +56,7 @@ def test_change_tokenizer(page: Page) -> None:
     save_and_navigate_back(page)
     expect(page.locator('tbody')).to_contain_text(tokenizers[current_tokenizer_index][1])
 
+
 # Test change exercise minimum match tokens
 def test_change_minimum_match_tokens(page: Page) -> None:
     min_tokens = randrange(8) + 3
@@ -60,6 +65,7 @@ def test_change_minimum_match_tokens(page: Page) -> None:
     change_value(page, 'Minimum match tokens', f'{min_tokens}')
     change_value(page, 'Minimum match tokens', f'{current_min_tokens}', ' tokens')
 
+
 # Test visibility of histogram and grid
 def test_similarity_visibility(page: Page) -> None:
     login(page)
@@ -67,11 +73,13 @@ def test_similarity_visibility(page: Page) -> None:
     expect(page.get_by_role('img')).to_contain_text(re.compile(r'.+0.00.10.20.30.40.50.60.70.80.91.0'))
     expect(page.locator('.comparison-grid')).to_be_visible()
 
+
 # Test visibility of exercise histogram
 def test_histogram_visibility(page: Page) -> None:
     login(page)
     page.get_by_role('link', name=' Exercise histograms').click()
     expect(page.get_by_role('img').first).to_contain_text(re.compile(r'.+0.00.10.20.30.40.50.60.70.80.91.0'))
+
 
 # Test visibility of graph view
 def test_graph_view(page: Page) -> None:
@@ -83,6 +91,16 @@ def test_graph_view(page: Page) -> None:
         re.compile(r'.+ and .+ have .+ submission pair.? with high similarity')
     )
 
+
+# Test visibility of cluster view
+def test_cluster_view(page: Page) -> None:
+    login(page)
+    page.get_by_role('link', name=' Clusters view').click()
+    page.get_by_role("button", name="Build table").click()
+    page.get_by_role("link", name="Cluster 1").click()
+    expect(page.get_by_role("heading", name="Hide Students")).to_be_visible()
+
+
 # Test visibility of student view
 def test_student_view(page: Page) -> None:
     login(page)
@@ -91,6 +109,7 @@ def test_student_view(page: Page) -> None:
     expect(page.locator('.content.container-fluid > p').first).to_contain_text(
         re.compile(r'All comparisons for .+ with similarity greater than .+%')
     )
+
 
 # Test visibility of flagged pairs
 def test_flagged_pairs(page: Page) -> None:

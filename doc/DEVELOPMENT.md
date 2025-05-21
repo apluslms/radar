@@ -72,3 +72,43 @@ To fetch submissions from A+ you need to also configure the APLUS_ROBOT_TOKEN va
 
 Now you should be able to login to Radar using LTI from A+ as well as import automatically or manually configured exercises from A+. Only thing not working is automatic fetching of submissions and automatic matching. To match submissions you will still have to run
 `python manage.py matchsubmissions <course_id>/<exercise_id>`
+
+## Testing with Celery locally
+
+To test Radar with Celery similar to in production you can use the following steps:
+
+Make sure you have the following installed (For Mac use Brew to install the packages):
+
+    apt install \
+        memcached \
+        libmemcached11 \
+        zlib1g
+
+(For Mac if Brew is used to install the packages then run the following commands using Brew)
+
+Linux:
+1. Set <b>DEBUG</b> and <b>CELERY_DEBUG</b> to <b>TRUE</b> in root/radar/settings.py
+2. Run Docker if not already running: `sudo dockerd`
+3. Start Rabbitmq broker: `docker run -d -p 5672:5672 rabbitmq`
+4. Start Memcached: `sudo service memcached start` <br>
+    4.1. Mac example: `brew services start memcached`
+5. Start Celery worker from the root of the project: `celery -A radar worker -P threads --loglevel=INFO`
+
+Now all of the Celery tasks should be listed when you launch the Celery worker:
+* data.graph.generate_match_graph
+* matcher.greedy_string_tiling.matchlib.tasks.match_all_combinations
+* matcher.greedy_string_tiling.matchlib.tasks.match_to_others
+* matcher.tasks.handle_match_results
+* matcher.tasks.match_against_template
+* matcher.tasks.match_all_new_submissions_to_exercise
+* matcher.tasks.match_exercise
+* provider.tasks.create_submission
+* provider.tasks.get_full_course_config
+* provider.tasks.recompare_all_unmatched
+* provider.tasks.reload_exercise_submissions
+* provider.tasks.task_error_handler
+* radar.celery.debug_task
+* review.helpers.build_clusters
+* review.helpers.build_graph_clusters
+
+When the Radar application runs one those tasks you should be able to see the task run in the Celery worker terminal, where you launched the worker. In production these tasks are split up between 4 different Celery workers.

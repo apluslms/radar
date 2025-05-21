@@ -1,4 +1,12 @@
 {% extends 'base.html' %}
+
+{% load review %}
+{% load static %}
+
+{% block head_includes %}
+<script type="module" src="{% static 'views/course_view.js' %}"></script>
+{% endblock head_includes %}
+
 {% block content %}
 
 <p>
@@ -34,7 +42,7 @@
 {% if unmatched %}
 <form method="post">
     {% csrf_token %}
-    <button class="btn btn-primary" type="submit" name="match-all-unmatched-for-exercises"><span class="glyphicon glyphicon-refresh"></span> Recompare all exercises with unmatched submissions</button>
+    <button class="btn btn-primary" id="unmatched-button" type="submit" name="match-all-unmatched-for-exercises"><span class="glyphicon glyphicon-refresh"></span> Recompare all exercises with unmatched submissions</button>
 </form>
 {% endif %}
 {% endwith %}
@@ -44,15 +52,19 @@
     <button class="btn btn-primary" type="submit" name="full_reload"><span class="glyphicon glyphicon-refresh"></span> Reload all exercise submissions</button>
 </form>
 
-{% for exercise in exercises %}
-{% endfor %}
+<div hidden id="load-progress" class="progress">
+	<div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%">
+			<span class="loader-message"></span>
+	</div>
+</div>
 
 <table id="exercises-table" class="table table-striped tablesorter">
     <thead>
     <tr>
         <th title="A+ exercise">Exercise</th>
         <th title="Total amount of files submitted to an exercise">Submissions</th>
-        <th title="Submissions currently being matched and waiting for results">Pending</th>
+        <th title="Submissions currently matched">Matched</th>
+		<th title="Submissions currently being matched and waiting for results">Pending</th>
         <th title="Submissions not yet matched and waiting for actions">Not matched</th>
         <th title="Submissions that cannot be matched, e.g. non-text such as images or binaries.">Invalid</th>
         <th title="Unique A+ users who have submitted at least one file to an exercise">Unique submitters</th>
@@ -64,10 +76,11 @@
     </tr>
     </thead>
     {% for exercise in exercises %}
-    <tr class="{% if exercise.paused %}paused {% endif %}">
+    <tr class="{% if exercise.paused %}paused {% endif %}" id="{% if exercise.valid_unmatched_submissions.count > 0 %}unmatched-row{% endif %}">
         <td><a href="{% url 'exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }}</a></td>
         <td>{{ exercise.submissions.count }}</td>
-        <td>{{ exercise.get_submissions.count }}</td>
+        <td>{{ exercise.valid_matched_submissions.count }}</td>
+		<td>{{ exercise.get_submissions.count }}</td>
         {% if exercise.has_unassigned_submissions %}
         <td class="info">
             <strong>{{ exercise.valid_unmatched_submissions.count }}</strong>
@@ -87,43 +100,4 @@
     {% endfor %}
 </table>
 
-<script>
-    document.getElementById('reload-form').addEventListener('submit', function(event) {
-        event.preventDefault(); // Prevent the default form submission
-        console.log("Trying to reload all exercises.");
-
-        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
-        const exercises = document.querySelectorAll('#exercises-table tbody tr');
-
-        exercises.forEach(exercise => {
-            const exerciseButton = exercise.querySelector('.btn');
-            const exerciseHref = exerciseButton.getAttribute('href');
-
-            const formData = new URLSearchParams();
-            formData.append('csrfmiddlewaretoken', csrfToken);
-            formData.append('provider_reload', '');
-
-            fetch(`${exerciseHref}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrfToken,
-                },
-                body: formData.toString()
-            }).then(response => {
-                if (response.ok) {
-                    console.log(`Exercise reloaded successfully.`);
-                } else {
-                    console.error(`Failed to reload exercise.`);
-                }
-            }).catch(error => {
-                console.error(`Error reloading exercise`, error);
-            });
-        });
-        setTimeout(() => {
-            history.replaceState(null, null, location.href);
-            location.reload();
-        }, 2000);
-    });
-</script>
 {% endblock %}

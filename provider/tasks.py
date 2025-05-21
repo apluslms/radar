@@ -21,6 +21,7 @@ from provider.insert import (
     InsertError,
 )
 import radar.config as config_loaders
+from radar.settings import DEBUG, CELERY_DEBUG
 
 
 logger = get_task_logger(__name__)
@@ -158,7 +159,7 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
             exercise.matching_start_time,
         )
     # All submissions created, now match them
-    if not settings.DEBUG:
+    if not DEBUG or CELERY_DEBUG:
         matcher_tasks.match_all_new_submissions_to_exercise.delay(exercise_id)
 
 

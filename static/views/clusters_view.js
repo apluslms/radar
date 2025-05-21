@@ -55,6 +55,7 @@ function buildTable() {
     min_similarity: buildControl.minSimilaritySlider.val(),
     min_matches: buildControl.minMatchCountSlider.val(),
     unique_exercises: buildControl.uniqueCheckbox.is(":checked"),
+    origin: 'clusters',
   };
 
   // Poll timeouts
@@ -70,9 +71,10 @@ function buildTable() {
     if (taskState.ready) {
       pollIndex = 0;
       let tableDefinition = taskState.graph_data;
+      let clusters = taskState.clusters;
       if (tableDefinition.nodes && tableDefinition.edges) {
         // Update the table
-        updateTable(tableDefinition);
+        updateTable(clusters);
 
         // Show the date and time
         showDatetime(tableDefinition['date_time']);
@@ -111,31 +113,6 @@ function buildTable() {
 }
 
 
-// Save the clusters
-function saveClusters(tableDefinition, clusters) {
-  // Get the cluster parameters
-  let clustersData = {
-    min_similarity: tableDefinition['min_similarity'],
-    min_matches: tableDefinition['min_matches'],
-    unique_exercises: tableDefinition['unique_exercises'],
-    date_time: tableDefinition['date_time'],
-    clusters: clusters,
-  };
-
-  // Save the clusters to the server
-  $.ajax({
-    beforeSend: CSRFpreRequestCallback,
-    url: "save",
-    method: "POST",
-    dataType: "json",
-    contentType: "application/json",
-    data: JSON.stringify(clustersData),
-    success: _ => {},
-    error: pollError,
-  });
-}
-
-
 // On request error
 function pollError(response) {
   console.error("Failed to poll for API read task state:", response.responseText);
@@ -164,13 +141,7 @@ function stopLoader() {
 
 
 // Update the table
-function updateTable(tableDefinition) {
-  // Get the clusters from the data
-  let clusters = getClusters(tableDefinition.edges);
-
-  // Save the clusters
-  saveClusters(tableDefinition, clusters);
-
+function updateTable(clusters) {
   // Get the data table
   let table = $('#clustersdatatable').DataTable();
 
@@ -185,100 +156,6 @@ function updateTable(tableDefinition) {
   });
 
   table.draw();
-}
-
-
-// Helper function for getting the clusters from data
-function getClusters(students) {
-  var clusters = [];
-
-  students.forEach(function(student) {
-    // Check if the student source or target is already in a group
-    var found = false;
-
-    // Loop through the clusters
-    for (let index = 0; index < clusters.length; index++) {
-      if (clusters[index]['students'].has(student['source']) || clusters[index]['students'].has(student['target'])) {
-
-        clusters[index]['students'].add(student['source']);
-        clusters[index]['students'].add(student['target']);
-
-        student['matches_in_exercises'].forEach(function(exercise) {
-          clusters[index]['similarity'].push(exercise['max_similarity']);
-        });
-
-        found = true;
-        break;
-      }
-    };
-
-    // If the student is not in any cluster, create a new one
-    if (!found) {
-      var similarity = [];
-
-      student['matches_in_exercises'].forEach(function(exercise) {
-        similarity.push(exercise['max_similarity'])
-      });
-
-      clusters.push({
-        'students': new Set([student['source'], student['target']]),
-        'similarity': similarity
-      });
-    }
-  });
-
-  // Merge the linked groups if they share a student
-  clusters.forEach(function(cluster) {
-    clusters.forEach(function(otherCluster) {
-
-      // Skip if same cluster
-      if (cluster['students'] !== otherCluster['students']) {
-        for (let index = 0; index < cluster['students'].size; index++) {
-          // Check if other cluster has the student
-          if (otherCluster['students'].has(Array.from(cluster['students'])[index])) {
-            // Merge the clusters
-            cluster['students'] = new Set([...cluster['students'], ...otherCluster['students']]);
-            cluster['similarity'] = cluster['similarity'].concat(otherCluster['similarity']);
-
-            var clusterIndex;
-
-            // Remove the other cluster from the list
-            while ((clusterIndex = clusters.indexOf(otherCluster)) != -1){
-              clusters.splice(clusterIndex, 1);
-            }
-
-            break;
-          }
-        };
-      }
-    });
-  });
-
-  return sortClusters(clusters);
-}
-
-
-// Sort Clusters
-function sortClusters(clusters) {
-  // Sort the students in each cluster
-  var collator = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'})
-
-  // Sort the clusters and get average similarity
-  for (let index = 0; index < clusters.length; index++) {
-    clusters[index]['students'] = Array.from(clusters[index]['students']).sort(collator.compare);
-    clusters[index]['similarity'] = clusters[index]['similarity'].reduce((a, b) => a + b, 0) / clusters[index]['similarity'].length;
-  }
-
-  // Sort the clusters by average similarity
-  clusters.sort(function(a, b) {
-    if (a['similarity'] === b['similarity']) {
-      return b['students'].size - a['students'].size;
-    }
-
-    return b['similarity'] - a['similarity'];
-  });
-
-  return clusters
 }
 
 
@@ -306,7 +183,8 @@ function initializeTable() {
   $('#clustersdatatable').DataTable( {
     lengthMenu: [
       [-1, 10, 25, 100],
-      ["All", 10, 25, 100] ],
+      ["All", 10, 25, 100]
+    ],
     columnDefs: [
       { type: 'natural', targets: [0,1] },
       { targets: [2], orderData: [0, 2]},

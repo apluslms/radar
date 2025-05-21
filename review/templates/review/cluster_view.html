@@ -5,15 +5,17 @@
 
 {% block head_includes %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
-<script src=//cdn.datatables.net/2.2.2/js/dataTables.min.js></script>
-<script src="https://cdn.datatables.net/plug-ins/2.2.2/sorting/natural.min.js"></script>
+<script src="//cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+<script src="//cdn.datatables.net/plug-ins/2.2.2/sorting/natural.min.js"></script>
 <script src="//cdn.datatables.net/plug-ins/2.2.2/sorting/absolute.min.js"></script>
+<script src="//cdn.datatables.net/fixedcolumns/5.0.4/js/dataTables.fixedColumns.min.js"></script>
 <script type="module" src="{% static 'views/helper_functions.js' %}"></script>
 <script type="module" src="{% static 'views/cluster_view.js' %}"></script>
 {% endblock head_includes %}
 
 {% block css %}
-<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css" />
+<link rel="stylesheet" href="//cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css" />
+<link rel="stylesheet" href="//cdn.datatables.net/fixedcolumns/5.0.4/css/fixedColumns.dataTables.min.css">
 {% endblock %}
 
 {% block content %}
@@ -26,17 +28,17 @@ The table cells show the average similarity score of a student submission(s) to 
 This page will change if the cached clusters are invalidated or if new clusters are built. <br>
 
 <div>
-	<div>
-		<h4>Cluster Info</h2>
-			<b>Minimum match similarity: </b> {{ min_similarity }} <br>
-			<b>Minimum match count: </b> {{ min_matches }} <br>
-			<b>Use unique exercise: </b> {{ use_unique_ex }} <br>
-			<b>Students: </b> {{ students|length }} <br>
-			<b>Date created: </b> {{ date_time }} <br>
-	</div>
-
 	<div class="graph-ui">
 		<div class="row">
+			<div class="col-md-6">
+				<h4>Cluster Info</h4>
+					<b>Minimum match similarity: </b> {{ min_similarity }} <br>
+					<b>Minimum match count: </b> {{ min_matches }} <br>
+					<b>Use unique exercise: </b> {{ use_unique_ex }} <br>
+					<b>Students: </b> {{ students|length }} <br>
+					<b>Date created: </b> {{ date_time }} <br>
+			</div>
+
 			<div class="col-md-6 build-args-ui">
 				<h4>Filters</h4>
 				<div class="slider-container">
@@ -84,17 +86,17 @@ This page will change if the cached clusters are invalidated or if new clusters 
 		<tbody>
 			{% for student in students %}
 			<tr>
-				<td>
+				<td class="{{ student }}_row">
 					<a href="{% url 'student_view' course_key=course.key student_key=student %}">{{ student }}</a>
 				</td>
 
 				{% for student2 in students %}
 					{% if student == student2 %}
-						<td data-order="" class="{{ student2 }}_column"></td>
+						<td data-order="" class="{{ student2 }}_column {{ student }}_row"></td>
 					{% else %}
 						{% with student|concat:student2 as student_string %}
 							{% with grid|get_item:student_string as pair_similarity %}
-								<td data-order="{{ pair_similarity }}" class="{{ student2 }}_column">
+								<td data-order="{{ pair_similarity }}" class="{{ student2 }}_column {{ student }}_row">
 									{{ pair_similarity|percent }}
 								</td>
 							{% endwith %}
