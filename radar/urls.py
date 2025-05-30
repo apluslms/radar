@@ -5,6 +5,7 @@ from django.urls import re_path
 
 import data.urls
 import review.urls
+import cheatersheet.urls
 
 from django.conf import settings
 
@@ -22,6 +23,7 @@ urlpatterns = [
     ),
     re_path(r'^auth/', include('django_lti_login.urls')),
     re_path(r'^admin/', admin.site.urls),
+    re_path(r'^', include(cheatersheet.urls)),
     re_path(r'^', include(data.urls)),
     re_path(r'^', include(review.urls)),
 ]
