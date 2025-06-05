@@ -95,23 +95,22 @@ def match_all_combinations(config: dict[str, any], string_data_iter: list[dict[s
     Given a configuration dict and an iterable of string data,
     do string similarity comparisons for all 2-combinations without replacement for the input data.
     Return an iterator over matches.
+    """
 
     try:
-        raise Exception("Multiprocessing is not supported in this environment.")
         # Create a pool of workers to do the comparisons in parallel
         with Pool() as pool:
             results = pool.map(partial(_match_all_multiprocessing, config),
             itertools.combinations(string_data_iter, 2))
 
+        # Filter out None results
+        return filter(lambda x: x is not None, results)
+
     except Exception as e:
         print(f"Error during multiprocessing: {e}")
-        print(f"Matching in single process.")
+        print("Matching in single process.")
         return _match_all(config, itertools.combinations(string_data_iter, 2))
 
-    # Filter out None results
-    return filter(lambda x: x is not None, results)
-    """
-    return _match_all(config, itertools.combinations(string_data_iter, 2))
 
 def match_to_others(
     config: dict[str, any],
