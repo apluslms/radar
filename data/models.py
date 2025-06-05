@@ -195,6 +195,8 @@ class Exercise(models.Model):
     dolos_report_generated = models.BooleanField(blank=True, default=False)
     dolos_report_key = models.TextField(blank=True, default="")
 
+    best_comparisons = models.TextField(null=True, blank=True, default=None)
+
     class Meta:
         unique_together = ("course", "key")
         ordering = ["course", "name", "created"]
@@ -316,7 +318,9 @@ class Exercise(models.Model):
     def submissions_max_similarity_json(self):
         return json.dumps(list(self.submissions_max_similarity))
 
-    def top_comparisons(self, rows, one_pair_per_match=False, best_submissions=False):
+
+    # Get the top comparisons for this exercise.
+    def top_comparisons(self, rows: int, one_pair_per_match: bool = False, best_submissions: bool = False) -> list:
         max_list = (
             self.valid_matched_submissions.values('student__id')
             .annotate(m=models.Max('max_similarity'))
@@ -342,6 +346,7 @@ class Exercise(models.Model):
 
         for comparison_row in compared_list:
             for match in comparison_row["matches"]:
+                match.similarity = round(match.similarity, 2)
                 student_pair = frozenset([match.submission_a.student.id, match.submission_b.student.id])
                 if student_pair not in student_pairs:
                     unique_set.add(match)
@@ -349,12 +354,53 @@ class Exercise(models.Model):
                 elif not one_pair_per_match:
                     unique_set.add(match)
 
-        sorted_unique_set = sorted(
-            unique_set, key=lambda comparison: comparison.similarity, reverse=True
-        )
-        return sorted_unique_set
+        # Sort by similarity, then by student id which is alphanumeric
+        # and then by the other student id which is alphanumeric
+        # and then by the submission time of the first submission
+        sorted_list = sorted(unique_set, key=self.sort_key, reverse=True)
 
-    def comparisons_for_student(self, local_student):
+        # Create a JSON list of the sorted comparisons
+        json_list = []
+        for comparison in sorted_list:
+            # Create link to the comparison using the student keys and comparison id
+            json_list.append(
+                "../" + comparison.submission_a.student.key
+                + "-" + comparison.submission_b.student.key
+                + "/" + str(comparison.id)
+            )
+
+        # Save the JSON list to the exercise's best_comparisons field
+        self.best_comparisons = json.dumps(json_list)
+        self.save()
+
+        return sorted_list
+
+
+    # Convert text to a number if it is a digit, otherwise leave it as is
+    def convert_to_number(self, text: str) -> int | str:
+        return -int(text) if text.isdigit() else text
+
+
+    # Sort key function
+    def sort_key(self, comparison) -> tuple:
+
+        # Get the student keys and split them into parts
+        student_a = [self.convert_to_number(c) for c in re.split('([0-9]+)', comparison.submission_a.student.key)]
+        student_b = [self.convert_to_number(c) for c in re.split('([0-9]+)', comparison.submission_b.student.key)]
+
+        # Create a tuple for sorting
+        output = (comparison.similarity, student_a, student_b)
+
+        # If the submission datetime is not None, add it to the output tuple
+        submission_datetime_a = comparison.submission_a.provider_submission_time
+        if submission_datetime_a is not None:
+            output += (submission_datetime_a,)
+
+        return output
+
+
+    # Get comparisons for a specific student
+    def comparisons_for_student(self, local_student) -> list:
         student_list = self._comparisons_by_submission(
             self.valid_matched_submissions.filter(student=local_student)
             .order_by("created")
@@ -366,7 +412,12 @@ class Exercise(models.Model):
         for single_student in student_list:
             unique_set.update(single_student["matches"])
 
-        return unique_set
+        # Sort by similarity, then by student id which is alphanumeric
+        # and then by the other student id which is alphanumeric
+        # and then by the submission time of the first submission
+        sorted_list = sorted(unique_set, key=self.sort_key, reverse=True)
+
+        return sorted_list
 
     def _comparisons_by_submission(self, submissions):
         comparisons = []
@@ -378,7 +429,6 @@ class Exercise(models.Model):
                         Comparison.objects.exclude(submission_b__isnull=True)
                         .filter(
                             models.Q(submission_a__id=s_id)
-                            | models.Q(submission_b__id=s_id)
                         )
                         .order_by("-similarity")
                         .select_related(
