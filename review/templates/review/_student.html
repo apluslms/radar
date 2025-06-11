@@ -2,14 +2,13 @@
 <td data-similarity="{{ comparison.similarity }}">
     <a href="{{ url }}">
         {{ comparison.similarity|percent }}
-        <b>{{ comparison.submission_a.student.key }}</b> vs <b>{{ comparison.submission_b.student.key }}</b>
+        <b>{{ comparison.submission_a.student.key }}</b> → <b>{{ comparison.submission_b.student.key }}</b>
         {% if comparison.review != 0 %}
         <span class="glyphicon glyphicon-flag text-{{ comparison.review_class }}"></span>
         {% endif %}
         <small>
-            {{ submission.created|date:"d.m. H:i" }}
+            {{ submission.provider_submission_time|date:"d.m. H:i" }}
             grade: {{ submission.grade }}
-            len: {{ submission.authored_token_count }}
         </small>
     </a>
 </td>

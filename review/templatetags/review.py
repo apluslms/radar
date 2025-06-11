@@ -20,17 +20,19 @@ def get_comparisons_for_student(local_object, student):
 @register.inclusion_tag("review/_student.html")
 def student_td(course, comparison, b=False):
     submission = comparison.submission_b if b else comparison.submission_a
+    url = reverse(
+        "comparison",
+        kwargs={
+            "course_key": course.key,
+            "exercise_key": comparison.submission_a.exercise.key,
+            "ak": comparison.submission_a.student.key,
+            "bk": comparison.submission_b.student.key,
+            "ck": comparison.pk,
+        },
+    )
+
     return {
-        "url": reverse(
-            "comparison",
-            kwargs={
-                "course_key": course.key,
-                "exercise_key": comparison.submission_a.exercise.key,
-                "ak": comparison.submission_a.student.key,
-                "bk": comparison.submission_b.student.key,
-                "ck": comparison.pk,
-            },
-        ),
+        "url": url,
         "comparison": comparison,
         "submission": submission,
         "student": submission.student,
@@ -60,3 +62,12 @@ def get_item(dictionary: dict, student_pair: str) -> str:
 @register.filter
 def concat(value: str, arg: str) -> str:
     return value + '_' + arg
+
+
+@register.filter
+def next_index(value: int) -> int:
+    return int(value) + 2
+
+@register.filter
+def current_index(value: int) -> int:
+    return int(value) + 1
