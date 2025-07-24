@@ -5,7 +5,7 @@ import requests
 from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
-from django.http import HttpResponse, StreamingHttpResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.views import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -97,6 +97,55 @@ class cheatersheet_proxy_web_view(View):
 
         except Exception as e:
             return HttpResponse(f"Error proxying request: {e}", status=500)
+
+
+@login_required
+def cheatersheet_api_add_comparison(request, submission_id):
+    """
+    Proxy for adding a flag for a particular submission to the cheatersheet API.
+    """
+    try:
+        token = settings.CHEATERSHEET_API_TOKEN
+
+        print(f"Adding flag for submission {submission_id} with token {token}")
+
+        target_url = (CHEATERSHEET_WEB_SERVER_URL + '/api/submissions/' + submission_id + '/')
+
+        print(f"Target URL: {target_url}")
+
+        headers = {
+            'Authorization': f'Token {token}',
+            'Content-Type': 'application/json'
+        }
+
+        student_key = request.POST.get('student_key')
+        course_key = request.POST.get('course_key')
+        submission_key = request.POST.get('submission_id')
+
+        data = {
+            "flagged": True,
+            "student_key": student_key,
+            "other_student_key": request.POST.get('other_student_key'),
+            "course_key": course_key,
+            "submission_key": submission_key,
+            "other_submission_key": request.POST.get('other_submission_id'),
+            "similarity": request.POST.get('similarity'),
+            "comparison": "true"
+        }
+
+        print(f"Sending data: {data}")
+
+        # Flag a submission
+        response = requests.post(
+            target_url,
+            json=request.POST,
+            headers=headers
+        )
+
+        return JsonResponse(response.json(), status=response.status_code)
+
+    except Exception as e:
+        return HttpResponse(f"Error adding flag: {e}", status=500)
 
 
 def go_to_cheatersheet_view(request, report_id):

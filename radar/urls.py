@@ -1,9 +1,10 @@
 from django.conf.urls import include
 from django.contrib import admin
 from django.contrib.auth.views import LoginView, LogoutView
-from django.urls import re_path
+from django.urls import re_path, path
 
 import data.urls
+import data.api_urls
 import review.urls
 import cheatersheet.urls
 
@@ -23,6 +24,11 @@ urlpatterns = [
     ),
     re_path(r'^auth/', include('django_lti_login.urls')),
     re_path(r'^admin/', admin.site.urls),
+
+    # API routes
+    path('api/', include(data.api_urls)),
+
+    # Regular app routes
     re_path(r'^', include(cheatersheet.urls)),
     re_path(r'^', include(data.urls)),
     re_path(r'^', include(review.urls)),

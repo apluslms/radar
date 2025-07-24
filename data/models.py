@@ -471,6 +471,12 @@ class Submission(models.Model):
     key = URLKeyField(
         max_length=64, unique=True, help_text="Alphanumeric unique submission id"
     )
+    aplus_key = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        default=None,
+    )
     created = models.DateTimeField(auto_now_add=True)
     exercise = models.ForeignKey(
         Exercise, on_delete=models.CASCADE, related_name="submissions"

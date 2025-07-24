@@ -32,6 +32,39 @@
 	<pre class="indexes-b json">{{ b.indexes_json }}</pre>
 </div>
 
+<div class="btn-group" role="group">
+	<button type="button" id="create-comparison" class="btn btn-default"
+			data-submission-a-id="{{ comparison.submission_a.aplus_key }}"
+			data-student-a-key="{{ comparison.submission_a.student.key }}"
+			data-submission-b-id="{{ comparison.submission_b.aplus_key }}"
+			data-student-b-key="{{ comparison.submission_b.student.key }}"
+			data-course-key="{{ course.api_id }}">Create Comparison in Cheatersheet</button>
+</div>
+
+<div class="modal fade" id="comparisonCommentModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title">Add Comment to Comparison</h4>
+      </div>
+      <div class="modal-body">
+        <form id="comparisonCommentForm">
+          <div class="form-group">
+            <label for="comparisonComment">Comment:</label>
+            <textarea class="form-control" id="comparisonComment" rows="3"></textarea>
+          </div>
+          <input type="hidden" id="comparisonId" value="">
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="submitComparisonComment">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="highlighting-legend">
 	<dl class="dl-horizontal">
 		<dt><pre class="sample-highlight hljs"><span class="source"><a class="template">No highlighting</a></span></pre></dt>
@@ -52,12 +85,95 @@ Waiting for Javascript...
 </pre>
 <script>
 $(function() {
-	var js = new JS();
-	js.quickReview($('#review'));
-	js.codeview($('div.code-comparison'));
-	var similarity = js.parseJSON($('#similarity'));
-	js.buildHeat(similarity);
-	js.applyHeat($('table.comparison'))
+    var js = new JS();
+    js.quickReview($('#review'));
+    js.codeview($('div.code-comparison'));
+    var similarity = js.parseJSON($('#similarity'));
+    js.buildHeat(similarity);
+    js.applyHeat($('table.comparison'))
+});
+
+$(function() {
+    var js = new JS();
+    js.quickReview($('#review'));
+    js.codeview($('div.code-comparison'));
+    var similarity = js.parseJSON($('#similarity'));
+    js.buildHeat(similarity);
+    js.applyHeat($('table.comparison'))
+
+	function flagSubmission(button) {
+		var submissionId = button.data('submission-id');
+		var studentKey = button.data('student-key');
+		var courseKey = button.data('course-key');
+		
+		button.prop('disabled', true).text('Flagging...');
+		
+		$.ajax({
+			url: '/cheatersheet/flag-submission/' + submissionId + '/',
+			type: 'POST',
+			data: {
+				"flagged": true,
+				"student_key": studentKey,
+				"course_key": courseKey,
+				"submission_key": submissionId,
+				csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
+			},
+			success: function() {
+				button.removeClass('btn-warning').addClass('btn-success').text('Flagged!');
+			},
+			error: function() {
+				button.removeClass('btn-warning').addClass('btn-danger').text('Error!');
+				button.prop('disabled', false);
+			}
+		});
+	}
+
+    function createComparison(button, comment) {
+        var submissionAId = button.data('submission-a-id');
+        var studentAKey = button.data('student-a-key');
+        var submissionBId = button.data('submission-b-id');
+        var studentBKey = button.data('student-b-key');
+        var courseKey = button.data('course-key');
+        
+        button.prop('disabled', true).text('Creating Comparison...');
+        
+        $.ajax({
+            url: '/cheatersheet/create-comparison/' + submissionAId + '/',
+            type: 'POST',
+            data: {
+                "comparison": true,
+                "submission_id": submissionAId,
+                "student_key": studentAKey,
+                "other_submission_id": submissionBId,
+                "other_student_key": studentBKey,
+                "course_key": courseKey,
+                "similarity": {{ comparison.similarity }},
+                "comment": comment,
+                csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
+            },
+            success: function() {
+                button.removeClass('btn-default').addClass('btn-success').text('Comparison Created!');
+            },
+            error: function() {
+                button.removeClass('btn-default').addClass('btn-danger').text('Error!');
+                button.prop('disabled', false);
+            }
+        });
+    }
+
+    var activeButton;
+
+    $('#create-comparison').on('click', function() {
+        activeButton = $(this);
+        $('#comparisonComment').val('');
+        $('#comparisonCommentModal').modal('show');
+    });
+
+    $('#submitComparisonComment').on('click', function() {
+        var comment = $('#comparisonComment').val().trim();
+        $('#comparisonCommentModal').modal('hide');
+        createComparison(activeButton, comment);
+    });
 });
 </script>
 
