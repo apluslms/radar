@@ -22,7 +22,7 @@ from django.utils.decorators import method_decorator
 from django.db.models import Avg, Q, F
 from django.core.handlers.wsgi import WSGIRequest
 
-from data.models import Course, Comparison, Student, Submission
+from data.models import Course, Comparison, Student, Submission, Exercise
 from data import graph
 from radar.config import provider_config, configured_function
 from radar.settings import (
@@ -37,6 +37,7 @@ import os
 import csv
 import pytz
 from django.http import FileResponse
+import re
 
 logger = logging.getLogger("radar.review")
 
@@ -86,11 +87,20 @@ def course_histograms(request, course_key=None, course=None):
     )
 
 
+# Render the exercise page with a list of comparisons
 @access_resource
-def exercise(request, course_key=None, exercise_key=None, course=None, exercise=None):
+def exercise(
+    request: WSGIRequest,
+    course_key: str | None = None,
+    exercise_key: str | None = None,
+    course: Course | None = None,
+    exercise: Exercise | None = None
+) -> HttpResponse:
+
     rows = int(request.GET.get('rows', settings.SUBMISSION_VIEW_HEIGHT))
     one_pair_per_match = request.GET.get('one_pair_per_match', 'false').lower() == 'true'
     best_submissions = request.GET.get('best_submissions', 'false').lower() == 'true'
+    comparisons = exercise.top_comparisons(rows, one_pair_per_match, best_submissions)
 
     return render(
         request,
@@ -103,22 +113,24 @@ def exercise(request, course_key=None, exercise_key=None, course=None, exercise=
             ),
             "course": course,
             "exercise": exercise,
-            "comparisons": exercise.top_comparisons(rows, one_pair_per_match, best_submissions),
+            "comparisons": comparisons,
         },
     )
 
 
+# Render a single comparison between two submissions
 @access_resource
 def comparison(
-    request,
-    course_key=None,
-    exercise_key=None,
-    ak=None,
-    bk=None,
-    ck=None,
-    course=None,
-    exercise=None,
-):
+    request: WSGIRequest,
+    course_key: str | None = None,
+    exercise_key: str | None = None,
+    ak: str | None = None,
+    bk: str | None = None,
+    ck: str | None = None,
+    course: Course | None = None,
+    exercise: Exercise | None = None,
+) -> HttpResponse:
+
     comparison = get_object_or_404(
         Comparison,
         submission_a__exercise=exercise,
@@ -143,6 +155,28 @@ def comparison(
 
     p_config = provider_config(course.provider)
     get_submission_text = configured_function(p_config, "get_submission_text")
+
+    # Get the top comparisons for the exercise
+    top_comparisons = json.loads(exercise.best_comparisons or '[]')
+
+    # Create a regex to find the current comparison in the top comparisons
+    r = re.compile(r'../(.+)-(.+)/' + re.escape(str(comparison.id)))
+
+    # Find the index of the current comparison in the top comparisons
+    index = [i for i, c in enumerate(top_comparisons) if re.search(r, c)][0]
+
+    # Get the next and previous comparisons based on the index
+    if index + 1 < len(top_comparisons):
+        next_comparison = top_comparisons[index + 1]
+    else:
+        next_comparison = -1
+
+    if index - 1 >= 0:
+        previous_comparison = top_comparisons[index - 1]
+    else:
+        previous_comparison = -1
+
+
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
@@ -154,7 +188,7 @@ def comparison(
                     kwargs={"course_key": course.key, "exercise_key": exercise.key},
                 ),
             ),
-            ("%s vs %s" % (a.student.key, b.student.key), None),
+            ("%s → %s" % (a.student.key, b.student.key), None),
         ),
         "course": course,
         "exercise": exercise,
@@ -165,6 +199,10 @@ def comparison(
         "b": b,
         "source_a": get_submission_text(a, p_config),
         "source_b": get_submission_text(b, p_config),
+        "next_comparison": next_comparison,
+        "previous_comparison": previous_comparison,
+        "index": index,
+        "top_comparisons": len(top_comparisons),
     }
 
     return render(
@@ -965,7 +1003,7 @@ def pair_view(
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
             (course.name, reverse("course", kwargs={"course_key": course.key})),
-            ("%s vs %s" % (a_key, b_key), None),
+            ("%s → %s" % (a_key, b_key), None),
         ),
         "course": course,
         "exercises": course.exercises.all(),
@@ -1051,7 +1089,7 @@ def pair_view_summary(
             (settings.APP_NAME, reverse("index")),
             (course.name, reverse("course", kwargs={"course_key": course.key})),
             (
-                "%s vs %s" % (a_key, b_key),
+                "%s → %s" % (a_key, b_key),
                 reverse(
                     "pair_view",
                     kwargs={"course_key": course_key, "a_key": a_key, "b_key": b_key},

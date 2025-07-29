@@ -323,3 +323,21 @@ td.highlight, th.highlight, tr.highlight > td {
 .colour-rows > tbody > tr:nth-child(odd) > td {
 	background-color: #f9f9f9;
 }
+
+/* Comparison View */
+#PDF {
+	width: inherit;
+	margin: 0 auto;
+  display: block;
+}
+
+#next-case, #previous-case {
+  width: inherit;
+	margin-left: 15px;
+	margin-right: 15px;
+}
+
+#next-case {
+	float: right;
+
+}

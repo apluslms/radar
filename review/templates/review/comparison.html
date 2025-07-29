@@ -1,6 +1,23 @@
 {% extends 'base.html' %}
+
 {% load review %}
+
+{% block head_includes %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.5/purify.min.js" integrity="sha512-/CUtA84sWWqWEBejNrrtWa7Yc4cth3Ome2ymvCKOo9YcZ4sh98tndUy4LutE2xGcAgD4fyz16y+gSyJdGCB5ww==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+{% load static %}
+<script src="{% static 'views/comparison_view.js' %}"></script>
+{% endblock head_includes %}
+
 {% block content %}
+
+<div class="row">
+	<button id="previous-case" class="col-md-6"><a href="{{previous_comparison}}">Previous Comparison ({{index}}/{{top_comparisons}})</a></button>
+	<button id="next-case" class="col-md-6"><a href="{{next_comparison}}">Next Comparison ({{index|next_index}}/{{top_comparisons}})</a></button>
+</div>
+
+<h3>Comparison ({{index|current_index}}/{{top_comparisons}}): {{ hierarchy.3.0 }}</h3>
 
 <form id="review" class="btn-group pull-right" method="post" action="{% url 'comparison' course_key=course.key exercise_key=exercise.key ak=comparison.submission_a.student.key bk=comparison.submission_b.student.key ck=comparison.pk %}">
 	<button type="button" name="review" value="{{ comparison.review }}"
@@ -17,14 +34,31 @@
 
 <button type="button"><a href="{% url 'pair_view' course_key=course.key a_key=a.student.key b_key=b.student.key %}">See all comparisons for this pair of students</a></button>
 
+
+<h4 id="other-comparisons">Other comparisons in {{ exercise.name }} for {{ a.student.key }}:</h4>
 {% include 'review/_comparisontable_unique.html' %}
 
 <div class="code-comparison"{% if reverse %} data-reverse{% endif %}>
-	<p>Similarity: <b>{{ comparison.similarity|percent }}</b></p>
-	{% if a.provider_url %}<a href="{{ a.provider_url }}" target="_blank" class="provider">{{ a.provider_url }}</a>{% endif %}
-	{% if b.provider_url %}<a href="{{ b.provider_url }}" target="_blank" class="provider">{{ b.provider_url }}</a>{% endif %}
-	<pre class="code-a code-view">{{ source_a }}</pre>
-	<pre class="code-b code-view">{{ source_b }}</pre>
+	<div class="row">
+		<p id="similarity" class="col-md-6">Similarity: <b>{{ comparison.similarity|percent }}</b></p>
+		<div class="col-md-6"><button id="PDF">Download PDF</button></div>
+	</div>
+	<div class="row">
+		<div class="col-md-6">
+			<p id="a-grade">Grade: {{ a.grade }}</p>
+			{% if a.provider_submission_time %} <p id="a-submission-time">Submission Time: {{a.provider_submission_time}}</p> {% endif %}
+			{% if a.provider_url %}<a href="{{ a.provider_url }}" target="_blank" id="a-provider" class="provider">{{ a.provider_url }}</a>{% endif %}
+		</div>
+		<div class="col-md-6">
+			<p id="b-grade">Grade: {{ b.grade }}</p>
+			{% if b.provider_submission_time %} <p id="b-submission-time">Submission Time: {{b.provider_submission_time}}</p> {% endif %}
+			{% if b.provider_url %}<a href="{{ b.provider_url }}" target="_blank" id="b-provider" class="provider">{{ b.provider_url }}</a>{% endif %}
+		</div>
+	</div>
+	<div id="code-blocks">
+		<pre class="code-a code-view col-md-6">{{ source_a }}</pre>
+		<pre class="code-b code-view col-md-6">{{ source_b }}</pre>
+	</div>
 	<pre class="matches json">{{ comparison.matches_json }}</pre>
 	<pre class="template-a json">{{ a.template_comparison.matches_json }}</pre>
 	<pre class="template-b json">{{ b.template_comparison.matches_json }}</pre>
@@ -76,6 +110,38 @@
 		<dt><pre class="sample-highlight hljs"><span class="source"><a class="match exact">Orange</a></span></pre></dt>
 		<dd>exact character match</dd>
 	</dl>
+</div>
+
+<div id="pdf-modal" class="modal" tabindex="-1" role="dialog">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title"></h4>
+			</div>
+			<div class="modal-body">
+				<form id="pdf-form">
+					<p>Select Orientation:</p>
+					<input type="radio" id="portrait" name="orientation" value="portrait" checked>
+					<label for="portrait">Portrait</label>
+					<input type="radio" id="landscape" name="orientation" value="landscape">
+					<label for="landscape">Landscape</label><br>
+
+					<p>Scale:</p>
+					<input type="number" id="scale" name="scale" value="0.145" step="0.01" min="0.01" max="1.00">
+					<button type="button" id="reset-scale">Reset</button>
+					<br><br>
+
+					<p>X-Axis Cutoff:</p>
+					<input type="number" id="x-cutoff" name="x-cutoff" value="50" step="1" min="1" max="100">
+					<button type="button" id="reset-x-cutoff">Reset</button>
+					<br><br>
+
+					<button type="button" id="download">Download PDF</button>
+				</form>
+			</div>
+		</div>
+	</div>
 </div>
 
 <pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>

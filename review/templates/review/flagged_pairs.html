@@ -27,7 +27,7 @@
         <tbody>
                 {% for comparison in comparisons %}
                 <tr>
-                    <td><a href="{% url 'pair_view' course_key=course.key a_key=comparison.submission_a.student.key b_key=comparison.submission_b.student.key %}">{{ comparison.submission_a.student.key }} vs {{ comparison.submission_b.student.key }}</a></td>
+                    <td><a href="{% url 'pair_view' course_key=course.key a_key=comparison.submission_a.student.key b_key=comparison.submission_b.student.key %}">{{ comparison.submission_a.student.key }} → {{ comparison.submission_b.student.key }}</a></td>
                 </tr>
                 {% endfor %}
         <tfoot>
