@@ -14,9 +14,6 @@ from data.serializers import (
 )
 from django.conf import settings
 
-logger = logging.getLogger("radar.api")
-
-
 class CourseViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for listing and retrieving courses

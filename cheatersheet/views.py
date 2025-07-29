@@ -15,7 +15,6 @@ CHEATERSHEET_WEB_SERVER_URL = getattr(settings, 'CHEATERSHEET_WEB_SERVER_URL', '
 CHEATERSHEET_PROXY_WEB_URL = getattr(settings, 'CHEATERSHEET_PROXY_WEB_URL', '/cheatersheet/')
 
 logger = logging.getLogger("radar.cheatersheet")
-@method_decorator(csrf_exempt, name='dispatch')
 class cheatersheet_proxy_web_view(View):
     @method_decorator(login_required)
     def dispatch(self, request, *args, **kwargs) -> HttpResponse:
@@ -30,7 +29,7 @@ class cheatersheet_proxy_web_view(View):
                 response = requests.get(
                     target_url,
                     params=request.GET.dict(),
-                    headers={k: v for k, v in request.headers.items() if k.lower() != 'host'},
+                    headers={k: v for k, v in request.headers.items() if k.lower() in ['accept', 'accept-encoding', 'user-agent', 'content-type']},
                     cookies=request.COOKIES,
                     stream=True
                 )
@@ -107,11 +106,11 @@ def cheatersheet_api_add_comparison(request, submission_id):
     try:
         token = settings.CHEATERSHEET_API_TOKEN
 
-        print(f"Adding flag for submission {submission_id} with token {token}")
+        logger.info(f"Adding flag for submission {submission_id} with token {token}")
 
         target_url = (CHEATERSHEET_WEB_SERVER_URL + '/api/submissions/' + submission_id + '/')
 
-        print(f"Target URL: {target_url}")
+        logger.info(f"Target URL: {target_url}")
 
         headers = {
             'Authorization': f'Token {token}',
@@ -133,7 +132,7 @@ def cheatersheet_api_add_comparison(request, submission_id):
             "comparison": "true"
         }
 
-        print(f"Sending data: {data}")
+        logger.info(f"Sending data: {data}")
 
         # Flag a submission
         response = requests.post(
