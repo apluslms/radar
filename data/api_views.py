@@ -5,7 +5,6 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 import requests
-import logging
 
 from data.models import Course, Exercise, Submission, Student, Comparison
 from data.serializers import (

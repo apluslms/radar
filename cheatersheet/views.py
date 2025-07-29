@@ -8,7 +8,6 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.views import View
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 
 CHEATERSHEET_WEB_SERVER_URL = getattr(settings, 'CHEATERSHEET_WEB_SERVER_URL', 'http://localhost:8072')
@@ -29,7 +28,8 @@ class cheatersheet_proxy_web_view(View):
                 response = requests.get(
                     target_url,
                     params=request.GET.dict(),
-                    headers={k: v for k, v in request.headers.items() if k.lower() in ['accept', 'accept-encoding', 'user-agent', 'content-type']},
+                    headers={k: v for k, v in request.headers.items() if k.lower()
+                             in ['accept', 'accept-encoding', 'user-agent', 'content-type']},
                     cookies=request.COOKIES,
                     stream=True
                 )
@@ -106,11 +106,7 @@ def cheatersheet_api_add_comparison(request, submission_id):
     try:
         token = settings.CHEATERSHEET_API_TOKEN
 
-        logger.info(f"Adding flag for submission {submission_id} with token {token}")
-
         target_url = (CHEATERSHEET_WEB_SERVER_URL + '/api/submissions/' + submission_id + '/')
-
-        logger.info(f"Target URL: {target_url}")
 
         headers = {
             'Authorization': f'Token {token}',
@@ -131,8 +127,6 @@ def cheatersheet_api_add_comparison(request, submission_id):
             "similarity": request.POST.get('similarity'),
             "comparison": "true"
         }
-
-        logger.info(f"Sending data: {data}")
 
         # Flag a submission
         response = requests.post(
