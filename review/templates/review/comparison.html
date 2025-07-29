@@ -144,7 +144,7 @@
 	</div>
 </div>
 
-<pre id="similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
+<pre id="submissions-similarity" class="json">{{ exercise.submissions_max_similarity_json }}</pre>
 
 <pre id="js" class="well">
 Waiting for Javascript...
@@ -154,16 +154,7 @@ $(function() {
     var js = new JS();
     js.quickReview($('#review'));
     js.codeview($('div.code-comparison'));
-    var similarity = js.parseJSON($('#similarity'));
-    js.buildHeat(similarity);
-    js.applyHeat($('table.comparison'))
-});
-
-$(function() {
-    var js = new JS();
-    js.quickReview($('#review'));
-    js.codeview($('div.code-comparison'));
-    var similarity = js.parseJSON($('#similarity'));
+    var similarity = js.parseJSON($('#submissions-similarity'));
     js.buildHeat(similarity);
     js.applyHeat($('table.comparison'))
 

@@ -113,21 +113,6 @@ def cheatersheet_api_add_comparison(request, submission_id):
             'Content-Type': 'application/json'
         }
 
-        student_key = request.POST.get('student_key')
-        course_key = request.POST.get('course_key')
-        submission_key = request.POST.get('submission_id')
-
-        data = {
-            "flagged": True,
-            "student_key": student_key,
-            "other_student_key": request.POST.get('other_student_key'),
-            "course_key": course_key,
-            "submission_key": submission_key,
-            "other_submission_key": request.POST.get('other_submission_id'),
-            "similarity": request.POST.get('similarity'),
-            "comparison": "true"
-        }
-
         # Flag a submission
         response = requests.post(
             target_url,
