@@ -111,33 +111,22 @@ $(function() {
 		const successCounter = $('#success-count');
 		const errorCounter = $('#error-count');
 
-		// Disable button and show progress
 		button.prop('disabled', true).text('Processing...');
 		progressDiv.show();
 		resultsDiv.hide();
-
-		// Debug: Let's see what grids we have
-		console.log('Available grids:', $('grid').length);
-		$('grid').each(function(index) {
-			console.log(`Grid ${index}:`, this.className, $(this).find('.grid-item').length, 'items');
-		});
 
 		// Get comparison pairs from the grid that meet threshold
 		const comparisons = [];
 		$('grid.comparison-grid .grid-item').each(function() {
 			const gridItem = $(this);
 			const similarity = parseFloat(gridItem.data('similarity'));
-			console.log('Grid item similarity:', similarity);
-			console.log('Threshold:', threshold/100);
 			
 			if (similarity && (similarity) >= (threshold/100)) {
-				console.log('Found item above threshold:', similarity);
 				const submissionAId = gridItem.data('submission-a-id');
 				const submissionBId = gridItem.data('submission-b-id');
 				const studentAKey = gridItem.data('student-a-key');
 				const studentBKey = gridItem.data('student-b-key');
 				const comparisonId = `${submissionAId}-${submissionBId}`;
-				console.log('Creating comparison for:', submissionAId, studentAKey, submissionBId, studentBKey);
 				
 				comparisons.push({
 					submissionAKey: submissionAId,
@@ -147,11 +136,8 @@ $(function() {
 					studentBKey: studentBKey,
 					comparisonId: comparisonId
 				});
-				console.log('Added comparison:', comparisons[comparisons.length - 1]);
 			}
 		});
-
-		console.log('Total comparisons found:', comparisons.length);
 
 		if (comparisons.length === 0) {
 			alert(`No comparisons found above ${threshold}% similarity threshold`);
@@ -166,14 +152,12 @@ $(function() {
 			return;
 		}
 
-		// Process comparisons sequentially to avoid overwhelming the server
 		let processed = 0;
 		let successCount = 0;
 		let errorCount = 0;
 
 		function processNext() {
 			if (processed >= comparisons.length) {
-				// All done
 				button.prop('disabled', false).text('Create Comparisons Above Threshold');
 				progressDiv.hide();
 				resultsDiv.show();
@@ -207,7 +191,6 @@ $(function() {
 				},
 				complete: function() {
 					processed++;
-					// Small delay to prevent overwhelming the server
 					setTimeout(processNext, 100);
 				}
 			});
