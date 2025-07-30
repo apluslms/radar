@@ -20,6 +20,7 @@ def insert_submission(exercise, submission_key, submitter_id, data=None):
     student = exercise.course.get_student(str(submitter_id))
     return Submission.objects.create(
         key=submission_key,
+        aplus_key=data.get("id"),
         exercise=exercise,
         student=student,
         provider_url=data.get("html_url"),

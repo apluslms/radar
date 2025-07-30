@@ -24,7 +24,8 @@ AUTH_USER_MODEL = "accounts.RadarUser"
 
 APP_NAME = "Radar"
 
-APLUS_ROBOT_TOKEN = "CONFIGURE A+ TOKEN IN LOCAL_SETTINGS.PY"
+APLUS_ROBOT_TOKEN = "CONFIGURE IN LOCAL_SETTINGS.PY"
+CHEATERSHEET_API_TOKEN="CONFIGURE IN LOCAL_SETTINGS.PY"
 
 # Authentication and authorization library settings
 # see https://pypi.org/project/aplus-auth/ for explanations
@@ -62,6 +63,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
     'bootstrapform',
     'data',
     'accounts',
@@ -382,3 +384,19 @@ if DEBUG:
             INTERNAL_IPS.append('127.0.0.1')
     except NameError:
         INTERNAL_IPS = ['127.0.0.1']
+
+# Django REST Framework configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20
+}

@@ -2,10 +2,10 @@
 {% block content %}
 
 <h4>
-    {{ exercise.name }}
-    <a href="{% url 'exercise_settings' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xs">
-        <span class="glyphicon glyphicon-wrench"></span> Settings
-    </a>
+	{{ exercise.name }}
+	<a href="{% url 'exercise_settings' course_key=exercise.course.key exercise_key=exercise.key %}" class="btn btn-default btn-xs">
+		<span class="glyphicon glyphicon-wrench"></span> Settings
+	</a>
 </h4>
 
 
@@ -57,6 +57,27 @@
 	Include only one submission per student (Best points)
 </a>
 
+<div class="bulk-comparison-section" style="margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+	<h5>Bulk Create Comparisons in Cheatersheet</h5>
+	<div class="form-inline">
+		<label for="similarity-threshold">Similarity threshold (%): </label>
+		<input type="number" id="similarity-threshold" class="form-control" min="0" max="100" value="80" style="width: 80px; margin: 0 10px;">
+		<button type="button" id="bulk-create-comparisons" class="btn btn-warning">
+			Create Comparisons Above Threshold
+		</button>
+		<span id="bulk-progress" style="margin-left: 10px; display: none;">
+			<span class="text-info">Creating comparisons... <span id="progress-counter">0</span></span>
+		</span>
+	</div>
+	<div id="bulk-results" style="margin-top: 10px; display: none;">
+		<div class="alert alert-info">
+			<strong>Results:</strong>
+			<span id="success-count">0</span> comparisons created successfully,
+			<span id="error-count">0</span> errors
+		</div>
+	</div>
+</div>
+
 
 {% include 'review/_comparisontable_unique.html' %}
 
@@ -70,6 +91,113 @@ $(function() {
 	js.buildHeat(similarity);
 	js.histogram($('div.histogram'), similarity, 600, 80);
 	js.applyHeat($('grid.comparison-grid'));
+
+	// Bulk comparison creation functionality
+	$('#bulk-create-comparisons').on('click', function() {
+		const threshold = parseFloat($('#similarity-threshold').val());
+		if (isNaN(threshold) || threshold < 0 || threshold > 100) {
+			alert('Please enter a valid similarity threshold between 0 and 100');
+			return;
+		}
+
+		createBulkComparisons(threshold);
+	});
+
+	function createBulkComparisons(threshold) {
+		const button = $('#bulk-create-comparisons');
+		const progressDiv = $('#bulk-progress');
+		const resultsDiv = $('#bulk-results');
+		const progressCounter = $('#progress-counter');
+		const successCounter = $('#success-count');
+		const errorCounter = $('#error-count');
+
+		button.prop('disabled', true).text('Processing...');
+		progressDiv.show();
+		resultsDiv.hide();
+
+		// Get comparison pairs from the grid that meet threshold
+		const comparisons = [];
+		$('grid.comparison-grid .grid-item').each(function() {
+			const gridItem = $(this);
+			const similarity = parseFloat(gridItem.data('similarity'));
+			
+			if (similarity && (similarity) >= (threshold/100)) {
+				const submissionAId = gridItem.data('submission-a-id');
+				const submissionBId = gridItem.data('submission-b-id');
+				const studentAKey = gridItem.data('student-a-key');
+				const studentBKey = gridItem.data('student-b-key');
+				const comparisonId = `${submissionAId}-${submissionBId}`;
+				
+				comparisons.push({
+					submissionAKey: submissionAId,
+					submissionBKey: submissionBId,
+					similarity: similarity,
+					studentAKey: studentAKey,
+					studentBKey: studentBKey,
+					comparisonId: comparisonId
+				});
+			}
+		});
+
+		if (comparisons.length === 0) {
+			alert(`No comparisons found above ${threshold}% similarity threshold`);
+			button.prop('disabled', false).text('Create Comparisons Above Threshold');
+			progressDiv.hide();
+			return;
+		}
+
+		if (!confirm(`Found ${comparisons.length} comparisons above ${threshold}% similarity. Create all comparisons in Cheatersheet?`)) {
+			button.prop('disabled', false).text('Create Comparisons Above Threshold');
+			progressDiv.hide();
+			return;
+		}
+
+		let processed = 0;
+		let successCount = 0;
+		let errorCount = 0;
+
+		function processNext() {
+			if (processed >= comparisons.length) {
+				button.prop('disabled', false).text('Create Comparisons Above Threshold');
+				progressDiv.hide();
+				resultsDiv.show();
+				successCounter.text(successCount);
+				errorCounter.text(errorCount);
+				return;
+			}
+
+			const comparison = comparisons[processed];
+			progressCounter.text(`${processed + 1}/${comparisons.length}`);
+
+			$.ajax({
+				url: '/cheatersheet/create-comparison/' + comparison.submissionAKey + '/',
+				type: 'POST',
+				data: {
+					"comparison": true,
+					"submission_id": comparison.submissionAKey,
+					"student_key": comparison.studentAKey,
+					"other_submission_id": comparison.submissionBKey,
+					"other_student_key": comparison.studentBKey,
+					"course_key": "{{ course.api_id }}",
+					"similarity": comparison.similarity,
+					"comment": `Radar - Similarity: ${comparison.similarity*100}%`,
+					"csrfmiddlewaretoken": "{{ csrf_token }}"
+				},
+				success: function() {
+					successCount++;
+				},
+				error: function() {
+					errorCount++;
+				},
+				complete: function() {
+					processed++;
+					setTimeout(processNext, 100);
+				}
+			});
+		}
+
+		processNext();
+	}
 });
 
 document.addEventListener('DOMContentLoaded', function() {
