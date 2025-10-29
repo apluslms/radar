@@ -112,3 +112,17 @@ Now all of the Celery tasks should be listed when you launch the Celery worker:
 * review.helpers.build_graph_clusters
 
 When the Radar application runs one those tasks you should be able to see the task run in the Celery worker terminal, where you launched the worker. In production these tasks are split up between 4 different Celery workers.
+
+## Testing with Celery Flower Locally
+
+In order to use the Flower dashboard for Celery make sure you have the Flower library installed using pip.
+
+Running Flower requires doing the steps from the previous section (Testing with Celery locally) and running the command: <br>
+`celery --broker=amqp://guest:guest@localhost:5672// flower --url_prefix="flower"`
+
+View the dashboard at: <br>
+`http://localhost:5555/flower`
+
+or <br>
+
+`localhost:8000/flower/`

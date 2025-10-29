@@ -7,6 +7,7 @@ import data.urls
 import data.api_urls
 import review.urls
 import cheatersheet.urls
+import flower_proxy.urls
 
 from django.conf import settings
 
@@ -30,6 +31,7 @@ urlpatterns = [
 
     # Regular app routes
     re_path(r'^', include(cheatersheet.urls)),
+    re_path(r'^', include(flower_proxy.urls)),
     re_path(r'^', include(data.urls)),
     re_path(r'^', include(review.urls)),
 ]

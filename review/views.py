@@ -38,6 +38,9 @@ import csv
 import pytz
 from django.http import FileResponse
 import re
+from provider.tasks import recompare_all
+
+# pylint: disable=no-else-return
 
 logger = logging.getLogger("radar.review")
 
@@ -59,14 +62,23 @@ def course(request, course_key=None, course=None):
     context = {
         "hierarchy": ((settings.APP_NAME, reverse("index")), (course.name, None)),
         "course": course,
-        "exercises": course.exercises.all().order_by("created"),
+        "exercises": course.exercises.all(),
     }
     if request.method == "POST":
         # The user can click "Match all unmatched" for a shortcut to match all unmatched submissions for every exercise
         p_config = provider_config(course.provider)
+
         if "match-all-unmatched-for-exercises" in request.POST:
             configured_function(p_config, 'recompare_unmatched')(course)
             return redirect("course", course_key=course.key)
+
+        if "recompare_all" in request.POST:
+            if not settings.DEBUG or CELERY_DEBUG:
+                recompare_all.delay(course.id)
+            else:
+                recompare_all(course.id)
+            return redirect("course", course_key=course.key)
+
     return render(request, "review/course.html", context)
 
 
@@ -162,20 +174,24 @@ def comparison(
     # Create a regex to find the current comparison in the top comparisons
     r = re.compile(r'../(.+)-(.+)/' + re.escape(str(comparison.id)))
 
-    # Find the index of the current comparison in the top comparisons
-    index = [i for i, c in enumerate(top_comparisons) if re.search(r, c)][0]
+    try:
+        # Find the index of the current comparison in the top comparisons
+        index = [i for i, c in enumerate(top_comparisons) if re.search(r, c)][0]
 
-    # Get the next and previous comparisons based on the index
-    if index + 1 < len(top_comparisons):
-        next_comparison = top_comparisons[index + 1]
-    else:
+        # Get the next and previous comparisons based on the index
+        if index + 1 < len(top_comparisons):
+            next_comparison = top_comparisons[index + 1]
+        else:
+            next_comparison = -1
+
+        if index - 1 >= 0:
+            previous_comparison = top_comparisons[index - 1]
+        else:
+            previous_comparison = -1
+    except IndexError:
+        index = -1
         next_comparison = -1
-
-    if index - 1 >= 0:
-        previous_comparison = top_comparisons[index - 1]
-    else:
         previous_comparison = -1
-
 
     context = {
         "hierarchy": (
@@ -884,7 +900,10 @@ def students_view(request: WSGIRequest, course: Course | None = None, course_key
     )
 
     # Exercise names as a list
-    exercise_names = course.exercises.all().order_by('created').values_list('name', flat=True)
+    exercise_names = course.exercises.all().values_list('name', flat=True)
+
+    # Exercise ids as a list
+    exercise_ids = course.exercises.all().values_list('key', flat=True)
 
     # Student keys
     student_info = submissions.values_list('student__key', 'student__is_staff').distinct()
@@ -932,7 +951,7 @@ def students_view(request: WSGIRequest, course: Course | None = None, course_key
             ("Students", None),
         ),
         "course": course,
-        "exercise_names": exercise_names,
+        "exercises": dict(zip(exercise_ids, exercise_names)),
         "students": students,
     }
 

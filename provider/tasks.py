@@ -246,6 +246,17 @@ def recompare_all_unmatched(course_id):
 
 
 @celery.shared_task(ignore_result=True)
+def recompare_all(course_id):
+    course = Course.objects.get(pk=course_id)
+    p_config = config_loaders.provider_config(course.provider)
+    recompare = config_loaders.configured_function(p_config, "recompare")
+    for exercise in course.exercises.all():
+        if exercise.valid_submissions.count() == 0:
+            continue
+        recompare(exercise, p_config)
+
+
+@celery.shared_task(ignore_result=True)
 def task_error_handler(task_id, *args, **kwargs):
     write_error("Failed celery task {}".format(task_id), "task_error_handler")
 

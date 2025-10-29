@@ -15,8 +15,9 @@ ExecStart=/srv/radar/venv/bin/celery \
     --app radar \
     worker \
     --pidfile=/run/radar/celery_db.pid \
+    -P threads \
     --loglevel=info \
-    --concurrency 1 \
+    --concurrency 100 \
     --queues db \
     --hostname worker_db@radar
 PIDFile=/run/radar/celery_db.pid

@@ -8,6 +8,11 @@ function initializeUI() {
   //Add event listener to the reload button
   $('#reload-form').on('submit', handleReloadButtonClick);
 
+  //Add event listener to the recompare all button
+  $('#recompare_all-button').on('click', _ => {
+    startLoader('Recomparing All Submissions...');
+  });
+
   //Add event listener to the recompare button
   $('#unmatched-button').on('click', _ => {
     startLoader('Matching Submissions...');
