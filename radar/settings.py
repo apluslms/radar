@@ -73,6 +73,7 @@ INSTALLED_APPS = (
     'ltilogin.apps.RadarConfig',
     'provider',
     'aplus_auth',
+    'revproxy.apps.RevProxyConfig',
 )
 
 MIDDLEWARE = (
@@ -339,9 +340,17 @@ LOGGING = {
             'level': 'ERROR',
             'class': 'django.utils.log.AdminEmailHandler',
         },
+        'applogfile': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'radar.log'),
+            'maxBytes': 1024 * 1024 * 15,  # 15 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
-        'radar': {'level': 'INFO', 'handlers': ['email', 'console'], 'propagate': True},
+        'radar': {'level': 'INFO', 'handlers': ['email', 'console', 'applogfile'], 'propagate': True},
     },
     'filters': {
         'require_debug_true': {
@@ -367,6 +376,9 @@ update_settings_with_file(
 update_settings_from_environment(__name__, 'RADAR_')
 update_secret_from_file(__name__, os.environ.get('RADAR_SECRET_KEY_FILE', 'secret_key'))
 
+#Flower
+FLOWER_URL = "http://localhost:5555"
+FLOWER_URL_PREFIX = "flower"
 
 APLUS_AUTH.update(APLUS_AUTH_LOCAL)
 

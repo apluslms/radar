@@ -5,6 +5,7 @@ from celery.utils.log import get_task_logger
 from matcher.greedy_string_tiling.matchlib.tasks import match_all_combinations
 from matcher import matcher
 from data.models import Exercise, Submission, TaskError, Comparison
+from matcher.helper import swap_positions
 
 
 logger = get_task_logger(__name__)
@@ -31,6 +32,11 @@ def match_against_template(submission_id):
     """
     submission = Submission.objects.get(pk=submission_id)
     template_comparison = matcher.match_against_template(submission)
+
+    # If the template comparison is 100% similar, mark the submission as invalid
+    if template_comparison.similarity == 100.0:
+        submission.invalid = True
+
     template_comparison.save()
 
 
@@ -61,8 +67,7 @@ def match_all_new_submissions_to_exercise(exercise_id, delay=True):
     compare_list = [s.as_dict() for s in exercise.get_submissions]
     # Match all, then handle results when all matches are available
     if delay:
-        match_all_task = match_all_combinations.si(config, compare_list)
-        celery.chain(match_all_task, handle_match_results.s())()
+        match_all_combinations.delay(config, compare_list, delay)
     else:
         matches = match_all_combinations(config, compare_list)
         handle_match_results(matches)
@@ -166,12 +171,3 @@ def handle_match_results(matches: dict[str, any]):
 def write_error(message, namespace):
     logger.error(message)
     TaskError(package="matcher", namespace=namespace, error_string=message).save()
-
-
-# Helper function to swap start positions of matches.
-def swap_positions(matches_list: list[list[int]]) -> list[list[int]]:
-    for match in matches_list:
-        swap = match[0]
-        match[0] = match[1]
-        match[1] = swap
-    return matches_list

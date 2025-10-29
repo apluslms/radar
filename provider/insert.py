@@ -78,8 +78,12 @@ def prepare_submission(submission, matching_start_time=''):
     submission_text_without_newlines = remove_first_and_last_comment(submission_text)
     submission_hash = hashlib.md5(submission_text_without_newlines.encode("utf-8"))
     submission.source_checksum = submission_hash.hexdigest()
-    submission.save()
 
-    # Compute similarity of submitted tokens to exercise template tokens
+    # Check if submission is the same as the exercise template
     template_comparison = matcher.match_against_template(submission)
+
+    if template_comparison.similarity == 100.0:
+        submission.invalid = True
+
+    submission.save()
     template_comparison.save()

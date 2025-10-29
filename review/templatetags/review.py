@@ -1,6 +1,7 @@
 from django import template
 from django.urls import reverse
 from ..helpers import grouped
+import re
 
 register = template.Library()
 
@@ -71,3 +72,7 @@ def next_index(value: int) -> int:
 @register.filter
 def current_index(value: int) -> int:
     return int(value) + 1
+
+@register.filter
+def keep_letters_numbers(value: str) -> str:
+    return re.sub(r'[^a-zA-Z0-9]', '_', value)

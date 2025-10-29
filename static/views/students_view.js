@@ -22,7 +22,9 @@ function initializeData() {
 // Get exercise names from context
 function getExerciseNames() {
   $('.exercise_name').each(function() {
-    exercise_names.push($(this).text().trim());
+    //Replace everything that is not a letter or number with nothing under scores
+    var name = $(this).text().trim().replace(/[^a-zA-Z0-9]/g, '_');
+    exercise_names.push(name);
   });
 }
 
@@ -173,7 +175,7 @@ function showStaff() {
 
 // Show exercise
 function showExercise() {
-  var exercise = this.id.split('_')[1];
+  var exercise = this.id.split('_').slice(1).join('_');
   if (this.checked) {
     $(`.${exercise}_column`).show();
   } else {

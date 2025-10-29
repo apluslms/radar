@@ -1,26 +1,21 @@
 [Unit]
-Description=Radar Celery main service
+Description=Radar Celery service for monitoring Celery workers
 PartOf=nginx.service
 Requires=radar-web-uwsgi.service
 
 [Service]
 User=radar
 Group=radar
-SyslogIdentifier=radar_celery_main
+SyslogIdentifier=radar_celery_flower
 StandardOutput=syslog
 StandardError=syslog
 WorkingDirectory=/srv/radar/radar
 Environment="PATH=/sbin:/bin:/usr/sbin:/usr/bin:/opt/bin:/srv/radar/venv/bin"
 ExecStart=/srv/radar/venv/bin/celery \
-    --app radar \
-    worker \
-    --pidfile=/run/radar/celery_main.pid \
-    -P threads \
-    --loglevel=info \
-    --concurrency 3 \
-    --queues celery \
-    --hostname worker_main@radar
-PIDFile=/run/radar/celery_main.pid
+    --broker=amqp://guest:guest@localhost:5672// \
+    flower \
+    --url_prefix="flower"
+PIDFile=/run/radar/celery_flower.pid
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s TERM $MAINPID
 Nice=1

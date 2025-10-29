@@ -15,6 +15,7 @@ ExecStart=/srv/radar/venv/bin/celery \
     --app radar \
     worker \
     --pidfile=/run/radar/celery_io.pid \
+    -P threads \
     --loglevel=info \
     --queues io \
     --hostname worker_io@radar

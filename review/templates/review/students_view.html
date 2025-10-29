@@ -36,9 +36,9 @@ The exercise columns show the average of highest similarity score for each exerc
 </div>
 <div>
 	<ol id="list_of_exercises">
-		{% for exercise in exercise_names %}
+		{% for exercise_name in exercises.values %}
 			<li>
-				<input type="checkbox" id="show_{{ exercise }}" checked> {{ exercise }} <br>
+				<input type="checkbox" id="show_{{ exercise_name|keep_letters_numbers }}" checked> {{ exercise_name }} <br>
 			</li>
 		{% endfor %}
 	</ol>
@@ -50,9 +50,9 @@ The exercise columns show the average of highest similarity score for each exerc
             <tr>
                 <th>Student</th>
 				<th>Average of highest similarity scores</th>
-				{% for exercise in exercise_names %}
-					<th class="{{ exercise }}_column exercise_name">
-						<a href="{{ hierarchy.1.1 }}{{ exercise }}/">{{ exercise }}</a>
+				{% for exercise_id, exercise_name in exercises.items %}
+					<th class="{{ exercise_name|keep_letters_numbers }}_column exercise_name">
+						<a href="{{ hierarchy.1.1 }}{{ exercise_id }}/">{{ exercise_name }}</a>
 					</th>
 				{% endfor %}
             </tr>
@@ -67,7 +67,7 @@ The exercise columns show the average of highest similarity score for each exerc
 						{{ student.avg_similarity|percent }}
 					</td>
 					{% for exercise in student.exercises %}
-						<td data-order="{{ exercise.1 }}" class="{{ exercise.0 }}_column" {% if student.is_staff %} style="background-color: lightgreen;"{% endif %}>
+						<td data-order="{{ exercise.1 }}" class="{{ exercise.0|keep_letters_numbers }}_column" {% if student.is_staff %} style="background-color: lightgreen;"{% endif %}>
 							{{ exercise.1|percent }}
 						</td>
 					{% endfor %}
@@ -78,8 +78,8 @@ The exercise columns show the average of highest similarity score for each exerc
             <tr>
                 <th>Student</th>
 				<th>Average of highest similarity scores</th>
-				{% for exercise in exercise_names %}
-					<th class="{{ exercise }}_column">{{ exercise }}</th>
+				{% for exercise_name in exercises.values %}
+					<th class="{{ exercise_name|keep_letters_numbers }}_column">{{ exercise_name }}</th>
 				{% endfor %}
             </tr>
         </tfoot>

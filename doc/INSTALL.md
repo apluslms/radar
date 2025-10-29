@@ -131,20 +131,25 @@ cd ~radar/radar
     `radar/local_settings.py`.
 
     ```shell
-    cp ~radar/radar/doc/celery-systemd/radar-celery{,_db,_io,_matcher}.service \
+    cp ~radar/radar/doc/celery-systemd/radar-celery{,_db,_io,_matcher,_flower}.service \
         /etc/systemd/system
     systemctl daemon-reload
-    systemctl enable radar-celery{,_db,_io,_matcher}
-    systemctl start radar-celery{,_db,_io,_matcher}
+    systemctl enable radar-celery{,_db,_io,_matcher,_flower}
+    systemctl start radar-celery{,_db,_io,_matcher,_flower}
     ```
 
 ## RabbitMQ configuration
 
 The RabbitMQ messages between Radar and the matchlib can become large when there
-are several submissions to be analaysed. If the message size exceeds the default
+are several submissions to be analyzed. If the message size exceeds the default
 maximum message size (128 MB), it will be dropped and the Radar task never completes.
 Therefore, it is recommended to increase the RabbitMQ maximum message size,
 by adding the following line to `/etc/rabbitmq/rabbitmq.conf` (for doubling the max.
 message size to 256 MB):
 
     max_message_size = 268435456
+
+The db Celery worker handles match results which may take longer than 30 minutes depending on the number of submissions. The default timeout value for RabbitMQ is 30 minutes, so the db Celery worker will crash after that time limit. To fix this increase the consumer time limit by adding the following line to `/etc/rabbitmq/rabbitmq.conf` (Can be set based on preference):
+
+    # 1.5 hours in milliseconds
+    consumer_timeout = 5400000

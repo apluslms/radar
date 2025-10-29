@@ -76,6 +76,7 @@ CELERY_TASK_ROUTES = {
     # celery_main. Also, possible race condition if user clicks rematch for an
     # exercise many times in succession -> do not use concurrency > 1
     "matcher.tasks.handle_match_results": {"queue": "db"},
+    "matcher.greedy_string_tiling.matchlib.matcher.handle_celery_match_result": {"queue": "db"},
     # Consumed by remote Kubernetes workers
     # https://github.com/apluslms/serve-gst-matchlib
     # "matcher.greedy_string_tiling.matchlib.tasks.*": {"queue": "gst_matchlib_tasks"},
