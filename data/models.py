@@ -708,6 +708,7 @@ class Comparison(models.Model):
             if choice_name(settings.REVIEW_CHOICES, r) != "unknown":
                 self.review = r
                 self.save()
+                self.submission_a.exercise.top_comparisons(rows=100)  # Fix problem with missing comparisons
                 return True
         except ValueError:
             pass
