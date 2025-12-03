@@ -57,6 +57,25 @@
 	Include only one submission per student (Best points)
 </a>
 
+{% if flagged_comparisons %}
+<h3>Flagged Comparisons</h3>
+<table class="comparison table table-striped flagged-comparisons">
+    {% for comparison in flagged_comparisons %}
+    <tr class="flagged-row">
+        <td>{{ comparison.submission_a.student.key }}</td>
+        <td>{{ comparison.submission_b.student.key }}</td>
+        <td>{{ comparison.similarity|percent }}</td>
+        <td>
+            <span class="label label-warning">{{ comparison.review_name }}</span>
+        </td>
+        <td>
+            <a href="{% url 'comparison' course_key=course.key exercise_key=exercise.key ak=comparison.submission_a.student.key bk=comparison.submission_b.student.key ck=comparison.pk %}">View</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
 <div class="bulk-comparison-section" style="margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
 	<h5>Bulk Create Comparisons in Cheatersheet</h5>
 	<div class="form-inline">

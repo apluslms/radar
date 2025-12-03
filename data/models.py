@@ -374,6 +374,31 @@ class Exercise(models.Model):
         self.save()
 
         return sorted_list
+    
+    def flagged_comparisons(self, one_pair_per_match: bool = False) -> list:
+        """Get all comparisons that have been flagged"""
+        flagged_submission_ids = self.flagged_submissions.values_list('id', flat=True)
+        
+        compared_list = self._comparisons_by_submission(flagged_submission_ids)
+        
+        unique_set = set()
+        student_pairs = set()
+        
+        for comparison_row in compared_list:
+            for match in comparison_row["matches"]:
+                # Only include flagged comparisons
+                if match.review != 0:
+                    match.similarity = round(match.similarity, 2)
+                    student_pair = frozenset([match.submission_a.student.id, match.submission_b.student.id])
+                    if student_pair not in student_pairs:
+                        unique_set.add(match)
+                        student_pairs.add(student_pair)
+                    elif not one_pair_per_match:
+                        unique_set.add(match)
+        
+        # Sort by similarity
+        sorted_list = sorted(unique_set, key=self.sort_key, reverse=True)
+        return sorted_list
 
 
     # Convert text to a number if it is a digit, otherwise leave it as is
