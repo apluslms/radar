@@ -57,25 +57,6 @@
 	Include only one submission per student (Best points)
 </a>
 
-{% if flagged_comparisons %}
-<h3>Flagged Comparisons</h3>
-<table class="comparison table table-striped flagged-comparisons">
-    {% for comparison in flagged_comparisons %}
-    <tr class="flagged-row">
-        <td>{{ comparison.submission_a.student.key }}</td>
-        <td>{{ comparison.submission_b.student.key }}</td>
-        <td>{{ comparison.similarity|percent }}</td>
-        <td>
-            <span class="label label-warning">{{ comparison.review_name }}</span>
-        </td>
-        <td>
-            <a href="{% url 'comparison' course_key=course.key exercise_key=exercise.key ak=comparison.submission_a.student.key bk=comparison.submission_b.student.key ck=comparison.pk %}">View</a>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
-{% endif %}
-
 <div class="bulk-comparison-section" style="margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
 	<h5>Bulk Create Comparisons in Cheatersheet</h5>
 	<div class="form-inline">
@@ -97,7 +78,24 @@
 	</div>
 </div>
 
+{% load review %}
+{% if flagged_comparisons %}
+<h3>Flagged Comparisons</h3>
+<grid class="comparison-grid">
+        {% for comparison in flagged_comparisons %}
+                <div class="grid-item"
+                                data-similarity={{comparison.similarity}}
+                                data-submission-a-id="{{comparison.submission_a.aplus_key}}"
+                                data-submission-b-id="{{comparison.submission_b.aplus_key}}"
+                                data-student-a-key="{{comparison.submission_a.student.key}}"
+                                data-student-b-key="{{comparison.submission_b.student.key}}">
+                        {% student_td course comparison %}
+                </div>
+        {% endfor %}
+</grid>
+{% endif %}
 
+<h3>Other Comparisons</h3>
 {% include 'review/_comparisontable_unique.html' %}
 
 <pre id="js" class="well">
