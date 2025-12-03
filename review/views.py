@@ -113,6 +113,7 @@ def exercise(
     one_pair_per_match = request.GET.get('one_pair_per_match', 'false').lower() == 'true'
     best_submissions = request.GET.get('best_submissions', 'false').lower() == 'true'
     comparisons = exercise.top_comparisons(rows, one_pair_per_match, best_submissions)
+    flagged_comparisons = exercise.flagged_comparisons(False)
 
     return render(
         request,
@@ -126,6 +127,7 @@ def exercise(
             "course": course,
             "exercise": exercise,
             "comparisons": comparisons,
+            "flagged_comparisons": flagged_comparisons,
         },
     )
 

@@ -78,7 +78,24 @@
 	</div>
 </div>
 
+{% load review %}
+{% if flagged_comparisons %}
+<h3>Flagged Comparisons</h3>
+<grid class="comparison-grid">
+        {% for comparison in flagged_comparisons %}
+                <div class="grid-item"
+                                data-similarity={{comparison.similarity}}
+                                data-submission-a-id="{{comparison.submission_a.aplus_key}}"
+                                data-submission-b-id="{{comparison.submission_b.aplus_key}}"
+                                data-student-a-key="{{comparison.submission_a.student.key}}"
+                                data-student-b-key="{{comparison.submission_b.student.key}}">
+                        {% student_td course comparison %}
+                </div>
+        {% endfor %}
+</grid>
+{% endif %}
 
+<h3>Other Comparisons</h3>
 {% include 'review/_comparisontable_unique.html' %}
 
 <pre id="js" class="well">
