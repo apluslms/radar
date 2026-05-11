@@ -1,12 +1,11 @@
 import celery
+import celery.utils.log
 import itertools
 from ..matchlib.matchers import greedy_string_tiling
 from ..matchlib.util import TokenMatchSet
 from multiprocessing import Pool
 from functools import partial
 
-from data.models import Exercise, Submission, Comparison
-from matcher import matcher
 from matcher.helper import swap_positions
 import time
 
@@ -116,6 +115,7 @@ def match_all_combinations(config: dict[str, any], string_data_iter: list[dict[s
     """
 
     # Get exercise for logging
+    from data.models import Exercise
     exercise = Exercise.objects.get(pk=config["exercise_id"])
     config["exercise_name"] = exercise.name
     config["course_name"] = exercise.course.name
@@ -237,6 +237,8 @@ def handle_celery_match_result(matches: list[list[any]], config: dict[str, any])
         f" | {exercise_name} | {course_name}"
     )
 
+    from data.models import Submission, Comparison
+    from matcher import matcher
     for match in matches:
         # Get keys for the matchlib results
         id_a = match[0]

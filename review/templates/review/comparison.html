@@ -68,9 +68,9 @@
 
 <div class="btn-group" role="group">
 	<button type="button" id="create-comparison" class="btn btn-default"
-			data-submission-a-id="{{ comparison.submission_a.aplus_key }}"
+			data-submission-a-id="{{ comparison.submission_a.external_key }}"
 			data-student-a-key="{{ comparison.submission_a.student.key }}"
-			data-submission-b-id="{{ comparison.submission_b.aplus_key }}"
+			data-submission-b-id="{{ comparison.submission_b.external_key }}"
 			data-student-b-key="{{ comparison.submission_b.student.key }}"
 			data-course-key="{{ course.api_id }}">Create Comparison in Cheatersheet</button>
 </div>
@@ -191,6 +191,11 @@ $(function() {
         var submissionBId = button.data('submission-b-id');
         var studentBKey = button.data('student-b-key');
         var courseKey = button.data('course-key');
+
+		if (!submissionAId || !submissionBId || submissionAId === 'None' || submissionBId === 'None') {
+			button.removeClass('btn-default').addClass('btn-danger').text('Missing Submission ID');
+			return;
+		}
         
         button.prop('disabled', true).text('Creating Comparison...');
         

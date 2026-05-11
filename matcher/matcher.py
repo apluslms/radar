@@ -1,7 +1,6 @@
 import logging
 from django.conf import settings
 from matcher.greedy_string_tiling.matchlib.util import TokenMatch
-from data.models import Comparison
 import radar.config as config_loaders
 
 
@@ -43,6 +42,7 @@ def match_against_template(submission):
     """
     Match submission against the exercise template.
     """
+    from data.models import Comparison
     logger.debug("Match %s vs template", submission.student.key)
     # Template comparisons are defined as Comparison objects where the other (b) submission is null
     comparison = Comparison(

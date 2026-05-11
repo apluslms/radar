@@ -4,7 +4,7 @@ from cheatersheet.views import cheatersheet_proxy_web_view, cheatersheet_api_add
 
 urlpatterns = [
     re_path(
-        r'^cheatersheet/create-comparison/(?P<submission_id>\d+)/$',
+        r'^cheatersheet/create-comparison/(?P<submission_id>[^/]+)/$',
         cheatersheet_api_add_comparison,
         name='cheatersheet_api_add_comparison'
     ),

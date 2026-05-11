@@ -104,6 +104,16 @@ def cheatersheet_api_add_comparison(request, submission_id):
     Proxy for adding a flag for a particular submission to the cheatersheet API.
     """
     try:
+        invalid_values = {None, '', 'None', 'null', 'undefined'}
+        submission_id = str(submission_id)
+        other_submission_id = request.POST.get('other_submission_id')
+
+        if submission_id in invalid_values or other_submission_id in invalid_values:
+            return JsonResponse(
+                {'error': 'Invalid submission identifiers for comparison creation'},
+                status=400,
+            )
+
         token = settings.CHEATERSHEET_API_TOKEN
 
         target_url = (CHEATERSHEET_WEB_SERVER_URL + '/api/submissions/' + submission_id + '/')

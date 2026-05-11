@@ -604,6 +604,12 @@ class Submission(models.Model):
             student=self.student
         ).exclude(longest_authored_tile__lt=self.exercise.minimum_match_tokens)
 
+    @property
+    def external_key(self):
+        if self.aplus_key not in {None, '', 'None', 'null', 'undefined'}:
+            return self.aplus_key
+        return self.key
+
     def as_dict(self):
         """
         Return self in serializable format with minimal data needed to compute submission similarity.
