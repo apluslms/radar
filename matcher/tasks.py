@@ -4,9 +4,9 @@ from celery.utils.log import get_task_logger
 # Matchlib can also be deployed to a Kubernetes node, easing the task load by allowing elastic parallel task processing
 from matcher.greedy_string_tiling.matchlib.tasks import match_all_combinations
 from matcher import matcher
-from data.models import Exercise, Submission, TaskError, Comparison
 from matcher.helper import swap_positions
 
+from data.models import Exercise, Submission, Comparison, TaskError
 
 logger = get_task_logger(__name__)
 

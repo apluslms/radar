@@ -1,7 +1,6 @@
 from django.core.management.base import BaseCommand
-
-from matcher.tasks import match_exercise
 from data.models import Course
+from matcher.tasks import match_exercise
 
 
 class Command(BaseCommand):

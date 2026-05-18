@@ -1,14 +1,16 @@
 import celery
+import celery.utils.log
 import itertools
 from ..matchlib.matchers import greedy_string_tiling
 from ..matchlib.util import TokenMatchSet
 from multiprocessing import Pool
 from functools import partial
 
-from data.models import Exercise, Submission, Comparison
-from matcher import matcher
 from matcher.helper import swap_positions
 import time
+
+from data.models import Exercise, Submission, Comparison
+from matcher import matcher
 
 logger = celery.utils.log.get_task_logger(__name__)
 

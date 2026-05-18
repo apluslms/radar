@@ -3,8 +3,8 @@
 	{% for comparison in comparisons %}
 		<div class="grid-item" 
 				data-similarity={{comparison.similarity}}
-				data-submission-a-id="{{comparison.submission_a.aplus_key}}"
-				data-submission-b-id="{{comparison.submission_b.aplus_key}}"
+				data-submission-a-id="{{ comparison.submission_a.external_key }}"
+				data-submission-b-id="{{ comparison.submission_b.external_key }}"
 				data-student-a-key="{{comparison.submission_a.student.key}}"
 				data-student-b-key="{{comparison.submission_b.student.key}}">
 			{% student_td course comparison %}

@@ -85,8 +85,8 @@
         {% for comparison in flagged_comparisons %}
                 <div class="grid-item"
                                 data-similarity={{comparison.similarity}}
-                                data-submission-a-id="{{comparison.submission_a.aplus_key}}"
-                                data-submission-b-id="{{comparison.submission_b.aplus_key}}"
+							data-submission-a-id="{{ comparison.submission_a.external_key }}"
+							data-submission-b-id="{{ comparison.submission_b.external_key }}"
                                 data-student-a-key="{{comparison.submission_a.student.key}}"
                                 data-student-b-key="{{comparison.submission_b.student.key}}">
                         {% student_td course comparison %}
@@ -143,6 +143,11 @@ $(function() {
 				const submissionBId = gridItem.data('submission-b-id');
 				const studentAKey = gridItem.data('student-a-key');
 				const studentBKey = gridItem.data('student-b-key');
+
+				if (!submissionAId || !submissionBId || submissionAId === 'None' || submissionBId === 'None') {
+					return;
+				}
+
 				const comparisonId = `${submissionAId}-${submissionBId}`;
 				
 				comparisons.push({
