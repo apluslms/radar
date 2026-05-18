@@ -6,6 +6,7 @@ from matcher.greedy_string_tiling.matchlib.tasks import match_all_combinations
 from matcher import matcher
 from matcher.helper import swap_positions
 
+from data.models import Exercise, Submission, Comparison, TaskError
 
 logger = get_task_logger(__name__)
 
@@ -15,7 +16,6 @@ def match_exercise(exercise_id, delay=True):
     """
     Match all valid, yet unmatched submissions for a given exercise.
     """
-    from data.models import Exercise
     exercise = Exercise.objects.get(pk=exercise_id)
     for submission in exercise.get_submissions:
         match_against_template(submission.id)
@@ -30,7 +30,6 @@ def match_against_template(submission_id):
     """
     Create template comparison for submission.
     """
-    from data.models import Submission
     submission = Submission.objects.get(pk=submission_id)
     template_comparison = matcher.match_against_template(submission)
 
@@ -50,7 +49,6 @@ def match_all_new_submissions_to_exercise(exercise_id, delay=True):
     The resulting matching task is JSON serializable and can be consumed by any deployed matchlib instance.
     """
     logger.info("Matching all submissions to exercise with id %d", exercise_id)
-    from data.models import Exercise
     exercise = Exercise.objects.get(pk=exercise_id)
     if exercise.matching_start_time is None:
         logger.error(
@@ -86,7 +84,6 @@ def handle_match_results(matches: dict[str, any]):
     logger.info(
         "Handling match results, got %d pairs of submissions", len(matches["results"])
     )
-    from data.models import Exercise, Submission, Comparison
     exercise = Exercise.objects.get(pk=matches["config"]["exercise_id"])
     expected_result_count = exercise.get_submissions.count()
     if expected_result_count == 0:
@@ -172,6 +169,5 @@ def handle_match_results(matches: dict[str, any]):
 
 
 def write_error(message, namespace):
-    from data.models import TaskError
     logger.error(message)
     TaskError(package="matcher", namespace=namespace, error_string=message).save()

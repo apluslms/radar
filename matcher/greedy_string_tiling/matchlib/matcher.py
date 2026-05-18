@@ -9,6 +9,9 @@ from functools import partial
 from matcher.helper import swap_positions
 import time
 
+from data.models import Exercise, Submission, Comparison
+from matcher import matcher
+
 logger = celery.utils.log.get_task_logger(__name__)
 
 # pylint: disable=inconsistent-return-statements
@@ -115,7 +118,6 @@ def match_all_combinations(config: dict[str, any], string_data_iter: list[dict[s
     """
 
     # Get exercise for logging
-    from data.models import Exercise
     exercise = Exercise.objects.get(pk=config["exercise_id"])
     config["exercise_name"] = exercise.name
     config["course_name"] = exercise.course.name
@@ -237,8 +239,6 @@ def handle_celery_match_result(matches: list[list[any]], config: dict[str, any])
         f" | {exercise_name} | {course_name}"
     )
 
-    from data.models import Submission, Comparison
-    from matcher import matcher
     for match in matches:
         # Get keys for the matchlib results
         id_a = match[0]
