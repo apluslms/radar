@@ -15,8 +15,8 @@
 <h3>Similarity Summary</h3>
 <p>{{ course.key }}, {{ course.name }}, {{ time }}, {{ user.email }}</p>
 <p>Students:</p>
-<p contenteditable="true" style="margin : 0; padding : 0;">{{ a }}</p>
-<p contenteditable="true" style="margin : 0; padding : 0;">{{ b }}</p>
+<p contenteditable="true" style="margin : 0; padding : 0;">{{ a_object.name }} ({{ a }})</p>
+<p contenteditable="true" style="margin : 0; padding : 0;">{{ b_object.name }} ({{ b }})</p>
 <textarea class="form-control" rows="3" placeholder="Add comments here..."></textarea>
 <br>
 
@@ -27,11 +27,11 @@
 	<textarea class="form-control" rows="2" placeholder="Add comments here..."></textarea>
 	<div class="code-comparison" id="template{{forloop.counter}}">
 		<div class="float-container">
-			<pre style="padding: 0; margin: 0;">{{ a }}</pre>
+			<pre style="padding: 0; margin: 0;">{{ a_object.name }} ({{ a }})</pre>
 			<pre class="code-a code-view" style="min-width: 100%;">{{ n.text_a }}</pre>
 		</div>
 		<div class="float-container">
-			<pre style="padding: 0; margin: 0;">{{ b }}</pre>
+			<pre style="padding: 0; margin: 0;">{{ b_object.name }} ({{ b }})</pre>
 			<pre class="code-b code-view" style="min-width: 100%;">{{ n.text_b }}</pre>
 		</div>
 		<pre class="matches json">{{ n.matches }}</pre>

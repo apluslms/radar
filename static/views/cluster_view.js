@@ -12,10 +12,10 @@ var student_names = [];
 
 // Functions
 
-// Get exercise names from context
+// Get student names from context
 function getStudentNames() {
   $('.student_name').each(function() {
-    student_names.push($(this).text().trim());
+    student_names.push($(this).data('student-key'));
   });
 }
 

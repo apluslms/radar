@@ -9,7 +9,7 @@
   </tr>
 	{% for suspect in suspects %}
 	<tr>
-		<td><h4>{{ suspect.key }}</h4></td>
+		<td><h4>{{ suspect.name }}<br><small>({{ suspect.key }})</small></h4></td>
     <td>{{ suspect.sum }}</td>
     {% for comparison in suspect.comparisons %}
 		<td>
