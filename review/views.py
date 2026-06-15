@@ -206,7 +206,16 @@ def comparison(
                     kwargs={"course_key": course.key, "exercise_key": exercise.key},
                 ),
             ),
-            ("%s (%s) → %s (%s)" % (a.student.name, a.student.key, b.student.name, b.student.key), None),
+            (
+                "%s (%s) → %s (%s)"
+                % (
+                    a.student.display_name,
+                    a.student.key,
+                    b.student.display_name,
+                    b.student.key,
+                ),
+                None,
+            ),
         ),
         "course": course,
         "exercise": exercise,

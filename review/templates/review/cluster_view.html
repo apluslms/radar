@@ -63,7 +63,7 @@ This page will change if the cached clusters are invalidated or if new clusters 
 		<ol id="list_of_students">
 			{% for student in students %}
 				<li>
-					<input type="checkbox" id="show_{{ student.key }}" checked> {{ student.name }} ({{ student.key }}) <br>
+					<input type="checkbox" id="show_{{ student.key }}" checked> {{ student.display_name }} ({{ student.key }}) <br>
 				</li>
 			{% endfor %}
 		</ol>
@@ -77,7 +77,7 @@ This page will change if the cached clusters are invalidated or if new clusters 
 				<th>Student</th>
 				{% for student in students %}
 					<th class="{{ student.key }}_column student_name" data-student-key="{{ student.key }}">
-						<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.name }}<br>({{ student.key }})</a>
+							<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.display_name }}<br>({{ student.key }})</a>
 					</th>
 				{% endfor %}
             </tr>
@@ -87,7 +87,7 @@ This page will change if the cached clusters are invalidated or if new clusters 
 			{% for student in students %}
 			<tr>
 				<td class="{{ student.key }}_row">
-					<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.name }} ({{ student.key }})</a>
+					<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.display_name }} ({{ student.key }})</a>
 				</td>
 
 				{% for student2 in students %}
@@ -112,7 +112,7 @@ This page will change if the cached clusters are invalidated or if new clusters 
 				<th>Student</th>
 				{% for student in students %}
 					<th class="{{ student.key }}_column">
-						<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.name }}<br>({{ student.key }})</a>
+							<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.display_name }}<br>({{ student.key }})</a>
 					</th>
 				{% endfor %}
             </tr>
