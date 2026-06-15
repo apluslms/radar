@@ -18,6 +18,12 @@ def insert_submission(exercise, submission_key, submitter_id, data=None):
     if data is None:
         data = {}
     student = exercise.course.get_student(str(submitter_id))
+    
+    # Add student name if missing in DB
+    if student.name is None and data.get("submitter_name"):
+        student.name = data["submitter_name"]
+        student.save()
+
     return Submission.objects.create(
         key=submission_key,
         aplus_key=data.get("id"),
