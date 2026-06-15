@@ -63,7 +63,7 @@ This page will change if the cached clusters are invalidated or if new clusters 
 		<ol id="list_of_students">
 			{% for student in students %}
 				<li>
-					<input type="checkbox" id="show_{{ student }}" checked> {{ student }} <br>
+					<input type="checkbox" id="show_{{ student.key }}" checked> {{ student.name }} ({{ student.key }}) <br>
 				</li>
 			{% endfor %}
 		</ol>
@@ -76,8 +76,8 @@ This page will change if the cached clusters are invalidated or if new clusters 
             <tr>
 				<th>Student</th>
 				{% for student in students %}
-					<th class="{{ student }}_column student_name">
-						<a href="{% url 'student_view' course_key=course.key student_key=student %}">{{ student }}</a>
+					<th class="{{ student.key }}_column student_name" data-student-key="{{ student.key }}">
+						<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.name }}<br>({{ student.key }})</a>
 					</th>
 				{% endfor %}
             </tr>
@@ -86,17 +86,17 @@ This page will change if the cached clusters are invalidated or if new clusters 
 		<tbody>
 			{% for student in students %}
 			<tr>
-				<td class="{{ student }}_row">
-					<a href="{% url 'student_view' course_key=course.key student_key=student %}">{{ student }}</a>
+				<td class="{{ student.key }}_row">
+					<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.name }} ({{ student.key }})</a>
 				</td>
 
 				{% for student2 in students %}
-					{% if student == student2 %}
-						<td data-order="" class="{{ student2 }}_column {{ student }}_row"></td>
+					{% if student.key == student2.key %}
+						<td data-order="" class="{{ student2.key }}_column {{ student.key }}_row"></td>
 					{% else %}
-						{% with student|concat:student2 as student_string %}
+						{% with student.key|concat:student2.key as student_string %}
 							{% with grid|get_item:student_string as pair_similarity %}
-								<td data-order="{{ pair_similarity }}" class="{{ student2 }}_column {{ student }}_row">
+								<td data-order="{{ pair_similarity }}" class="{{ student2.key }}_column {{ student.key }}_row">
 									{{ pair_similarity|percent }}
 								</td>
 							{% endwith %}
@@ -111,8 +111,8 @@ This page will change if the cached clusters are invalidated or if new clusters 
             <tr>
 				<th>Student</th>
 				{% for student in students %}
-					<th class="{{ student }}_column">
-						<a href="{% url 'student_view' course_key=course.key student_key=student %}">{{ student }}</a>
+					<th class="{{ student.key }}_column">
+						<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.name }}<br>({{ student.key }})</a>
 					</th>
 				{% endfor %}
             </tr>
