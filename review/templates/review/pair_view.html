@@ -3,7 +3,7 @@
 {% block content %}
 
 <h3>Pair View</h3>
-<p>All comparisons for {{ a_object.name }} ({{ a }}) and {{ b_object.name }} ({{ b }})</p>
+<p>All comparisons for {{ a }} and {{ b }}</p>
 <button><a href="{% url 'pair_view_summary' course_key=course.key a_key=a b_key=b %}">Get summary of marked plagiates</a></button>
 <table class="comparison">
     <p>All exercises:</p>

@@ -61,7 +61,7 @@ The exercise columns show the average of highest similarity score for each exerc
 			{% for student in students %}
 				<tr {% if student.is_staff %} class="is_staff" {% endif %}>
 					<td {% if student.is_staff %} style="background-color: lightgreen;"{% endif %}>
-						<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.name }} ({{ student.key }})</a>
+						<a href="{% url 'student_view' course_key=course.key student_key=student.key %}">{{ student.key }}</a>
 					</td>
 					<td {% if student.is_staff %} style="background-color: lightgreen;"{% endif %}>
 						{{ student.avg_similarity|percent }}

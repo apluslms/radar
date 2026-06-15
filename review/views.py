@@ -206,7 +206,7 @@ def comparison(
                     kwargs={"course_key": course.key, "exercise_key": exercise.key},
                 ),
             ),
-            ("%s (%s) → %s (%s)" % (a.student.name, a.student.key, b.student.name, b.student.key), None),
+            ("%s → %s" % (a.student.key, b.student.key), None),
         ),
         "course": course,
         "exercise": exercise,
@@ -247,7 +247,7 @@ def marked_submissions(request, course_key=None, course=None):
     for c in comparisons:
         for s in (c.submission_a.student, c.submission_b.student):
             if s.id not in suspects:
-                suspects[s.id] = {'key': s.key, 'name': s.name, 'sum': 0, 'comparisons': []}
+                suspects[s.id] = {'key': s.key, 'sum': 0, 'comparisons': []}
             suspects[s.id]['sum'] += c.review
             suspects[s.id]['comparisons'].append(c)
     return render(
@@ -963,8 +963,6 @@ def students_view(request: WSGIRequest, course: Course | None = None, course_key
 @access_resource
 def student_view(request, course=None, course_key=None, student=None, student_key=None):
 
-    student_obj = Student.objects.get(key=student_key, course=course)
-    
     comparisons = (
         Comparison.objects.filter(submission_a__exercise__course=course)
         .filter(similarity__gt=0.75)
@@ -987,7 +985,7 @@ def student_view(request, course=None, course_key=None, student=None, student_ke
             (settings.APP_NAME, reverse("index")),
             (course.name, reverse("course", kwargs={"course_key": course.key})),
             ("Students", reverse("students_view", kwargs={"course_key": course.key})),
-            ("%s (%s)" % (student_obj.name, student_key), None),
+            (student_key, None),
         ),
         "course": course,
         "exercises": course.exercises.all(),
@@ -1022,21 +1020,16 @@ def pair_view(
         )
     )
 
-    a_object = Student.objects.get(key=a_key, course=course)
-    b_object = Student.objects.get(key=b_key, course=course)
-
     context = {
         "hierarchy": (
             (settings.APP_NAME, reverse("index")),
             (course.name, reverse("course", kwargs={"course_key": course.key})),
-            ("%s (%s) → %s (%s)" % (a_object.name, a_key, b_object.name, b_key), None),
+            ("%s → %s" % (a_key, b_key), None),
         ),
         "course": course,
         "exercises": course.exercises.all(),
         "a": a_key,
         "b": b_key,
-        "a_object": a_object,
-        "b_object": b_object,
         "comparisons": comparisons,
     }
 
@@ -1117,7 +1110,7 @@ def pair_view_summary(
             (settings.APP_NAME, reverse("index")),
             (course.name, reverse("course", kwargs={"course_key": course.key})),
             (
-                "%s (%s) → %s (%s)" % (a.name, a_key, b.name, b_key),
+                "%s → %s" % (a_key, b_key),
                 reverse(
                     "pair_view",
                     kwargs={"course_key": course_key, "a_key": a_key, "b_key": b_key},
@@ -1222,15 +1215,11 @@ def cluster_view(
 
     # Get the max similarity for each student
     students_sorted = list(
-        comparisons.values("student_b", "submission_b__student__name")
+        comparisons.values("student_b")
         .annotate(max_similarity=Avg("similarity"))
         .order_by("-max_similarity")
+        .values_list("student_b", flat=True)
     )
-    # Format the students list to contain dicts with key and name
-    students_formatted = [
-        {"key": s["student_b"], "name": s["submission_b__student__name"]}
-        for s in students_sorted
-    ]
 
     # Create a grid of student pairs and their average similarity
     grid = {}
@@ -1250,7 +1239,7 @@ def cluster_view(
         'min_matches': min_matches,
         'use_unique_ex': use_unique_ex,
         'date_time': date_time,
-        "students": students_formatted,
+        "students": students_sorted,
         "grid": grid,
     }
 
