@@ -6,7 +6,7 @@
 	<tr>
 		<td>
 			<a href="{% url 'submission' course_name=course.name exercise_name=exercise.name g_id=group.pk a_id=match.submission.pk %}">
-				{{ match.submission.student.display_name }}
+				{{ match.submission.student.name }}
 			</a>
 		</td>
 		<td>{{ match.submission.created|date:"Y-m-d H:i" }}</td>

@@ -533,13 +533,6 @@ class Student(models.Model):
         unique_together = ("course", "key")
         ordering = ["course", "key"]
 
-    @property
-    def display_name(self):
-        name = (self.name or "").strip()
-        if not name or name == "No Name":
-            return self.key
-        return name
-
     def __str__(self):
         return "%s: %s (%s)" % (self.course.name, self.key, self.created)
 
