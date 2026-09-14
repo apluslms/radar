@@ -160,8 +160,10 @@ def sync_student_names(course):
         for roster_student in data.get("results", []):
             student_id = roster_student.get("student_id") or roster_student.get("username")
             full_name = (roster_student.get("full_name") or "").strip()
+            if full_name.lower() in {"no name", "no_name", "none"}:
+                full_name = ""
             student = students_by_key.get(URLKeyField.safe_version(str(student_id)))
-            if student and full_name and student.name != full_name:
+            if student and student.name != full_name:
                 student.name = full_name
                 changed.append(student)
         url = data.get("next")

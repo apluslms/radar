@@ -46,6 +46,26 @@ class AplusApiUrlTests(SimpleTestCase):
         student_objects.bulk_update.assert_called_once_with([unnamed, named], ["name"])
         build_api_url.assert_called_once()
 
+    @mock.patch("provider.aplus.get_api_client")
+    @mock.patch("provider.aplus.build_api_url", return_value="https://plus.example.com/api/v2/courses/42/students/")
+    def test_sync_student_names_clears_placeholder_full_name_from_api(self, build_api_url, get_api_client):
+        unnamed = mock.Mock(key="123456", name="No Name")
+        students = mock.Mock()
+        students.all.return_value = [unnamed]
+        course = SimpleNamespace(api_id=42, students=students)
+        get_api_client.return_value.load_data.return_value = {
+            "results": [{"student_id": "123456", "full_name": "   no name   "}],
+            "next": None,
+        }
+
+        with mock.patch("provider.aplus.Student.objects") as student_objects:
+            updated = aplus.sync_student_names(course)
+
+        self.assertEqual(updated, 1)
+        self.assertEqual(unnamed.name, "")
+        student_objects.bulk_update.assert_called_once_with([unnamed], ["name"])
+        build_api_url.assert_called_once()
+
 
 class CourseDolosReportTests(SimpleTestCase):
     @mock.patch("provider.tasks._report_course_progress")

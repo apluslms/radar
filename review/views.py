@@ -2056,7 +2056,9 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
     if request.session.get("legacy_radar", True):
         return redirect("students_view", course_key=course.key)
 
-    unnamed_students = course.students.filter(Q(name="") | Q(name="No Name"))
+    unnamed_students = course.students.filter(
+        Q(name="") | Q(name__iexact="No Name") | Q(name__iexact="No_Name") | Q(name__iexact="None")
+    )
     if course.provider == "a+" and unnamed_students.exists():
         try:
             aplus.sync_student_names(course)

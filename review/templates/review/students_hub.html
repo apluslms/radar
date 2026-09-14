@@ -129,7 +129,7 @@
 						<td>
 							<div class="group-members">
 								{% for member in group.members %}
-								<a href="{% url 'student_hub' course_key=course.key student_key=member.key %}{% if include_all %}?all=1{% endif %}">{{ member.name }}</a>
+								<a href="{% url 'student_hub' course_key=course.key student_key=member.key %}{% if include_all %}?all=1{% endif %}">{{ member.display_name }}</a>
 								{% endfor %}
 							</div>
 						</td>

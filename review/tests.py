@@ -81,6 +81,15 @@ class CreateCheatersheetComparisonTests(TestCase):
         self.assertIn(">studentA</a>", html)
         self.assertNotIn(">No Name</a>", html)
 
+    def test_student_display_name_uses_student_key_for_placeholder_names(self):
+        student = Student.objects.create(course=self.course, key="studentC", name=" no name ")
+        self.assertEqual(student.display_name, "studentC")
+
+        self.assertEqual(
+            self.course.get_student("studentD", name="No Name").display_name,
+            "studentD",
+        )
+
     def test_dolos_hub_marks_the_enabled_submission_set(self):
         session = self.client.session
         session["legacy_radar"] = False

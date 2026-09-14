@@ -152,10 +152,16 @@ class Course(NamespacedApiObject):
         return exercise
 
     def get_student(self, key_str, name=None):
-        student, _ = self.students.get_or_create(key=URLKeyField.safe_version(key_str),
-                                                 defaults={'name': name or ''})
-        if name and student.name != name:
-            student.name = name
+        normalized_name = (name or '').strip()
+        if normalized_name.lower() in {'no name', 'no_name', 'none'}:
+            normalized_name = ''
+
+        student, _ = self.students.get_or_create(
+            key=URLKeyField.safe_version(key_str),
+            defaults={'name': normalized_name},
+        )
+        if normalized_name and student.name != normalized_name:
+            student.name = normalized_name
             student.save()
         return student
 
@@ -539,7 +545,7 @@ class Student(models.Model):
     name = models.CharField(
         max_length=64,
         blank=True,
-        default='No Name',
+        default='',
         help_text="Full name of the student",
     )
     email = models.EmailField(blank=True, default='No Email')
@@ -552,7 +558,7 @@ class Student(models.Model):
     @property
     def display_name(self):
         name = (self.name or "").strip()
-        if not name or name == "No Name":
+        if not name or name.lower() in {"no name", "no_name", "none"}:
             return self.key
         return "%s (%s)" % (name, self.key)
 

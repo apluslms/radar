@@ -12,6 +12,9 @@ SERVER_EMAIL = "Radar <radar@radar.example.com>"
 
 ALLOWED_HOSTS = ["radar.example.com"]
 
+# API token for a robot user that can access course submissions and rosters.
+APLUS_ROBOT_TOKEN = "CONFIGURE ME"
+
 PROVIDERS = {
     "a+": {
         "hook": "provider.aplus.hook",
