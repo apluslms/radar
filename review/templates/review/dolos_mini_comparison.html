@@ -42,6 +42,12 @@
 				<button type="submit" class="secondary outline">Send to CheaterSheet</button>
 				<span class="cheatersheet-status" aria-live="polite"></span>
 			</form>
+			<form method="post" action="{% url 'flag_new_radar_pair' course_key=course.key left_submission_id=submission_a.pk right_submission_id=submission_b.pk %}">
+				{% csrf_token %}
+				<input type="hidden" name="flagged" value="{% if comparison and comparison.review == 10 %}false{% else %}true{% endif %}">
+				<input type="hidden" name="next" value="{{ request.get_full_path }}">
+				<button type="submit" class="{% if comparison and comparison.review == 10 %}secondary outline{% else %}contrast{% endif %}">{% if comparison and comparison.review == 10 %}Unflag pair{% else %}Flag pair{% endif %}</button>
+			</form>
 			<span class="mini-meta">Report {{ report_id }} for {{ student_a.display_name }} vs {{ student_b.display_name }} in {{ exercise.name }}</span>
 		</div>
 		<iframe class="mini-frame" src="{{ report_url }}" title="Dolos mini report"></iframe>

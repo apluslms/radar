@@ -18,6 +18,7 @@ import pytz
 import requests
 from celery.result import AsyncResult
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache, caches
 from django.core.handlers.wsgi import WSGIRequest
@@ -89,11 +90,14 @@ def index(request):
     )
 
 
+@require_POST
 @login_required
 def toggle_radar_mode(request):
-    """Flip between Legacy Radar (default) and New Radar (Dolos) navigation."""
-    # Toggle from a Legacy default so first-time users switch to New Radar.
-    request.session["legacy_radar"] = not request.session.get("legacy_radar", True)
+    """Select the requested Radar navigation mode."""
+    mode = request.POST.get("mode")
+    if mode not in {"legacy", "new"}:
+        return HttpResponseBadRequest("Invalid Radar mode")
+    request.session["legacy_radar"] = mode == "legacy"
     request.session.save()
     referer = request.META.get("HTTP_REFERER", "")
     # Only bounce back to a same-site page (avoid open redirects).
@@ -2049,6 +2053,33 @@ def _exercise_report_ids(course, include_all=False):
     )
 
 
+def _flagged_comparisons(course):
+    return (
+        Comparison.objects.filter(
+            submission_a__exercise__course=course,
+            submission_b__isnull=False,
+            review=10,
+        )
+        .select_related(
+            "submission_a__exercise",
+            "submission_a__student",
+            "submission_b__student",
+        )
+        .order_by("-similarity")
+    )
+
+
+def _flagged_submission_pairs(course):
+    return {
+        tuple(sorted((left_id, right_id)))
+        for left_id, right_id in Comparison.objects.filter(
+            submission_a__exercise__course=course,
+            submission_b__isnull=False,
+            review=10,
+        ).values_list("submission_a_id", "submission_b_id")
+    }
+
+
 @access_resource
 def students_hub(request, course_key=None, course=None) -> HttpResponse:
     """New Radar: list of students in the course, linking to their
@@ -2114,6 +2145,7 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
             ),
             "course": course,
             "students": course.students.all(),
+            "flagged_comparisons": _flagged_comparisons(course),
             "course_report_id": latest_course_report_id,
             "course_report_completed_at": latest_completed_at,
             "course_report_summary": summary,
@@ -2126,6 +2158,58 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
             "show_submission_switch": True,
         },
     )
+
+
+@require_POST
+@access_resource
+def flag_new_radar_pair(
+    request,
+    course_key=None,
+    left_submission_id=None,
+    right_submission_id=None,
+    course=None,
+) -> HttpResponse:
+    """Flag or unflag an exact New Radar submission pair."""
+    left_submission = get_object_or_404(
+        Submission.objects.select_related("exercise"),
+        pk=left_submission_id,
+        exercise__course=course,
+    )
+    right_submission = get_object_or_404(
+        Submission.objects.select_related("exercise"),
+        pk=right_submission_id,
+        exercise=left_submission.exercise,
+    )
+    if left_submission.student_id == right_submission.student_id:
+        return HttpResponseBadRequest("A flag requires two different students")
+
+    comparison = Comparison.objects.filter(
+        submission_a=left_submission,
+        submission_b=right_submission,
+    ).first()
+    if comparison is None:
+        comparison = Comparison.objects.filter(
+            submission_a=right_submission,
+            submission_b=left_submission,
+        ).first()
+
+    if request.POST.get("flagged") == "true":
+        if comparison is None:
+            comparison = Comparison.objects.create(
+                submission_a=left_submission,
+                submission_b=right_submission,
+            )
+        comparison.review = 10
+        comparison.save(update_fields=["review"])
+        messages.success(request, "Pair flagged for review.")
+    elif comparison is not None:
+        comparison.review = 0
+        comparison.save(update_fields=["review"])
+        messages.success(request, "Pair flag removed.")
+    else:
+        return HttpResponseBadRequest("The pair has not been flagged")
+
+    return redirect(request.POST.get("next") or reverse("students_hub", kwargs={"course_key": course.key}))
 
 
 @access_resource
@@ -2215,6 +2299,18 @@ def student_pair_hub(request, course_key=None, a_key=None, b_key=None, course=No
             key=lambda item: item["similarity"],
             reverse=True,
         )
+
+    flagged_pairs = _flagged_submission_pairs(course)
+    for row in pair_rows:
+        for comparison_row in row["comparison_rows"]:
+            comparison_row["flagged"] = tuple(
+                sorted(
+                    (
+                        comparison_row["left_submission_id"],
+                        comparison_row["right_submission_id"],
+                    )
+                )
+            ) in flagged_pairs
 
     return render(
         request,

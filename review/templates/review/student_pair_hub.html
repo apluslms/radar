@@ -80,6 +80,12 @@
 									<button type="submit" class="secondary outline">Send to CheaterSheet</button>
 									<span class="cheatersheet-status" aria-live="polite"></span>
 								</form>
+								<form method="post" action="{% url 'flag_new_radar_pair' course_key=course.key left_submission_id=comparison.left_submission_id right_submission_id=comparison.right_submission_id %}">
+									{% csrf_token %}
+									<input type="hidden" name="flagged" value="{% if comparison.flagged %}false{% else %}true{% endif %}">
+									<input type="hidden" name="next" value="{{ request.get_full_path }}">
+									<button type="submit" class="{% if comparison.flagged %}secondary outline{% else %}contrast{% endif %}">{% if comparison.flagged %}Unflag pair{% else %}Flag pair{% endif %}</button>
+								</form>
 							</div>
 							{% endfor %}
 						</div>

@@ -21,6 +21,7 @@ from review.views import (
     check_course_dolos_task_current,
     create_cheatersheet_comparison,
     create_cheatersheet_comparison_from_dolos,
+    flag_new_radar_pair,
     generate_cross_course_dolos_view,
     generate_dolos_view,
     go_to_dolos_view,
@@ -104,6 +105,12 @@ urlpatterns = [
         r'(?P<left_submission_id>\d+)-(?P<right_submission_id>\d+)/$',
         create_cheatersheet_comparison,
         name='create_cheatersheet_comparison'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/dolos_hub/flag/'
+        r'(?P<left_submission_id>\d+)-(?P<right_submission_id>\d+)/$',
+        flag_new_radar_pair,
+        name='flag_new_radar_pair'
     ),
     re_path(
         r'^(?P<course_key>\w+)/dolos_hub/cheatersheet/report/'
