@@ -78,7 +78,7 @@ def hook(request, course, config):
     tasks.create_submission.delay(sid, course.key, submission_url)
 
 
-def reload(exercise, config):
+def reload(exercise, config, progress_cache_key=None):
     """
     Reload all submissions to given exercise from the A+ API, tokenize sources and match all.
     Deletes all existing submissions to exercise.
@@ -92,9 +92,8 @@ def reload(exercise, config):
     # Queue exercise for asynchronous handling,
     # all submissions to this exercise are created in parallel while matching is sequential
     if not DEBUG or CELERY_DEBUG:
-        tasks.reload_exercise_submissions.delay(exercise.id, submissions_url)
-    else:
-        tasks.reload_exercise_submissions(exercise.id, submissions_url)
+        return tasks.reload_exercise_submissions.delay(exercise.id, submissions_url, progress_cache_key)
+    return tasks.reload_exercise_submissions(exercise.id, submissions_url, progress_cache_key)
 
 
 def recompare(exercise, config):

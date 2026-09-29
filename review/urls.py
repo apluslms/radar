@@ -11,7 +11,9 @@ from review.views import (
     dolos_proxy_api_view,
     dolos_proxy_view,
     dolos_hub,
+    dolos_hub_refresh_submissions,
     dolos_hub_report,
+    check_refresh_submissions_task,
     exercise,
     exercise_settings,
     flagged_pairs,
@@ -117,6 +119,16 @@ urlpatterns = [
         r'(?P<report_id>[\w-]+)/(?P<pair_id>\d+)/$',
         create_cheatersheet_comparison_from_dolos,
         name='create_cheatersheet_comparison_from_dolos'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/dolos_hub/refresh_submissions/$',
+        dolos_hub_refresh_submissions,
+        name='dolos_hub_refresh_submissions'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/dolos_hub/refresh_submissions/status/$',
+        check_refresh_submissions_task,
+        name='check_refresh_submissions_task'
     ),
     re_path(
         r'^(?P<course_key>\w+)/dolos_hub/(?P<exercise_key>\w+)/$',

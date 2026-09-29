@@ -154,6 +154,11 @@ def course_progress_cache_key(task_id):
     return "dolos_report:course_progress:%s" % task_id
 
 
+def refresh_progress_cache_key(task_id):
+    """Cache key for a submission-refresh task's progress payload."""
+    return "dolos_report:refresh_progress:%s" % task_id
+
+
 def zip_dataset(src_dir, zip_path):
     """Zip ``src_dir`` into ``zip_path`` preserving relative paths (info.csv at root)."""
     with zipfile.ZipFile(zip_path, "w") as zip_handle:

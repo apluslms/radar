@@ -336,7 +336,7 @@ class CreateCheatersheetComparisonTests(TestCase):
         ajax_response = self.client.get(report_url + "?force=1")
 
         self.assertContains(page_response, "1 new submission since last analysis")
-        self.assertContains(page_response, "Redo analysis")
+        self.assertContains(page_response, "Re-run analysis for")
         self.assertEqual(
             forced_page_response.context["report_status_url"], report_url + "?force=1"
         )

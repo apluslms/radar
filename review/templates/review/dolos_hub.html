@@ -1,4 +1,5 @@
 {% extends 'base_dolos.html' %}
+{% load static %}
 
 {% block head %}
 <style>
@@ -30,6 +31,11 @@
 	.hub-multi-report { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-top: .75rem; }
 	.hub-multi-report p { margin: 0; }
 	.hub-cache-notice { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin: .15rem 0 .35rem; color: var(--pico-muted-color); font-size: .8rem; }
+	#hubRefreshProgress { display: none; margin: 0 0 .5rem; padding: .8rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); }
+	#hubRefreshProgress.active { display: block; }
+	#hubRefreshProgress progress { width: 100%; margin: .55rem 0 0; }
+	#hubRefreshProgress .status-title { font-weight: 600; margin: 0; }
+	#hubRefreshProgress .status-title.status-error { color: #8a1f11; }
 	.hub-cache-notice form { margin: 0; }
 	.hub-cache-notice button { width: auto; margin: 0; padding: .25rem .55rem; font-size: .78rem; }
 	.hub-multi-report a[role="button"] { margin: 0; padding: .4rem .7rem; font-size: .85rem; }
@@ -60,7 +66,7 @@
 		<a href="{% url 'students_hub' course_key=course.key %}{% if include_all %}?all=1{% endif %}"
 		   role="button" class="secondary outline hub-students-link"
 		   title="Review student similarity across every exercise">Student overview</a>
-		{% if not course_report_mode %}
+		{% if not course_report_mode and current_exercise %}
 		<div class="hub-mode-switch">
 			<span class="hub-mode-label">Submission set:</span>
 			<div class="hub-mode-options" role="group" aria-label="Submission set">
@@ -82,6 +88,7 @@
 			{% endif %}
 		</div>
 		{% endif %}
+		{% include 'review/_refresh_menu.html' with has_course_panel=course_report_mode %}
 	</div>
 
 {% if course_report_mode %}
@@ -92,11 +99,7 @@
 <div class="hub-cache-notice">
 	<span><strong>Using cached report.</strong> {{ report_mode_label }} report generated {{ report_generated_at|date:"Y-m-d H:i" }}.</span>
 	{% if new_submissions_count %}<strong>{{ new_submissions_count }} new submission{{ new_submissions_count|pluralize }} since last analysis.</strong>{% endif %}
-	<form method="get" action="{{ request.path }}">
-		{% if include_all %}<input type="hidden" name="all" value="1">{% endif %}
-		<input type="hidden" name="force" value="1">
-		<button type="submit" class="secondary outline">Redo analysis</button>
-	</form>
+	<span>Use &#8635; Refresh &rsaquo; Re-run analysis to update it.</span>
 </div>
 {% endif %}
 
@@ -167,6 +170,11 @@
 		});
 })();
 </script>
+{% elif no_submissions %}
+<article>
+	<p><strong>This course has no submissions yet.</strong></p>
+	<p>New submissions appear here automatically once the provider sends them. To import existing submissions, <a href="{% url 'configure_course' course_key=course.key %}">configure the course</a> to add its exercises, then use &#8635; Refresh &rsaquo; Re-fetch submissions.</p>
+</article>
 {% else %}
 <article>{{ message }}</article>
 {% endif %}

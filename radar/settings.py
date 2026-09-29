@@ -163,6 +163,8 @@ PROVIDERS = {
         "get_submission_text": "data.aplus.get_submission_text",
         # Queues a read to the provider API that fetches all exercises in a course
         "async_api_read": "provider.aplus.async_api_read",
+        # full_reload re-downloads submissions from the provider
+        "refetches_submissions": True,
         # Retrieves exercise template from the provider API
         "get_exercise_template": "provider.aplus.load_exercise_template",
         # Override these in local settings
@@ -174,6 +176,8 @@ PROVIDERS = {
         "hook": "provider.filesystem.hook",
         # Deletes all submissions and matches, cannot reload anything
         "full_reload": "provider.filesystem.reload",
+        # full_reload only deletes; filesystem submissions come from the CLI
+        "refetches_submissions": False,
         # Deletes matches, then compares all existing submissions
         "recompare": "provider.filesystem.recompare",
         # Ignored, submissions must be matched from CLI

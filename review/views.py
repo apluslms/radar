@@ -41,7 +41,7 @@ from cheatersheet.views import send_cheatersheet_comparison
 from data import graph
 from data.models import Comparison, Course, Exercise, ExerciseDolosReport, Student, Submission
 from provider import aplus
-from provider.tasks import generate_course_dolos_task, recompare_all
+from provider.tasks import generate_course_dolos_task, recompare_all, refresh_course_submissions_task
 from radar.celery import app
 from radar.config import configured_function, provider_config
 from radar.settings import (
@@ -55,6 +55,7 @@ from review.decorators import access_resource
 from review.dolos_reports import (
     course_progress_cache_key,
     dolos_language,
+    refresh_progress_cache_key,
     write_dataset,
     zip_dataset,
 )
@@ -111,9 +112,7 @@ def course(request, course_key=None, course=None):
     # Legacy Radar (default) shows the classic management table.
     # New Radar (Dolos) is enabled when legacy_radar is False.
     if request.method == "GET" and not request.session.get("legacy_radar", True):
-        first_exercise = course.exercises.first()
-        if first_exercise is not None:
-            return redirect("dolos_hub_exercise", course_key=course.key, exercise_key=first_exercise.key)
+        return redirect("dolos_hub", course_key=course.key)
     context = {
         "hierarchy": ((settings.APP_NAME, reverse("index")), (course.name, None)),
         "course": course,
@@ -858,6 +857,11 @@ def _cached_report_id(cache_key, generate):
 
 def _too_few_message(selected_count, include_all, total, students, staff_excluded, newest=None):
     """Explain why Dolos has fewer than two files to compare."""
+    if total == 0:
+        return (
+            "This exercise has no submissions yet. Use \u21bb Refresh \u203a Re-fetch "
+            "submissions above to fetch them from the provider."
+        )
     if newest:
         mode = "%d newest submissions per student" % newest
     else:
@@ -1431,7 +1435,21 @@ def dolos_hub(request, course_key=None, exercise_key=None, course=None, exercise
     if exercise is None:
         first_exercise = course.exercises.first()
         if first_exercise is None:
-            return redirect("course", course_key=course.key)
+            return render(
+                request,
+                "review/dolos_hub.html",
+                {
+                    "hierarchy": (
+                        (settings.APP_NAME, reverse("index")),
+                        (course.name, None),
+                    ),
+                    "course": course,
+                    "exercises": [],
+                    "current_exercise": None,
+                    "course_report_mode": False,
+                    "no_submissions": True,
+                },
+            )
 
         if course_report_mode:
             latest_report_id, completed_at = _read_latest_course_report(course, request)
@@ -1556,6 +1574,95 @@ def dolos_hub(request, course_key=None, exercise_key=None, course=None, exercise
             ),
         },
     )
+
+
+@require_POST
+@access_resource
+def dolos_hub_refresh_submissions(request, course_key=None, course=None) -> HttpResponse:
+    """Re-fetch every exercise's submissions from the course's provider."""
+    p_config = provider_config(course.provider)
+    exercises = list(course.exercises.all())
+    if not p_config.get("refetches_submissions", True):
+        messages.error(
+            request,
+            "This course uses the file system provider, which cannot re-fetch "
+            "submissions. Add submissions with the loadsubmissions command instead.",
+        )
+    elif "full_reload" not in p_config:
+        messages.error(request, "This course's provider does not support refreshing submissions.")
+    elif not exercises:
+        messages.warning(request, "No exercises to refresh. Configure the course to import its exercises.")
+    else:
+        existing_task_id = request.session.get(_refresh_task_session_key(course))
+        if existing_task_id and _resolve_refresh_task_status(existing_task_id)["status"] == "pending":
+            messages.info(request, "Refreshing submissions is already running.")
+        else:
+            task = refresh_course_submissions_task.delay(course.key)
+            request.session[_refresh_task_session_key(course)] = task.id
+            request.session[_refresh_started_session_key(course)] = time.time()
+    next_url = request.POST.get("next", "")
+    if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect("dolos_hub", course_key=course.key)
+
+
+def _refresh_task_session_key(course):
+    return "dolos_refresh_task_id_%d" % course.id
+
+
+def _refresh_started_session_key(course):
+    return "dolos_refresh_task_started_%d" % course.id
+
+
+def _resolve_refresh_task_status(task_id, started_at=None):
+    """Resolve a refresh task id into a polling payload, mirroring
+    _resolve_course_task_status but for submission re-fetching."""
+    task_result = AsyncResult(task_id, app=app)
+    state = task_result.state
+    if state in ("PENDING", "STARTED", "RETRY", "PROGRESS"):
+        payload = {"status": "pending", "task_id": task_id}
+        try:
+            cached = caches["course_report_progress"].get(refresh_progress_cache_key(task_id))
+            if isinstance(cached, dict):
+                payload.update(cached)
+        except Exception:
+            pass
+        if started_at and time.time() - started_at > COURSE_REPORT_STALE_SECONDS:
+            return {
+                "status": "failed",
+                "task_id": task_id,
+                "message": (
+                    "Refreshing submissions has been queued for over %d minutes with no "
+                    "progress. This usually means no Celery worker is processing the queue."
+                    % (COURSE_REPORT_STALE_SECONDS // 60)
+                ),
+            }
+        return payload
+    if state == "SUCCESS":
+        return {"status": "ready", "task_id": task_id}
+    if state in ("FAILURE", "ERROR", "REVOKED"):
+        return {
+            "status": "failed",
+            "task_id": task_id,
+            "message": str(task_result.result) if task_result.result else "Unknown error occurred",
+        }
+    return {"status": "pending", "task_id": task_id}
+
+
+@access_resource
+def check_refresh_submissions_task(request, course_key=None, course=None) -> JsonResponse:
+    """Progress of this course's submission re-fetch, for the hub's progress
+    panel; survives page refreshes via the task id stored in the session."""
+    task_id = request.session.get(_refresh_task_session_key(course))
+    if not task_id:
+        return JsonResponse({"status": "idle"})
+    started = request.session.get(_refresh_started_session_key(course))
+    payload = _resolve_refresh_task_status(task_id, started_at=started)
+    if payload["status"] != "pending":
+        request.session.pop(_refresh_task_session_key(course), None)
+        request.session.pop(_refresh_started_session_key(course), None)
+        request.session.save()
+    return JsonResponse(payload)
 
 
 def _dolos_hub_scope(exercise, include_all, newest=None):
