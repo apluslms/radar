@@ -6,6 +6,7 @@
 	.pair-wrap { display: flex; flex-direction: column; gap: .9rem; }
 	.pair-head { display: flex; align-items: baseline; gap: .8rem; }
 	.pair-head h3 { margin: 0; }
+	.pair-head h3 a { text-decoration: none; }
 	.pair-head .muted { color: var(--pico-muted-color); font-size: .88rem; }
 	.pair-card { border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: .75rem .9rem; }
 	.pair-card .warning { margin: 0; padding: .7rem .8rem; border-radius: var(--pico-border-radius); border: 1px solid #d8a200; background: #fff6d9; color: #5c4400; }
@@ -17,7 +18,11 @@
 	.mini-actions a { display: inline-block; width: fit-content; padding: .35rem .65rem; border-radius: var(--pico-border-radius); background: var(--pico-primary); color: var(--pico-primary-inverse); text-decoration: none; }
 	.cheatersheet-form { display: flex; align-items: center; gap: .4rem; width: fit-content; margin: 0; }
 	.cheatersheet-form button { width: auto; margin: 0; padding: .35rem .65rem; font-size: .85rem; white-space: nowrap; }
+	.flag-form { display: flex; align-items: center; width: fit-content; margin: 0; }
+	.flag-form button { width: auto; margin: 0; padding: .35rem .65rem; font-size: .85rem; white-space: nowrap; }
+	.flag-form button.flagged { border: 1px solid #8a1f11; background: #fdf0ee; color: #8a1f11; font-weight: 600; }
 	.cheatersheet-status { display: block; color: var(--pico-muted-color); font-size: .78rem; }
+	.flagged-badge { display: inline-block; margin-left: .4rem; padding: .1rem .45rem; border-radius: 999px; background: #8a1f11; color: #fff; font-size: .72rem; font-weight: 700; white-space: nowrap; }
 	.muted { color: var(--pico-muted-color); }
 </style>
 {% endblock %}
@@ -27,7 +32,11 @@
 	{% include 'review/_course_report_panel.html' %}
 
 	<div class="pair-head">
-		<h3>{{ student_a.display_name }} and {{ student_b.display_name }}</h3>
+		<h3>
+			<a href="{% url 'student_hub' course_key=course.key student_key=student_a.key %}{% if include_all %}?all=1{% endif %}">{{ student_a.display_name }}</a>
+			and
+			<a href="{% url 'student_hub' course_key=course.key student_key=student_b.key %}{% if include_all %}?all=1{% endif %}">{{ student_b.display_name }}</a>
+		</h3>
 		{% if latest_report_ids %}
 		<span class="muted">Using {{ latest_report_ids|length }} course report(s)</span>
 		{% else %}
@@ -64,7 +73,10 @@
 			<tbody>
 				{% for row in pair_rows %}
 				<tr>
-					<td>{{ row.exercise.name }}</td>
+					<td>
+						{{ row.exercise.name }}
+						{% if row.flagged %}<span class="flagged-badge" title="This pair is flagged for this exercise">&#9873; Flagged</span>{% endif %}
+					</td>
 					<td>{{ row.similarity|percent }}</td>
 					<td>
 						<div class="mini-comparisons">
@@ -80,11 +92,11 @@
 									<button type="submit" class="secondary outline">Send to CheaterSheet</button>
 									<span class="cheatersheet-status" aria-live="polite"></span>
 								</form>
-								<form method="post" action="{% url 'flag_new_radar_pair' course_key=course.key left_submission_id=comparison.left_submission_id right_submission_id=comparison.right_submission_id %}">
+								<form class="flag-form" method="post" action="{% url 'flag_new_radar_pair' course_key=course.key left_submission_id=comparison.left_submission_id right_submission_id=comparison.right_submission_id %}">
 									{% csrf_token %}
 									<input type="hidden" name="flagged" value="{% if comparison.flagged %}false{% else %}true{% endif %}">
 									<input type="hidden" name="next" value="{{ request.get_full_path }}">
-									<button type="submit" class="{% if comparison.flagged %}secondary outline{% else %}contrast{% endif %}">{% if comparison.flagged %}Unflag pair{% else %}Flag pair{% endif %}</button>
+									<button type="submit" class="{% if comparison.flagged %}flagged{% else %}secondary outline{% endif %}" title="{% if comparison.flagged %}This pair is flagged. Click to unflag.{% else %}Flag this pair for review.{% endif %}">{% if comparison.flagged %}&#9873; Flagged &middot; Unflag{% else %}&#9873; Flag pair{% endif %}</button>
 								</form>
 							</div>
 							{% endfor %}

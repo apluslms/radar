@@ -53,6 +53,8 @@
 {% block content %}
 <div class="hub-layout">
 	<nav class="hub-tabs">
+		<a href="{% url 'course_home' course_key=course.key %}"
+		   role="button" class="secondary" title="Back to the course overview: pinned students, flags, downloads and settings">&#8962; Course home</a>
 		<a href="{% url 'dolos_hub' course_key=course.key %}?course_report=1"
 		   role="button" class="{% if not course_report_mode %}secondary outline{% endif %}">Whole Course</a>
 		{% for ex in exercises %}

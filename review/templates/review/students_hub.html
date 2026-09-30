@@ -37,8 +37,9 @@
 	<aside class="hub-sidebar">
 		<h3>Students</h3>
 		{% for student in students %}
-		<a href="{% url 'student_hub' course_key=course.key student_key=student.key %}{% if include_all %}?all=1{% endif %}">
-			{{ student.display_name }}
+		<a href="{% url 'student_hub' course_key=course.key student_key=student.key %}{% if include_all %}?all=1{% endif %}"
+		   {% if student.is_pinned %}title="Pinned student"{% endif %}>
+			{% if student.is_pinned %}&#9733; {% endif %}{{ student.display_name }}
 		</a>
 		{% empty %}
 		<p class="muted">No students yet.</p>
@@ -56,7 +57,7 @@
 			{% endif %}
 		</div>
 
-		<div class="summary-card">
+		<div class="summary-card" id="flagged">
 			<h5>Flagged Pairs and Submissions</h5>
 			<table class="summary-table">
 				<thead>
@@ -74,7 +75,7 @@
 								{% csrf_token %}
 								<input type="hidden" name="flagged" value="false">
 								<input type="hidden" name="next" value="{{ request.get_full_path }}">
-								<button type="submit" class="secondary outline">Unflag</button>
+								<button type="submit" class="secondary outline" title="This pair is flagged. Click to unflag.">&#9873; Flagged &middot; Unflag</button>
 							</form>
 						</td>
 					</tr>

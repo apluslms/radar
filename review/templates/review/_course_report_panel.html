@@ -34,6 +34,7 @@ sync between the two pages again.
 		<a href="{{ request.path }}"{% if not include_all %} aria-current="true"{% endif %}>Best per student</a>
 		<a href="{{ request.path }}?all=1"{% if include_all %} aria-current="true"{% endif %}>All submissions</a>
 	</div>
+	{% include 'review/_download_menu.html' %}
 	{% include 'review/_refresh_menu.html' with has_course_panel=True %}
 </div>
 {% endif %}

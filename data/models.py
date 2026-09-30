@@ -550,6 +550,10 @@ class Student(models.Model):
     )
     email = models.EmailField(blank=True, default='No Email')
     is_staff = models.BooleanField(default=False)
+    is_pinned = models.BooleanField(
+        default=False,
+        help_text="Pinned students are highlighted on the course home page",
+    )
 
     class Meta:
         unique_together = ("course", "key")

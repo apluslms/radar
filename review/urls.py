@@ -7,7 +7,13 @@ from review.views import (
     comparison,
     configure_course,
     course,
+    course_home,
     course_histograms,
+    toggle_student_pin,
+    download_dataset_zip,
+    download_flagged_csv,
+    download_student_timestamps_csv,
+    download_timestamps_csv,
     dolos_proxy_api_view,
     dolos_proxy_view,
     dolos_hub,
@@ -64,6 +70,16 @@ urlpatterns = [
         r'^(?P<course_key>\w+)/$',
         course,
         name='course'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/home/$',
+        course_home,
+        name='course_home'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/home/students/(?P<student_key>\w+)/pin/$',
+        toggle_student_pin,
+        name='toggle_student_pin'
     ),
     re_path(
         r'^(?P<course_key>\w+)/course_dolos$',
@@ -210,6 +226,26 @@ urlpatterns = [
         r'^(?P<course_key>\w+)/flagged_pairs/$',
         flagged_pairs,
         name='flagged_pairs'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/download/flagged.csv$',
+        download_flagged_csv,
+        name='download_flagged_csv'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/download/timestamps.csv$',
+        download_timestamps_csv,
+        name='download_timestamps_csv'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/download/dataset.zip$',
+        download_dataset_zip,
+        name='download_dataset_zip'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/download/students/(?P<student_key>\w+)/timestamps.csv$',
+        download_student_timestamps_csv,
+        name='download_student_timestamps_csv'
     ),
     re_path(
         r'^(?P<course_key>\w+)/graph/build$',

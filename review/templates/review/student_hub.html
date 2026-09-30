@@ -38,10 +38,11 @@
 <div class="hub-split">
 	<aside class="hub-sidebar">
 		<h3>Students</h3>
-		{% for listed_student in course.students.all %}
+		{% for listed_student in students %}
 		<a href="{% url 'student_hub' course_key=course.key student_key=listed_student.key %}{% if include_all %}?all=1{% endif %}"
-		   {% if listed_student.key == student.key %}class="active"{% endif %}>
-			{{ listed_student.display_name }}
+		   {% if listed_student.key == student.key %}class="active"{% endif %}
+		   {% if listed_student.is_pinned %}title="Pinned student"{% endif %}>
+			{% if listed_student.is_pinned %}&#9733; {% endif %}{{ listed_student.display_name }}
 		</a>
 		{% endfor %}
 	</aside>
@@ -52,6 +53,17 @@
 				<a href="{{ request.path }}"{% if not include_all %} aria-current="true"{% endif %}>Best per student</a>
 				<a href="{{ request.path }}?all=1"{% if include_all %} aria-current="true"{% endif %}>All submissions</a>
 			</div>
+			<a class="secondary outline" style="font-size: .8rem;"
+			   href="{% url 'download_student_timestamps_csv' course_key=course.key student_key=student.key %}{% if include_all %}?all=1{% endif %}"
+			   title="Download this student's submission timestamps as CSV">&#8681; Timestamps (CSV)</a>
+			<form method="post" action="{% url 'toggle_student_pin' course_key=course.key student_key=student.key %}" style="margin: 0;">
+				{% csrf_token %}
+				<input type="hidden" name="next" value="{{ request.get_full_path }}">
+				<button type="submit" class="{% if student.is_pinned %}{% else %}secondary outline{% endif %}" style="font-size: .8rem;"
+				        title="{% if student.is_pinned %}Remove this student from the pinned list on the course home page{% else %}Show this student at the top of the course home page{% endif %}">
+					{% if student.is_pinned %}&#9733; Pinned{% else %}&#9734; Pin{% endif %}
+				</button>
+			</form>
 		</div>
 		<p class="muted">Best match per exercise from the cached {% if include_all %}all submissions{% else %}best per student{% endif %} report.</p>
 		<table>

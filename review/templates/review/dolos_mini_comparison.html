@@ -13,6 +13,9 @@
 	.mini-hero .mini-button.secondary { background: transparent; color: var(--pico-primary); border: 1px solid var(--pico-primary); }
 	.cheatersheet-form { margin: 0; }
 	.cheatersheet-form button { margin: 0; padding: .6rem .95rem; }
+	.flag-form { margin: 0; }
+	.flag-form button { margin: 0; padding: .6rem .95rem; white-space: nowrap; }
+	.flag-form button.flagged { border: 1px solid #8a1f11; background: #fdf0ee; color: #8a1f11; font-weight: 600; }
 	.cheatersheet-status { color: var(--pico-muted-color); font-size: .82rem; }
 	.mini-frame { width: 100%; min-height: 75vh; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); }
 	.mini-meta { color: var(--pico-muted-color); font-size: .88rem; }
@@ -42,11 +45,11 @@
 				<button type="submit" class="secondary outline">Send to CheaterSheet</button>
 				<span class="cheatersheet-status" aria-live="polite"></span>
 			</form>
-			<form method="post" action="{% url 'flag_new_radar_pair' course_key=course.key left_submission_id=submission_a.pk right_submission_id=submission_b.pk %}">
+			<form class="flag-form" method="post" action="{% url 'flag_new_radar_pair' course_key=course.key left_submission_id=submission_a.pk right_submission_id=submission_b.pk %}">
 				{% csrf_token %}
 				<input type="hidden" name="flagged" value="{% if comparison and comparison.review == 10 %}false{% else %}true{% endif %}">
 				<input type="hidden" name="next" value="{{ request.get_full_path }}">
-				<button type="submit" class="{% if comparison and comparison.review == 10 %}secondary outline{% else %}contrast{% endif %}">{% if comparison and comparison.review == 10 %}Unflag pair{% else %}Flag pair{% endif %}</button>
+				<button type="submit" class="{% if comparison and comparison.review == 10 %}flagged{% else %}secondary outline{% endif %}" title="{% if comparison and comparison.review == 10 %}This pair is flagged. Click to unflag.{% else %}Flag this pair for review.{% endif %}">{% if comparison and comparison.review == 10 %}&#9873; Flagged &middot; Unflag{% else %}&#9873; Flag pair{% endif %}</button>
 			</form>
 			<span class="mini-meta">Report {{ report_id }} for {{ student_a.display_name }} vs {{ student_b.display_name }} in {{ exercise.name }}</span>
 		</div>
