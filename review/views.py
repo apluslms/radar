@@ -18,6 +18,7 @@ import pytz
 import requests
 from celery.result import AsyncResult
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache, caches
 from django.core.handlers.wsgi import WSGIRequest
@@ -40,7 +41,7 @@ from cheatersheet.views import send_cheatersheet_comparison
 from data import graph
 from data.models import Comparison, Course, Exercise, ExerciseDolosReport, Student, Submission
 from provider import aplus
-from provider.tasks import generate_course_dolos_task, recompare_all
+from provider.tasks import generate_course_dolos_task, recompare_all, refresh_course_submissions_task
 from radar.celery import app
 from radar.config import configured_function, provider_config
 from radar.settings import (
@@ -54,7 +55,11 @@ from review.decorators import access_resource
 from review.dolos_reports import (
     course_progress_cache_key,
     dolos_language,
+    refresh_progress_cache_key,
+    submission_path,
     write_dataset,
+    write_info_csv,
+    write_submission_files,
     zip_dataset,
 )
 from review.forms import DeleteExerciseFrom, ExerciseForm, ExerciseTemplateForm
@@ -89,11 +94,14 @@ def index(request):
     )
 
 
+@require_POST
 @login_required
 def toggle_radar_mode(request):
-    """Flip between Legacy Radar (default) and New Radar (Dolos) navigation."""
-    # Toggle from a Legacy default so first-time users switch to New Radar.
-    request.session["legacy_radar"] = not request.session.get("legacy_radar", True)
+    """Select the requested Radar navigation mode."""
+    mode = request.POST.get("mode")
+    if mode not in {"legacy", "new"}:
+        return HttpResponseBadRequest("Invalid Radar mode")
+    request.session["legacy_radar"] = mode == "legacy"
     request.session.save()
     referer = request.META.get("HTTP_REFERER", "")
     # Only bounce back to a same-site page (avoid open redirects).
@@ -107,9 +115,7 @@ def course(request, course_key=None, course=None):
     # Legacy Radar (default) shows the classic management table.
     # New Radar (Dolos) is enabled when legacy_radar is False.
     if request.method == "GET" and not request.session.get("legacy_radar", True):
-        first_exercise = course.exercises.first()
-        if first_exercise is not None:
-            return redirect("dolos_hub_exercise", course_key=course.key, exercise_key=first_exercise.key)
+        return redirect("course_home", course_key=course.key)
     context = {
         "hierarchy": ((settings.APP_NAME, reverse("index")), (course.name, None)),
         "course": course,
@@ -131,6 +137,86 @@ def course(request, course_key=None, course=None):
             return redirect("course", course_key=course.key)
 
     return render(request, "review/course.html", context)
+
+
+def _student_flag_stats(course, students):
+    """{student_id: (flagged pair count, highest flagged similarity)} for the
+    given students, from comparisons reviewed as Suspicious or worse."""
+    flagged = Comparison.objects.filter(
+        submission_a__exercise__course=course,
+        submission_b__isnull=False,
+        review__gte=5,
+    ).values_list(
+        "submission_a__student_id", "submission_b__student_id", "similarity"
+    )
+    stats = {student.id: [0, None] for student in students}
+    wanted = set(stats)
+    for a_id, b_id, similarity in flagged:
+        for student_id in (a_id, b_id):
+            if student_id in wanted:
+                entry = stats[student_id]
+                entry[0] += 1
+                if similarity is not None and (entry[1] is None or similarity > entry[1]):
+                    entry[1] = similarity
+    return {student_id: (count, top) for student_id, (count, top) in stats.items()}
+
+
+@access_resource
+def course_home(request, course_key=None, course=None) -> HttpResponse:
+    """New Radar: course home page. Overview of the course (exercise/student/
+    submission counts, report status), pinned students, recent flagged pairs,
+    and the entry points (analysis, students, downloads, settings) that
+    previously had no obvious home."""
+    if request.session.get("legacy_radar", True):
+        return redirect("course", course_key=course.key)
+
+    include_all = request.GET.get("all") == "1"
+    exercises = sorted(course.exercises.all(), key=_natural_sort_key)
+    report_ids = _exercise_report_ids(course, include_all=include_all)
+    _latest_report_id, latest_completed_at = _read_latest_course_report(course, request)
+
+    pinned_students = list(course.students.filter(is_pinned=True))
+    flag_stats = _student_flag_stats(course, pinned_students)
+    for student in pinned_students:
+        student.flag_count, student.flag_top_similarity = flag_stats.get(student.id, (0, None))
+
+    flagged = _flagged_comparisons(course)
+
+    return render(
+        request,
+        "review/course_home.html",
+        {
+            "hierarchy": (
+                (settings.APP_NAME, reverse("index")),
+                (course.name, None),
+            ),
+            "course": course,
+            "exercises": exercises,
+            "exercise_count": len(exercises),
+            "student_count": course.students.count(),
+            "submission_count": course.submissions.count(),
+            "include_all": include_all,
+            "reports_generated": len(report_ids),
+            "course_report_completed_at": latest_completed_at,
+            "course_report_task_status": _current_course_report_status(course, request),
+            "pinned_students": pinned_students,
+            "other_students": course.students.filter(is_pinned=False),
+            "recent_flags": list(flagged),
+            "flagged_count": flagged.count(),
+        },
+    )
+
+
+@require_POST
+@access_resource
+def toggle_student_pin(request, course_key=None, student_key=None, course=None, student=None) -> HttpResponse:
+    """Pin/unpin a student on the course home page."""
+    student.is_pinned = not student.is_pinned
+    student.save(update_fields=["is_pinned"])
+    next_url = request.POST.get("next", "")
+    if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect("course_home", course_key=course.key)
 
 
 @access_resource
@@ -854,6 +940,11 @@ def _cached_report_id(cache_key, generate):
 
 def _too_few_message(selected_count, include_all, total, students, staff_excluded, newest=None):
     """Explain why Dolos has fewer than two files to compare."""
+    if total == 0:
+        return (
+            "This exercise has no submissions yet. Use \u21bb Refresh \u203a Re-fetch "
+            "submissions above to fetch them from the provider."
+        )
     if newest:
         mode = "%d newest submissions per student" % newest
     else:
@@ -1427,7 +1518,21 @@ def dolos_hub(request, course_key=None, exercise_key=None, course=None, exercise
     if exercise is None:
         first_exercise = course.exercises.first()
         if first_exercise is None:
-            return redirect("course", course_key=course.key)
+            return render(
+                request,
+                "review/dolos_hub.html",
+                {
+                    "hierarchy": (
+                        (settings.APP_NAME, reverse("index")),
+                        (course.name, None),
+                    ),
+                    "course": course,
+                    "exercises": [],
+                    "current_exercise": None,
+                    "course_report_mode": False,
+                    "no_submissions": True,
+                },
+            )
 
         if course_report_mode:
             latest_report_id, completed_at = _read_latest_course_report(course, request)
@@ -1552,6 +1657,95 @@ def dolos_hub(request, course_key=None, exercise_key=None, course=None, exercise
             ),
         },
     )
+
+
+@require_POST
+@access_resource
+def dolos_hub_refresh_submissions(request, course_key=None, course=None) -> HttpResponse:
+    """Re-fetch every exercise's submissions from the course's provider."""
+    p_config = provider_config(course.provider)
+    exercises = list(course.exercises.all())
+    if not p_config.get("refetches_submissions", True):
+        messages.error(
+            request,
+            "This course uses the file system provider, which cannot re-fetch "
+            "submissions. Add submissions with the loadsubmissions command instead.",
+        )
+    elif "full_reload" not in p_config:
+        messages.error(request, "This course's provider does not support refreshing submissions.")
+    elif not exercises:
+        messages.warning(request, "No exercises to refresh. Configure the course to import its exercises.")
+    else:
+        existing_task_id = request.session.get(_refresh_task_session_key(course))
+        if existing_task_id and _resolve_refresh_task_status(existing_task_id)["status"] == "pending":
+            messages.info(request, "Refreshing submissions is already running.")
+        else:
+            task = refresh_course_submissions_task.delay(course.key)
+            request.session[_refresh_task_session_key(course)] = task.id
+            request.session[_refresh_started_session_key(course)] = time.time()
+    next_url = request.POST.get("next", "")
+    if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect("dolos_hub", course_key=course.key)
+
+
+def _refresh_task_session_key(course):
+    return "dolos_refresh_task_id_%d" % course.id
+
+
+def _refresh_started_session_key(course):
+    return "dolos_refresh_task_started_%d" % course.id
+
+
+def _resolve_refresh_task_status(task_id, started_at=None):
+    """Resolve a refresh task id into a polling payload, mirroring
+    _resolve_course_task_status but for submission re-fetching."""
+    task_result = AsyncResult(task_id, app=app)
+    state = task_result.state
+    if state in ("PENDING", "STARTED", "RETRY", "PROGRESS"):
+        payload = {"status": "pending", "task_id": task_id}
+        try:
+            cached = caches["course_report_progress"].get(refresh_progress_cache_key(task_id))
+            if isinstance(cached, dict):
+                payload.update(cached)
+        except Exception:
+            pass
+        if started_at and time.time() - started_at > COURSE_REPORT_STALE_SECONDS:
+            return {
+                "status": "failed",
+                "task_id": task_id,
+                "message": (
+                    "Refreshing submissions has been queued for over %d minutes with no "
+                    "progress. This usually means no Celery worker is processing the queue."
+                    % (COURSE_REPORT_STALE_SECONDS // 60)
+                ),
+            }
+        return payload
+    if state == "SUCCESS":
+        return {"status": "ready", "task_id": task_id}
+    if state in ("FAILURE", "ERROR", "REVOKED"):
+        return {
+            "status": "failed",
+            "task_id": task_id,
+            "message": str(task_result.result) if task_result.result else "Unknown error occurred",
+        }
+    return {"status": "pending", "task_id": task_id}
+
+
+@access_resource
+def check_refresh_submissions_task(request, course_key=None, course=None) -> JsonResponse:
+    """Progress of this course's submission re-fetch, for the hub's progress
+    panel; survives page refreshes via the task id stored in the session."""
+    task_id = request.session.get(_refresh_task_session_key(course))
+    if not task_id:
+        return JsonResponse({"status": "idle"})
+    started = request.session.get(_refresh_started_session_key(course))
+    payload = _resolve_refresh_task_status(task_id, started_at=started)
+    if payload["status"] != "pending":
+        request.session.pop(_refresh_task_session_key(course), None)
+        request.session.pop(_refresh_started_session_key(course), None)
+        request.session.save()
+    return JsonResponse(payload)
 
 
 def _dolos_hub_scope(exercise, include_all, newest=None):
@@ -2049,6 +2243,33 @@ def _exercise_report_ids(course, include_all=False):
     )
 
 
+def _flagged_comparisons(course):
+    return (
+        Comparison.objects.filter(
+            submission_a__exercise__course=course,
+            submission_b__isnull=False,
+            review=10,
+        )
+        .select_related(
+            "submission_a__exercise",
+            "submission_a__student",
+            "submission_b__student",
+        )
+        .order_by("-similarity")
+    )
+
+
+def _flagged_submission_pairs(course):
+    return {
+        tuple(sorted((left_id, right_id)))
+        for left_id, right_id in Comparison.objects.filter(
+            submission_a__exercise__course=course,
+            submission_b__isnull=False,
+            review=10,
+        ).values_list("submission_a_id", "submission_b_id")
+    }
+
+
 @access_resource
 def students_hub(request, course_key=None, course=None) -> HttpResponse:
     """New Radar: list of students in the course, linking to their
@@ -2113,7 +2334,8 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
                 ("Students", None),
             ),
             "course": course,
-            "students": course.students.all(),
+            "students": course.students.order_by("-is_pinned", "key"),
+            "flagged_comparisons": _flagged_comparisons(course),
             "course_report_id": latest_course_report_id,
             "course_report_completed_at": latest_completed_at,
             "course_report_summary": summary,
@@ -2126,6 +2348,58 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
             "show_submission_switch": True,
         },
     )
+
+
+@require_POST
+@access_resource
+def flag_new_radar_pair(
+    request,
+    course_key=None,
+    left_submission_id=None,
+    right_submission_id=None,
+    course=None,
+) -> HttpResponse:
+    """Flag or unflag an exact New Radar submission pair."""
+    left_submission = get_object_or_404(
+        Submission.objects.select_related("exercise"),
+        pk=left_submission_id,
+        exercise__course=course,
+    )
+    right_submission = get_object_or_404(
+        Submission.objects.select_related("exercise"),
+        pk=right_submission_id,
+        exercise=left_submission.exercise,
+    )
+    if left_submission.student_id == right_submission.student_id:
+        return HttpResponseBadRequest("A flag requires two different students")
+
+    comparison = Comparison.objects.filter(
+        submission_a=left_submission,
+        submission_b=right_submission,
+    ).first()
+    if comparison is None:
+        comparison = Comparison.objects.filter(
+            submission_a=right_submission,
+            submission_b=left_submission,
+        ).first()
+
+    if request.POST.get("flagged") == "true":
+        if comparison is None:
+            comparison = Comparison.objects.create(
+                submission_a=left_submission,
+                submission_b=right_submission,
+            )
+        comparison.review = 10
+        comparison.save(update_fields=["review"])
+        messages.success(request, "Pair flagged for review.")
+    elif comparison is not None:
+        comparison.review = 0
+        comparison.save(update_fields=["review"])
+        messages.success(request, "Pair flag removed.")
+    else:
+        return HttpResponseBadRequest("The pair has not been flagged")
+
+    return redirect(request.POST.get("next") or reverse("students_hub", kwargs={"course_key": course.key}))
 
 
 @access_resource
@@ -2215,6 +2489,19 @@ def student_pair_hub(request, course_key=None, a_key=None, b_key=None, course=No
             key=lambda item: item["similarity"],
             reverse=True,
         )
+
+    flagged_pairs = _flagged_submission_pairs(course)
+    for row in pair_rows:
+        for comparison_row in row["comparison_rows"]:
+            comparison_row["flagged"] = tuple(
+                sorted(
+                    (
+                        comparison_row["left_submission_id"],
+                        comparison_row["right_submission_id"],
+                    )
+                )
+            ) in flagged_pairs
+        row["flagged"] = any(c["flagged"] for c in row["comparison_rows"])
 
     return render(
         request,
@@ -2561,6 +2848,7 @@ def student_hub(request, course_key=None, student_key=None, course=None, student
             ),
             "course": course,
             "student": student,
+            "students": course.students.order_by("-is_pinned", "key"),
             "rows": rows,
             "include_all": include_all,
         },
@@ -3090,6 +3378,171 @@ def flagged_pairs(request, course=None, course_key=None):
     }
 
     return render(request, "review/flagged_pairs.html", context)
+
+
+# ---------------------------------------------------------------------------
+# "Download data out": export course data (flagged submissions, submission
+# timestamps, or the full dataset as a zip) for use outside Radar.
+# ---------------------------------------------------------------------------
+
+
+def _download_scope_submissions(course, include_all):
+    """Course submissions in the download scope, identical to what the Dolos
+    reports use: best-per-student by default, every valid submission with
+    ?all=1, staff excluded unless the exercise opts in."""
+    for exercise in course.exercises.select_related("course").all():
+        yield from _exercise_submissions(exercise, include_all)
+
+
+def _csv_response(response, filename):
+    response["Content-Disposition"] = 'attachment; filename="%s"' % filename
+    response["Content-Type"] = "text/csv"
+    return response
+
+
+@access_resource
+def download_flagged_csv(request, course_key=None, course=None) -> HttpResponse:
+    """CSV of every flagged (review >= Suspicious) comparison in the course,
+    including which submissions/files are involved."""
+    comparisons = (
+        Comparison.objects.filter(
+            submission_a__exercise__course=course,
+            submission_b__isnull=False,
+            review__gte=5,
+        )
+        .select_related(
+            "submission_a__exercise",
+            "submission_a__student",
+            "submission_b__exercise",
+            "submission_b__student",
+        )
+        .order_by("-similarity")
+    )
+    response = HttpResponse(content_type="text/csv")
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "exercise",
+            "student_a",
+            "name_a",
+            "submission_a",
+            "file_a",
+            "student_b",
+            "name_b",
+            "submission_b",
+            "file_b",
+            "similarity",
+            "review",
+        ]
+    )
+    for comparison in comparisons:
+        a, b = comparison.submission_a, comparison.submission_b
+        writer.writerow(
+            [
+                a.exercise.name,
+                a.student.key,
+                a.student.name,
+                a.key,
+                submission_path(a),
+                b.student.key,
+                b.student.name,
+                b.key,
+                submission_path(b),
+                comparison.similarity if comparison.similarity is not None else "",
+                comparison.review_name,
+            ]
+        )
+    return _csv_response(response, "%s_flagged_submissions.csv" % course.key)
+
+
+@access_resource
+def download_timestamps_csv(request, course_key=None, course=None) -> HttpResponse:
+    """CSV timeline of every submission in the course: who, what, when."""
+    include_all = request.GET.get("all") == "1"
+    submissions = sorted(
+        _download_scope_submissions(course, include_all),
+        key=lambda s: (s.provider_submission_time or s.created, s.id),
+    )
+    response = HttpResponse(content_type="text/csv")
+    writer = csv.writer(response)
+    writer.writerow(
+        ["student_key", "name", "exercise", "submission", "submitted_at", "file"]
+    )
+    for submission in submissions:
+        submitted = submission.provider_submission_time or submission.created
+        writer.writerow(
+            [
+                submission.student.key,
+                submission.student.name,
+                submission.exercise.name,
+                submission.key,
+                submitted.strftime("%Y-%m-%d %H:%M:%S %z") if submitted else "",
+                submission_path(submission),
+            ]
+        )
+    return _csv_response(response, "%s_submission_timestamps.csv" % course.key)
+
+
+@access_resource
+def download_student_timestamps_csv(request, course_key=None, student_key=None, course=None, student=None) -> HttpResponse:
+    """CSV timeline of one student's submissions across the course."""
+    include_all = request.GET.get("all") == "1"
+    submissions = sorted(
+        (s for s in _download_scope_submissions(course, include_all) if s.student_id == student.id),
+        key=lambda s: (s.provider_submission_time or s.created, s.id),
+    )
+    response = HttpResponse(content_type="text/csv")
+    writer = csv.writer(response)
+    writer.writerow(["exercise", "submission", "submitted_at", "grade", "file"])
+    for submission in submissions:
+        submitted = submission.provider_submission_time or submission.created
+        writer.writerow(
+            [
+                submission.exercise.name,
+                submission.key,
+                submitted.strftime("%Y-%m-%d %H:%M:%S %z") if submitted else "",
+                submission.grade,
+                submission_path(submission),
+            ]
+        )
+    return _csv_response(response, "%s_%s_timestamps.csv" % (course.key, student.key))
+
+
+@access_resource
+def download_dataset_zip(request, course_key=None, course=None):
+    """Zip of every submission's source in the download scope, plus an
+    info.csv at the root mapping each file to its student, exercise, course
+    and timestamp (same layout as the Dolos datasets, so info.csv tells you
+    which file is which)."""
+    include_all = request.GET.get("all") == "1"
+    exercises = sorted(course.exercises.all(), key=_natural_sort_key)
+    work_dir = tempfile.mkdtemp(prefix="radar_download_")
+    zip_fd, zip_path = tempfile.mkstemp(suffix=".zip")
+    os.close(zip_fd)
+    try:
+        rows = []
+        get_text = _make_get_text()
+        for exercise in exercises:
+            submissions = _exercise_submissions(exercise, include_all)
+            exercise_rows, _skipped = write_submission_files(
+                work_dir, submissions, lambda s: s.exercise.name, get_text
+            )
+            rows.extend(exercise_rows)
+        write_info_csv(work_dir, rows)
+        zip_dataset(work_dir, zip_path)
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+    response = FileResponse(
+        open(zip_path, "rb"), as_attachment=True,
+        filename="%s_dataset.zip" % course.key,
+    )
+    # The zip lives in a temp dir: delete it once the response has been sent.
+    original_close = response.close
+    def _close_and_cleanup():
+        original_close()
+        os.remove(zip_path)
+    response.close = _close_and_cleanup
+    return response
 
 
 # Render the clusters view

@@ -31,6 +31,7 @@ import radar.config as config_loaders
 from radar.settings import DEBUG, CELERY_DEBUG, DOLOS_API_SERVER_URL
 from review.dolos_reports import (
     course_progress_cache_key,
+    refresh_progress_cache_key,
     dolos_language,
     write_info_csv,
     write_submission_files,
@@ -150,12 +151,28 @@ def create_submission(
 
 
 @celery.shared_task(ignore_result=True)
-def reload_exercise_submissions(exercise_id, submissions_api_url):
+def reload_exercise_submissions(exercise_id, submissions_api_url, progress_cache_key=None):
     """
     Fetch the current submission list from the API url, clear existing submissions, create new submissions,
     and match all submissions.
+
+    ``progress_cache_key``, if given, receives per-submission progress so a
+    course-wide refresh can show what the currently reloading exercise is doing.
     """
     exercise = Exercise.objects.get(pk=exercise_id)
+
+    def report(done, total):
+        if not progress_cache_key:
+            return
+        try:
+            caches["course_report_progress"].set(
+                progress_cache_key,
+                {"phase": "reloading", "submissions_done": done, "submissions_total": total},
+                60 * 60,
+            )
+        except Exception:
+            logger.warning("Failed to persist refresh progress", exc_info=True)
+
     api_client = aplus.get_api_client(exercise.course)
     submissions_data = api_client.load_data(submissions_api_url)
     if submissions_data is None:
@@ -172,13 +189,16 @@ def reload_exercise_submissions(exercise_id, submissions_api_url):
     # Overwrite timestamp for new matching task
     exercise.touch_all_timestamps()
     # Create every submission and set timestamp
-    for submission in submissions_data:
+    submissions_data = list(submissions_data)
+    total = len(submissions_data)
+    for done, submission in enumerate(submissions_data, start=1):
         create_submission(
             submission["id"],
             exercise.course.key,
             submission["url"],
             exercise.matching_start_time,
         )
+        report(done, total)
     # All submissions created, now match them
     if not DEBUG or CELERY_DEBUG:
         matcher_tasks.match_all_new_submissions_to_exercise.delay(exercise_id)
@@ -255,6 +275,51 @@ def get_full_course_config(api_user_id, course_id, has_radar_config=True):
         }
 
     return result
+
+
+@celery.shared_task(
+    bind=True,
+    name="provider.tasks.refresh_course_submissions_task",
+    soft_time_limit=55 * 60,
+    time_limit=60 * 60,
+)
+def refresh_course_submissions_task(self, course_key):
+    """Re-fetch every exercise's submissions from the provider, reporting
+    per-exercise progress to the cache so the UI can poll it."""
+    course = Course.objects.get(key=course_key)
+    p_config = config_loaders.provider_config(course.provider)
+    full_reload = config_loaders.configured_function(p_config, "full_reload")
+    exercises = list(course.exercises.all())
+    total = len(exercises)
+    cache_key = refresh_progress_cache_key(self.request.id)
+
+    def report(**payload):
+        try:
+            caches["course_report_progress"].set(cache_key, payload, 60 * 60)
+        except Exception:
+            logger.warning("Failed to persist refresh progress", exc_info=True)
+
+    report(phase="started", exercises_done=0, exercises_total=total)
+    failed = []
+    for index, exercise in enumerate(exercises, start=1):
+        report(
+            phase="reloading",
+            current_exercise=exercise.name,
+            current_exercise_key=exercise.key,
+            exercises_done=index - 1,
+            exercises_total=total,
+        )
+        try:
+            full_reload(exercise, p_config, progress_cache_key=cache_key)
+        except Exception as exc:
+            logger.warning("Failed to reload exercise %s: %s", exercise.key, exc)
+            failed.append({"key": exercise.key, "name": exercise.name, "error": str(exc)})
+    report(
+        phase="complete",
+        exercises_done=total,
+        exercises_total=total,
+        exercises_failed=failed,
+    )
 
 
 @celery.shared_task(ignore_result=True)

@@ -10,7 +10,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
 
-from data.models import Course, Exercise, ExerciseDolosReport, Student, Submission
+from data.models import Comparison, Course, Exercise, ExerciseDolosReport, Student, Submission
 from review import views
 
 
@@ -58,6 +58,53 @@ class CreateCheatersheetComparisonTests(TestCase):
             "/course42/dolos_hub/cheatersheet/report/REPORT_ID/0/",
             html,
         )
+
+    def test_radar_mode_selection_is_idempotent(self):
+        url = reverse("toggle_radar_mode")
+
+        first_response = self.client.post(url, {"mode": "new"})
+        second_response = self.client.post(url, {"mode": "new"})
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 302)
+        self.assertFalse(self.client.session["legacy_radar"])
+
+    def test_radar_mode_selection_rejects_unknown_mode(self):
+        response = self.client.post(reverse("toggle_radar_mode"), {"mode": "unexpected"})
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_new_radar_pair_flag_is_shown_in_student_overview(self):
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        flag_url = reverse(
+            "flag_new_radar_pair",
+            kwargs={
+                "course_key": self.course.key,
+                "left_submission_id": self.submission_a.pk,
+                "right_submission_id": self.submission_b.pk,
+            },
+        )
+
+        response = self.client.post(flag_url, {"flagged": "true"})
+
+        self.assertEqual(response.status_code, 302)
+        comparison = Comparison.objects.get(
+            submission_a=self.submission_a,
+            submission_b=self.submission_b,
+        )
+        self.assertEqual(comparison.review, 10)
+        overview = self.client.get(reverse("students_hub", kwargs={"course_key": self.course.key}))
+        self.assertContains(overview, "Flagged Pairs and Submissions")
+        self.assertContains(overview, "radarA and radarB")
+
+        response = self.client.post(flag_url, {"flagged": "false"}, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        comparison.refresh_from_db()
+        self.assertEqual(comparison.review, 0)
+        self.assertContains(response, "Pair flag removed.")
 
     def test_legacy_students_view_uses_student_number_when_name_is_missing(self):
         html = render_to_string(
@@ -289,7 +336,7 @@ class CreateCheatersheetComparisonTests(TestCase):
         ajax_response = self.client.get(report_url + "?force=1")
 
         self.assertContains(page_response, "1 new submission since last analysis")
-        self.assertContains(page_response, "Redo analysis")
+        self.assertContains(page_response, "Re-run analysis for")
         self.assertEqual(
             forced_page_response.context["report_status_url"], report_url + "?force=1"
         )
@@ -336,6 +383,27 @@ class CreateCheatersheetComparisonTests(TestCase):
             },
             timeout=15,
         )
+
+    @override_settings(CHEATERSHEET_API_TOKEN="CONFIGURE IN LOCAL_SETTINGS.PY")
+    @patch("cheatersheet.views.requests.post")
+    def test_cheatersheet_comparison_requires_configured_api_token(self, post):
+        result = self.client.post(
+            reverse(
+                "create_cheatersheet_comparison",
+                kwargs={
+                    "course_key": self.course.key,
+                    "left_submission_id": self.submission_a.pk,
+                    "right_submission_id": self.submission_b.pk,
+                },
+            ),
+        )
+
+        self.assertEqual(result.status_code, 503)
+        self.assertEqual(
+            result.json(),
+            {"error": "CheaterSheet API URL and token must be configured in local_settings.py"},
+        )
+        post.assert_not_called()
 
     @patch("cheatersheet.views.requests.post")
     def test_new_radar_sends_comparison_like_legacy_radar(self, post):

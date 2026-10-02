@@ -18,10 +18,18 @@ logger = logging.getLogger("radar.cheatersheet")
 
 def send_cheatersheet_comparison(payload, submission_id):
     invalid_values = {None, '', 'None', 'null', 'undefined'}
+    base_url = getattr(settings, 'CHEATERSHEET_WEB_SERVER_URL', '').rstrip('/')
+    api_token = getattr(settings, 'CHEATERSHEET_API_TOKEN', '')
     submission_id = str(submission_id)
     payload = dict(payload.items())
     payload.pop('csrfmiddlewaretoken', None)
     other_submission_id = payload.get('other_submission_id')
+
+    if not base_url or api_token in invalid_values or api_token == 'CONFIGURE IN LOCAL_SETTINGS.PY':
+        return JsonResponse(
+            {'error': 'CheaterSheet API URL and token must be configured in local_settings.py'},
+            status=503,
+        )
 
     if submission_id in invalid_values or other_submission_id in invalid_values:
         return JsonResponse(
@@ -31,17 +39,10 @@ def send_cheatersheet_comparison(payload, submission_id):
 
     try:
         response = requests.post(
-            '%s/api/submissions/%s/' % (
-                getattr(
-                    settings,
-                    'CHEATERSHEET_WEB_SERVER_URL',
-                    'http://localhost:8072',
-                ).rstrip('/'),
-                submission_id,
-            ),
+            '%s/api/submissions/%s/' % (base_url, submission_id),
             json=payload,
             headers={
-                'Authorization': 'Token %s' % settings.CHEATERSHEET_API_TOKEN,
+                'Authorization': 'Token %s' % api_token,
                 'Content-Type': 'application/json',
             },
             timeout=15,

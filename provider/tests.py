@@ -26,16 +26,12 @@ class AplusApiUrlTests(SimpleTestCase):
         students = mock.Mock()
         students.all.return_value = [unnamed, named]
         course = SimpleNamespace(api_id=42, students=students)
-        get_api_client.return_value.load_data.side_effect = [
-            {
-                "results": [{"student_id": "123456", "full_name": "Matti Meikäläinen"}],
-                "next": "https://plus.example.com/api/v2/courses/42/students/?page=2",
-            },
-            {
-                "results": [{"student_id": "654321", "full_name": "Updated Name"}],
-                "next": None,
-            },
-        ]
+        roster = mock.MagicMock()
+        roster.__iter__.return_value = iter([
+            {"student_id": "123456", "full_name": "Matti Meikäläinen"},
+            {"student_id": "654321", "full_name": "Updated Name"},
+        ])
+        get_api_client.return_value.load_data.return_value = roster
 
         with mock.patch("provider.aplus.Student.objects") as student_objects:
             updated = aplus.sync_student_names(course)
@@ -45,6 +41,7 @@ class AplusApiUrlTests(SimpleTestCase):
         self.assertEqual(named.name, "Updated Name")
         student_objects.bulk_update.assert_called_once_with([unnamed, named], ["name"])
         build_api_url.assert_called_once()
+        get_api_client.return_value.load_data.assert_called_once()
 
     @mock.patch("provider.aplus.get_api_client")
     @mock.patch("provider.aplus.build_api_url", return_value="https://plus.example.com/api/v2/courses/42/students/")
@@ -53,10 +50,9 @@ class AplusApiUrlTests(SimpleTestCase):
         students = mock.Mock()
         students.all.return_value = [unnamed]
         course = SimpleNamespace(api_id=42, students=students)
-        get_api_client.return_value.load_data.return_value = {
-            "results": [{"student_id": "123456", "full_name": "   no name   "}],
-            "next": None,
-        }
+        get_api_client.return_value.load_data.return_value = [
+            {"student_id": "123456", "full_name": "   no name   "},
+        ]
 
         with mock.patch("provider.aplus.Student.objects") as student_objects:
             updated = aplus.sync_student_names(course)

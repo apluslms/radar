@@ -37,8 +37,9 @@
 	<aside class="hub-sidebar">
 		<h3>Students</h3>
 		{% for student in students %}
-		<a href="{% url 'student_hub' course_key=course.key student_key=student.key %}{% if include_all %}?all=1{% endif %}">
-			{{ student.display_name }}
+		<a href="{% url 'student_hub' course_key=course.key student_key=student.key %}{% if include_all %}?all=1{% endif %}"
+		   {% if student.is_pinned %}title="Pinned student"{% endif %}>
+			{% if student.is_pinned %}&#9733; {% endif %}{{ student.display_name }}
 		</a>
 		{% empty %}
 		<p class="muted">No students yet.</p>
@@ -54,6 +55,35 @@
 			{% else %}
 			<span class="muted">No cached {% if include_all %}all submissions{% else %}best per student{% endif %} reports yet</span>
 			{% endif %}
+		</div>
+
+		<div class="summary-card" id="flagged">
+			<h5>Flagged Pairs and Submissions</h5>
+			<table class="summary-table">
+				<thead>
+					<tr><th>Students</th><th>Exercise</th><th>Submissions</th><th>Similarity</th><th></th></tr>
+				</thead>
+				<tbody>
+					{% for comparison in flagged_comparisons %}
+					<tr>
+						<td><a href="{% url 'student_pair_hub' course_key=course.key a_key=comparison.submission_a.student.key b_key=comparison.submission_b.student.key %}">{{ comparison.submission_a.student.display_name }} and {{ comparison.submission_b.student.display_name }}</a></td>
+						<td>{{ comparison.submission_a.exercise.name }}</td>
+						<td>{{ comparison.submission_a.key }} and {{ comparison.submission_b.key }}</td>
+						<td>{% if comparison.similarity != None %}{{ comparison.similarity|percent }}{% else %}<span class="muted">Dolos pair</span>{% endif %}</td>
+						<td>
+							<form method="post" action="{% url 'flag_new_radar_pair' course_key=course.key left_submission_id=comparison.submission_a.pk right_submission_id=comparison.submission_b.pk %}">
+								{% csrf_token %}
+								<input type="hidden" name="flagged" value="false">
+								<input type="hidden" name="next" value="{{ request.get_full_path }}">
+								<button type="submit" class="secondary outline" title="This pair is flagged. Click to unflag.">&#9873; Flagged &middot; Unflag</button>
+							</form>
+						</td>
+					</tr>
+					{% empty %}
+					<tr><td colspan="5" class="muted">No pairs or submissions have been flagged.</td></tr>
+					{% endfor %}
+				</tbody>
+			</table>
 		</div>
 
 		{% if course_report_summary_error %}

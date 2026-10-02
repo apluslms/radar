@@ -156,9 +156,39 @@
 			: 'Generate Course Report';
 	}
 
+	function isGameHidden() {
+		try {
+			return window.localStorage.getItem('radar_pong_hidden') === '1';
+		} catch (error) {
+			return false;
+		}
+	}
+
+	function syncGameToggle() {
+		var toggle = el('hubCourseGameToggle');
+		if (toggle) {
+			toggle.textContent = isGameHidden() ? 'Show game' : 'Hide game';
+		}
+	}
+
+	function toggleGame() {
+		var hide = !isGameHidden();
+		try {
+			window.localStorage.setItem('radar_pong_hidden', hide ? '1' : '0');
+		} catch (error) {
+			// Storage unavailable: the toggle still works for this page view.
+		}
+		if (hide) {
+			stopGame();
+		} else {
+			startGame();
+		}
+		syncGameToggle();
+	}
+
 	function startGame() {
 		var canvas = el('canvas');
-		if (!canvas || gameHandle) {
+		if (!canvas || gameHandle || isGameHidden()) {
 			return;
 		}
 		canvas.classList.add('active');
@@ -404,8 +434,25 @@
 		button.addEventListener('click', startCourseReportGeneration);
 	}
 	var initialCanvas = el('canvas');
+	var gameToggle = el('hubCourseGameToggle');
+	if (gameToggle) {
+		gameToggle.addEventListener('click', toggleGame);
+	}
+	syncGameToggle();
+	if (initialCanvas && isGameHidden()) {
+		initialCanvas.classList.remove('active');
+	}
 	if (initialCanvas && initialCanvas.classList.contains('active')) {
 		startGame();
 	}
-	restoreStatusAfterRefresh();
+	// ?generate=1 comes from the Refresh menu on pages without the course panel.
+	var params = new URLSearchParams(window.location.search);
+	if (button && params.get('generate') === '1') {
+		params.delete('generate');
+		var query = params.toString();
+		history.replaceState(null, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
+		startCourseReportGeneration();
+	} else {
+		restoreStatusAfterRefresh();
+	}
 })();

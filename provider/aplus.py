@@ -78,7 +78,7 @@ def hook(request, course, config):
     tasks.create_submission.delay(sid, course.key, submission_url)
 
 
-def reload(exercise, config):
+def reload(exercise, config, progress_cache_key=None):
     """
     Reload all submissions to given exercise from the A+ API, tokenize sources and match all.
     Deletes all existing submissions to exercise.
@@ -92,9 +92,8 @@ def reload(exercise, config):
     # Queue exercise for asynchronous handling,
     # all submissions to this exercise are created in parallel while matching is sequential
     if not DEBUG or CELERY_DEBUG:
-        tasks.reload_exercise_submissions.delay(exercise.id, submissions_url)
-    else:
-        tasks.reload_exercise_submissions(exercise.id, submissions_url)
+        return tasks.reload_exercise_submissions.delay(exercise.id, submissions_url, progress_cache_key)
+    return tasks.reload_exercise_submissions(exercise.id, submissions_url, progress_cache_key)
 
 
 def recompare(exercise, config):
@@ -153,11 +152,9 @@ def sync_student_names(course):
     changed = []
     client = get_api_client(course)
 
-    while url:
-        data = client.load_data(url)
-        if not data:
-            break
-        for roster_student in data.get("results", []):
+    data = client.load_data(url)
+    if data:
+        for roster_student in data:
             student_id = roster_student.get("student_id") or roster_student.get("username")
             full_name = (roster_student.get("full_name") or "").strip()
             if full_name.lower() in {"no name", "no_name", "none"}:
@@ -166,7 +163,6 @@ def sync_student_names(course):
             if student and student.name != full_name:
                 student.name = full_name
                 changed.append(student)
-        url = data.get("next")
 
     if changed:
         Student.objects.bulk_update(changed, ["name"])

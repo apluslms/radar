@@ -50,7 +50,7 @@ def _read_directory(path):
     return file_map
 
 
-def reload(exercise, config):
+def reload(exercise, config, progress_cache_key=None):
     logger.info("Clearing all submissions for exercise %s", exercise)
     exercise.course.similarity_graph_json = ''
     exercise.course.clusters_json = ''

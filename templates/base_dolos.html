@@ -30,9 +30,13 @@
 			</span>
 			<span class="spacer"></span>
 			<a href="/cheatersheet/" role="button" class="secondary outline">CheaterSheet</a>
-			<a href="{% url 'toggle_radar_mode' %}" role="button" class="secondary outline">
-				&#8646; Switch to {% if request.session.legacy_radar == False %}Legacy Radar{% else %}New Radar{% endif %}
-			</a>
+			<form method="post" action="{% url 'toggle_radar_mode' %}">
+				{% csrf_token %}
+				<input type="hidden" name="mode" value="{% if request.session.legacy_radar == False %}legacy{% else %}new{% endif %}">
+				<button type="submit" class="secondary outline">
+					&#8646; Switch to {% if request.session.legacy_radar == False %}Legacy Radar{% else %}New Radar{% endif %}
+				</button>
+			</form>
 			<form action="{% url 'logout' %}">
 				<button type="submit" class="secondary outline">Logout</button>
 			</form>
@@ -40,6 +44,11 @@
 	</header>
 	{% endif %}
 	<main class="app-main container-fluid">
+		{% if messages %}
+			{% for message in messages %}
+			<article class="{% if message.tags %}{{ message.tags }}{% endif %}" role="status">{{ message }}</article>
+			{% endfor %}
+		{% endif %}
 		{% block content %}{% endblock %}
 	</main>
 	<script>

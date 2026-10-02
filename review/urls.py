@@ -7,11 +7,19 @@ from review.views import (
     comparison,
     configure_course,
     course,
+    course_home,
     course_histograms,
+    toggle_student_pin,
+    download_dataset_zip,
+    download_flagged_csv,
+    download_student_timestamps_csv,
+    download_timestamps_csv,
     dolos_proxy_api_view,
     dolos_proxy_view,
     dolos_hub,
+    dolos_hub_refresh_submissions,
     dolos_hub_report,
+    check_refresh_submissions_task,
     exercise,
     exercise_settings,
     flagged_pairs,
@@ -21,6 +29,7 @@ from review.views import (
     check_course_dolos_task_current,
     create_cheatersheet_comparison,
     create_cheatersheet_comparison_from_dolos,
+    flag_new_radar_pair,
     generate_cross_course_dolos_view,
     generate_dolos_view,
     go_to_dolos_view,
@@ -61,6 +70,16 @@ urlpatterns = [
         r'^(?P<course_key>\w+)/$',
         course,
         name='course'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/home/$',
+        course_home,
+        name='course_home'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/home/students/(?P<student_key>\w+)/pin/$',
+        toggle_student_pin,
+        name='toggle_student_pin'
     ),
     re_path(
         r'^(?P<course_key>\w+)/course_dolos$',
@@ -106,10 +125,26 @@ urlpatterns = [
         name='create_cheatersheet_comparison'
     ),
     re_path(
+        r'^(?P<course_key>\w+)/dolos_hub/flag/'
+        r'(?P<left_submission_id>\d+)-(?P<right_submission_id>\d+)/$',
+        flag_new_radar_pair,
+        name='flag_new_radar_pair'
+    ),
+    re_path(
         r'^(?P<course_key>\w+)/dolos_hub/cheatersheet/report/'
         r'(?P<report_id>[\w-]+)/(?P<pair_id>\d+)/$',
         create_cheatersheet_comparison_from_dolos,
         name='create_cheatersheet_comparison_from_dolos'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/dolos_hub/refresh_submissions/$',
+        dolos_hub_refresh_submissions,
+        name='dolos_hub_refresh_submissions'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/dolos_hub/refresh_submissions/status/$',
+        check_refresh_submissions_task,
+        name='check_refresh_submissions_task'
     ),
     re_path(
         r'^(?P<course_key>\w+)/dolos_hub/(?P<exercise_key>\w+)/$',
@@ -191,6 +226,26 @@ urlpatterns = [
         r'^(?P<course_key>\w+)/flagged_pairs/$',
         flagged_pairs,
         name='flagged_pairs'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/download/flagged.csv$',
+        download_flagged_csv,
+        name='download_flagged_csv'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/download/timestamps.csv$',
+        download_timestamps_csv,
+        name='download_timestamps_csv'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/download/dataset.zip$',
+        download_dataset_zip,
+        name='download_dataset_zip'
+    ),
+    re_path(
+        r'^(?P<course_key>\w+)/download/students/(?P<student_key>\w+)/timestamps.csv$',
+        download_student_timestamps_csv,
+        name='download_student_timestamps_csv'
     ),
     re_path(
         r'^(?P<course_key>\w+)/graph/build$',
