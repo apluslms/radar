@@ -2560,6 +2560,7 @@ def _send_cheatersheet_comparison(request, course, left_submission, right_submis
     payload = {
         "comparison": "true",
         "submission_id": left_submission.external_key,
+        "exercise_key": left_submission.exercise.key,
         "student_key": left_submission.student.key,
         "other_submission_id": right_submission.external_key,
         "other_student_key": right_submission.student.key,

@@ -1,0 +1,53 @@
+{% load static %}
+<style>
+	.hub-refresh-menu { margin: 0 0 0 auto; flex: none; }
+	.hub-refresh-menu summary { min-height: 2.1rem; padding: .3rem .8rem; font-size: .8rem; }
+	/* Pico anchors dropdowns to the left edge; open leftwards so the menu stays on screen. */
+	details.dropdown.hub-refresh-menu { position: relative; }
+	details.dropdown.hub-refresh-menu > summary + ul { left: auto; right: 0; inset-inline-start: auto; inset-inline-end: 0; width: max-content; min-width: 19rem; max-width: min(26rem, 90vw); z-index: 10; }
+	details.dropdown.hub-refresh-menu > summary + ul li { white-space: normal; }
+	.hub-refresh-menu li form { margin: 0; }
+	.hub-refresh-menu li button { display: block; width: 100%; margin: 0; padding: 0; border: 0; background: none; color: inherit; font-size: inherit; text-align: left; cursor: pointer; }
+	.hub-refresh-menu li button:disabled { opacity: .5; cursor: default; }
+	.hub-refresh-menu li small { display: block; color: var(--pico-muted-color); font-size: .72rem; }
+	.hub-refresh-progress { display: none; margin: 0 0 .5rem; padding: .8rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); }
+	.hub-refresh-progress.active { display: block; }
+	.hub-refresh-progress progress { width: 100%; margin: .55rem 0 0; }
+	.hub-refresh-progress .status-title { font-weight: 600; margin: 0; }
+	.hub-refresh-progress .status-title.status-error { color: #8a1f11; }
+</style>
+<details class="dropdown hub-refresh-menu">
+	<summary role="button" class="secondary outline">&#8635; Refresh</summary>
+	<ul>
+		<li>
+			<form id="hubRefreshForm" method="post" action="{% url 'dolos_hub_refresh_submissions' course_key=course.key %}"
+			      onsubmit="return confirm('Re-fetch all submissions for every exercise in this course from the provider? Existing submissions are replaced.');">
+				{% csrf_token %}
+				<input type="hidden" name="next" value="{{ request.get_full_path }}">
+				<button type="submit">Re-fetch submissions<small>Download every exercise's submissions again from the provider</small></button>
+			</form>
+		</li>
+		{% if current_exercise and not course_report_mode %}
+		<li>
+			<a href="{{ request.path }}?force=1{% if include_all %}&amp;all=1{% elif newest %}&amp;newest={{ newest }}{% endif %}">Re-run analysis for {{ current_exercise.name }}<small>Regenerate this exercise's Dolos report</small></a>
+		</li>
+		{% endif %}
+		{% if has_course_panel %}
+		<li>
+			<button id="generateCourseBtn" type="button" data-force="{% if course_report_completed_at %}1{% else %}0{% endif %}">{% if course_report_completed_at %}Regenerate Course Report{% else %}Generate Course Report{% endif %}</button>
+			<small>One Dolos report for every exercise in the course</small>
+		</li>
+		{% elif exercises %}
+		<li>
+			<a href="{% url 'dolos_hub' course_key=course.key %}?course_report=1&amp;generate=1">Regenerate course report<small>One Dolos report for every exercise in the course</small></a>
+		</li>
+		{% endif %}
+	</ul>
+</details>
+
+<div class="hub-refresh-progress" id="hubRefreshProgress" aria-live="polite">
+	<p class="status-title" id="hubRefreshProgressText">Queuing submission re-fetch&hellip;</p>
+	<progress id="hubRefreshProgressBar"></progress>
+</div>
+<script src="{% static 'refresh_progress.js' %}?v=20260929a"
+	data-status-url="{% url 'check_refresh_submissions_task' course_key=course.key %}"></script>

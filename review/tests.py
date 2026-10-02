@@ -366,10 +366,11 @@ class CreateCheatersheetComparisonTests(TestCase):
 
         self.assertEqual(result.status_code, 201)
         post.assert_called_once_with(
-            "http://cheatersheet.test/api/submissions/providerA/",
+            "http://cheatersheet.test/create-comparison/providerA/ex1/",
             json={
                 "comparison": "true",
                 "submission_id": "providerA",
+                "exercise_key": "ex1",
                 "student_key": "studentA",
                 "other_submission_id": "providerB",
                 "other_student_key": "studentB",
@@ -413,6 +414,7 @@ class CreateCheatersheetComparisonTests(TestCase):
         payload = {
             "comparison": "true",
             "submission_id": "providerA",
+            "exercise_key": "ex1",
             "student_key": "studentA",
             "other_submission_id": "providerB",
             "other_student_key": "studentB",
