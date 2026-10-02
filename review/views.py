@@ -21,8 +21,9 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache, caches
+from django.core.paginator import Paginator
 from django.core.handlers.wsgi import WSGIRequest
-from django.db.models import Avg, F, OuterRef, Q, Subquery
+from django.db.models import Avg, Count, F, OuterRef, Q, Subquery
 from django.http import FileResponse
 from django.http.response import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -142,15 +143,22 @@ def course(request, course_key=None, course=None):
 def _student_flag_stats(course, students):
     """{student_id: (flagged pair count, highest flagged similarity)} for the
     given students, from comparisons reviewed as Suspicious or worse."""
+    student_ids = {student.id for student in students}
+    if not student_ids:
+        return {}
+
     flagged = Comparison.objects.filter(
         submission_a__exercise__course=course,
         submission_b__isnull=False,
         review__gte=5,
+    ).filter(
+        Q(submission_a__student_id__in=student_ids)
+        | Q(submission_b__student_id__in=student_ids)
     ).values_list(
         "submission_a__student_id", "submission_b__student_id", "similarity"
     )
-    stats = {student.id: [0, None] for student in students}
-    wanted = set(stats)
+    stats = {student_id: [0, None] for student_id in student_ids}
+    wanted = student_ids
     for a_id, b_id, similarity in flagged:
         for student_id in (a_id, b_id):
             if student_id in wanted:
@@ -171,7 +179,8 @@ def course_home(request, course_key=None, course=None) -> HttpResponse:
         return redirect("course", course_key=course.key)
 
     include_all = request.GET.get("all") == "1"
-    exercises = sorted(course.exercises.all(), key=_natural_sort_key)
+    exercises = list(course.exercises.annotate(submission_count=Count("submissions")))
+    exercises.sort(key=_natural_sort_key)
     report_ids = _exercise_report_ids(course, include_all=include_all)
     _latest_report_id, latest_completed_at = _read_latest_course_report(course, request)
 
@@ -181,6 +190,11 @@ def course_home(request, course_key=None, course=None) -> HttpResponse:
         student.flag_count, student.flag_top_similarity = flag_stats.get(student.id, (0, None))
 
     flagged = _flagged_comparisons(course)
+    flagged_count = flagged.count()
+    recent_flags = list(flagged[:10])
+    other_students = Paginator(
+        course.students.filter(is_pinned=False).order_by("key"), 50
+    ).get_page(request.GET.get("students_page"))
 
     return render(
         request,
@@ -200,9 +214,9 @@ def course_home(request, course_key=None, course=None) -> HttpResponse:
             "course_report_completed_at": latest_completed_at,
             "course_report_task_status": _current_course_report_status(course, request),
             "pinned_students": pinned_students,
-            "other_students": course.students.filter(is_pinned=False),
-            "recent_flags": list(flagged),
-            "flagged_count": flagged.count(),
+            "other_students": other_students,
+            "recent_flags": recent_flags,
+            "flagged_count": flagged_count,
         },
     )
 

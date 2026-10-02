@@ -175,7 +175,7 @@
 {% elif no_submissions %}
 <article>
 	<p><strong>This course has no submissions yet.</strong></p>
-	<p>New submissions appear here automatically once the provider sends them. To import existing submissions, <a href="{% url 'configure_course' course_key=course.key %}">configure the course</a> to add its exercises, then use &#8635; Refresh &rsaquo; Re-fetch submissions.</p>
+	<p>New submissions will appear here automatically when received from the course provider.</p>
 </article>
 {% else %}
 <article>{{ message }}</article>

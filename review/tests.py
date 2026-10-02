@@ -106,6 +106,38 @@ class CreateCheatersheetComparisonTests(TestCase):
         self.assertEqual(comparison.review, 0)
         self.assertContains(response, "Pair flag removed.")
 
+    @patch("review.views._flagged_comparisons")
+    def test_course_home_bounds_lists_and_keeps_full_flag_count(self, flagged_query):
+        class FlaggedRows:
+            def __init__(self):
+                self.requested_slice = None
+
+            def count(self):
+                return 12
+
+            def __getitem__(self, requested_slice):
+                self.requested_slice = requested_slice
+                return []
+
+        rows = FlaggedRows()
+        flagged_query.return_value = rows
+        for index in range(49):
+            Student.objects.create(
+                course=self.course,
+                key="extra%02d" % index,
+            )
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+
+        response = self.client.get(reverse("course_home", kwargs={"course_key": self.course.key}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["flagged_count"], 12)
+        self.assertEqual(rows.requested_slice.stop, 10)
+        self.assertEqual(len(response.context["other_students"]), 50)
+        self.assertTrue(response.context["other_students"].has_next())
+
     def test_legacy_students_view_uses_student_number_when_name_is_missing(self):
         html = render_to_string(
             "review/students_view.html",
