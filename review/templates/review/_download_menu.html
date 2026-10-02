@@ -1,0 +1,26 @@
+{% comment %}
+"Download data out" menu: exports course data for use outside Radar.
+Scope follows the current submission set (?all=1 = all submissions,
+otherwise best per student).
+{% endcomment %}
+<style>
+	details.dropdown.hub-download-menu { margin: 0; flex: none; }
+	details.dropdown.hub-download-menu > summary { min-height: 2.1rem; padding: .3rem .8rem; font-size: .8rem; }
+	details.dropdown.hub-download-menu > summary + ul { left: auto; right: 0; inset-inline-start: auto; inset-inline-end: 0; width: max-content; min-width: 19rem; max-width: min(26rem, 90vw); z-index: 10; }
+	details.dropdown.hub-download-menu > summary + ul li { white-space: normal; }
+	details.dropdown.hub-download-menu li small { display: block; color: var(--pico-muted-color); font-size: .72rem; }
+</style>
+<details class="dropdown hub-download-menu">
+	<summary role="button" class="secondary outline">&#8681; Download data out</summary>
+	<ul>
+		<li>
+			<a href="{% url 'download_flagged_csv' course_key=course.key %}">Flagged submissions (CSV)<small>Every flagged pair with both students, submissions and files</small></a>
+		</li>
+		<li>
+			<a href="{% url 'download_timestamps_csv' course_key=course.key %}{% if include_all %}?all=1{% endif %}">Submission timestamps (CSV)<small>Who submitted what and when, one row per submission</small></a>
+		</li>
+		<li>
+			<a href="{% url 'download_dataset_zip' course_key=course.key %}{% if include_all %}?all=1{% endif %}">Dataset (Zip)<small>All submission sources + info.csv mapping each file to student, exercise and timestamp</small></a>
+		</li>
+	</ul>
+</details>

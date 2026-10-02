@@ -2,7 +2,7 @@ import logging
 import re
 from django.shortcuts import redirect
 import requests
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
@@ -24,6 +24,7 @@ def send_cheatersheet_comparison(payload, submission_id):
     payload = dict(payload.items())
     payload.pop('csrfmiddlewaretoken', None)
     other_submission_id = payload.get('other_submission_id')
+    exercise_key = payload.get('exercise_key')
 
     if not base_url or api_token in invalid_values or api_token == 'CONFIGURE IN LOCAL_SETTINGS.PY':
         return JsonResponse(
@@ -31,7 +32,11 @@ def send_cheatersheet_comparison(payload, submission_id):
             status=503,
         )
 
-    if submission_id in invalid_values or other_submission_id in invalid_values:
+    if (
+        submission_id in invalid_values
+        or other_submission_id in invalid_values
+        or exercise_key in invalid_values
+    ):
         return JsonResponse(
             {'error': 'Invalid submission identifiers for comparison creation'},
             status=400,
@@ -39,7 +44,11 @@ def send_cheatersheet_comparison(payload, submission_id):
 
     try:
         response = requests.post(
-            '%s/api/submissions/%s/' % (base_url, submission_id),
+            '%s/create-comparison/%s/%s/' % (
+                base_url,
+                quote(submission_id, safe=''),
+                quote(str(exercise_key), safe=''),
+            ),
             json=payload,
             headers={
                 'Authorization': 'Token %s' % api_token,

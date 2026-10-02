@@ -1,0 +1,165 @@
+{% extends 'base_dolos.html' %}
+{% load review %}
+
+{% block head %}
+<style>
+	.home-wrap { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 1rem; align-items: start; }
+	.home-hero { border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: .9rem 1rem; margin-bottom: 1rem; }
+	.home-hero h2 { margin: 0 0 .2rem 0; }
+	.home-hero .muted { color: var(--pico-muted-color); font-size: .88rem; }
+	.home-stats { display: flex; flex-wrap: wrap; gap: .6rem; margin: .8rem 0 0; }
+	.home-stat { flex: 1 1 110px; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: .55rem .7rem; }
+	.home-stat .n { font-size: 1.3rem; font-weight: 700; }
+	.home-stat .k { font-size: .78rem; color: var(--pico-muted-color); }
+	.home-card { border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: .8rem .9rem; margin-bottom: 1rem; }
+	.home-card h4 { margin: 0 0 .6rem 0; font-size: .95rem; }
+	.home-card .muted { color: var(--pico-muted-color); font-size: .85rem; }
+	.home-links { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+	.home-links a { display: block; padding: .6rem .75rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); text-decoration: none; background: color-mix(in srgb, var(--pico-primary) 8%, transparent); }
+	.home-links a small { display: block; color: var(--pico-muted-color); font-size: .75rem; }
+	.home-links a:hover { border-color: var(--pico-primary); background: color-mix(in srgb, var(--pico-primary) 16%, transparent); }
+	.home-table { width: 100%; border-collapse: collapse; }
+	.home-table th, .home-table td { padding: .4rem .5rem; text-align: left; border-bottom: 1px solid var(--pico-muted-border-color); font-size: .88rem; vertical-align: middle; }
+	.home-table th { color: var(--pico-muted-color); font-weight: 600; font-size: .8rem; }
+	.home-table form { margin: 0; }
+	.home-table button { padding: .2rem .55rem; font-size: .75rem; margin: 0; }
+	.pin-star { text-decoration: none; }
+	.home-scroll { max-height: 20rem; overflow-y: auto; scrollbar-width: thin; }
+	@media (max-width: 900px) { .home-wrap { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="home-wrap">
+	<div>
+		<section class="home-hero">
+			<h2>{{ course.name }}</h2>
+			<span class="muted">
+				{{ course.provider_name }} &middot; added {{ course.created|date:"Y-m-d" }}
+				{% if course_report_completed_at %} &middot; course report generated {{ course_report_completed_at|date:"Y-m-d H:i" }}{% endif %}
+			</span>
+			<div class="home-stats">
+				<div class="home-stat"><div class="n">{{ exercise_count }}</div><div class="k">Exercises</div></div>
+				<div class="home-stat"><div class="n">{{ student_count }}</div><div class="k">Students</div></div>
+				<div class="home-stat"><div class="n">{{ submission_count }}</div><div class="k">Submissions</div></div>
+				<div class="home-stat"><div class="n">{{ reports_generated }}/{{ exercise_count }}</div><div class="k">Reports generated</div></div>
+				<div class="home-stat"><div class="n">{{ flagged_count }}</div><div class="k">Flagged pairs</div></div>
+			</div>
+		</section>
+
+		<section class="home-card">
+			<h4>Pinned students</h4>
+			<div class="home-scroll">
+			<table class="home-table">
+				<thead>
+					<tr><th>Student</th><th>Flagged pairs</th><th>Top flagged similarity</th><th></th></tr>
+				</thead>
+				<tbody>
+					{% for student in pinned_students %}
+					<tr>
+						<td><a href="{% url 'student_hub' course_key=course.key student_key=student.key %}">{{ student.display_name }}</a></td>
+						<td>{{ student.flag_count }}</td>
+						<td>{% if student.flag_top_similarity != None %}{{ student.flag_top_similarity|percent }}{% else %}<span class="muted">&mdash;</span>{% endif %}</td>
+						<td>
+							<form method="post" action="{% url 'toggle_student_pin' course_key=course.key student_key=student.key %}">
+								{% csrf_token %}
+								<input type="hidden" name="next" value="{{ request.get_full_path }}">
+								<button type="submit" class="secondary outline">Unpin</button>
+							</form>
+						</td>
+					</tr>
+					{% empty %}
+					<tr><td colspan="4" class="muted">No pinned students yet. Pin students from the list on the right to keep an eye on them here.</td></tr>
+					{% endfor %}
+				</tbody>
+			</table>
+			</div>
+		</section>
+
+		<section class="home-card">
+			<h4>Flagged pairs</h4>
+			<div class="home-scroll">
+			<table class="home-table">
+				<thead>
+					<tr><th>Students</th><th>Exercise</th><th>Similarity</th></tr>
+				</thead>
+				<tbody>
+					{% for comparison in recent_flags %}
+					<tr>
+						<td>
+							<a href="{% url 'student_pair_hub' course_key=course.key a_key=comparison.submission_a.student.key b_key=comparison.submission_b.student.key %}">
+								{{ comparison.submission_a.student.display_name }} and {{ comparison.submission_b.student.display_name }}
+							</a>
+						</td>
+						<td>{{ comparison.submission_a.exercise.name }}</td>
+						<td>{% if comparison.similarity != None %}{{ comparison.similarity|percent }}{% else %}<span class="muted">Dolos pair</span>{% endif %}</td>
+					</tr>
+					{% empty %}
+					<tr><td colspan="3" class="muted">Nothing has been flagged.</td></tr>
+					{% endfor %}
+				</tbody>
+			</table>
+			</div>
+		</section>
+
+		<section class="home-card">
+			<h4>All students</h4>
+			<div class="home-scroll">
+			<table class="home-table">
+				<tbody>
+					{% for student in other_students %}
+					<tr>
+						<td><a href="{% url 'student_hub' course_key=course.key student_key=student.key %}">{{ student.display_name }}</a></td>
+						<td style="text-align: right;">
+							<form method="post" action="{% url 'toggle_student_pin' course_key=course.key student_key=student.key %}">
+								{% csrf_token %}
+								<input type="hidden" name="next" value="{{ request.get_full_path }}">
+								<button type="submit" class="secondary outline" title="Pin to the top of this page">&#9733; Pin</button>
+							</form>
+						</td>
+					</tr>
+					{% empty %}
+					<tr><td class="muted">No students yet.</td></tr>
+					{% endfor %}
+				</tbody>
+			</table>
+			</div>
+		</section>
+	</div>
+
+	<aside>
+		<section class="home-card">
+			<h4>Links</h4>
+			<div class="home-links">
+				<a href="{% url 'dolos_hub' course_key=course.key %}?course_report=1">Whole Course report<small>One Dolos report spanning every exercise</small></a>
+				<a href="{% url 'students_hub' course_key=course.key %}">Student overview<small>Per-student similarity across exercises</small></a>
+			</div>
+		</section>
+
+		<section class="home-card">
+			<h4>Exercises</h4>
+			<table class="home-table">
+				<tbody>
+					{% for exercise in exercises %}
+					<tr>
+						<td><a href="{% url 'dolos_hub_exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }} &rarr;</a></td>
+						<td style="text-align: right;" class="muted">{{ exercise.submissions.count }} submission{{ exercise.submissions.count|pluralize }}</td>
+					</tr>
+					{% empty %}
+					<tr><td class="muted">No exercises yet.</td></tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</section>
+
+		<section class="home-card">
+			<h4>&#8681; Download data out</h4>
+			<div class="home-links">
+				<a href="{% url 'download_flagged_csv' course_key=course.key %}">Flagged submissions (CSV)<small>Every flagged pair with both students, submissions and files</small></a>
+				<a href="{% url 'download_timestamps_csv' course_key=course.key %}">Submission timestamps (CSV)<small>Who submitted what and when, one row per submission</small></a>
+				<a href="{% url 'download_dataset_zip' course_key=course.key %}">Dataset (Zip)<small>All sources + info.csv mapping each file to student, exercise and timestamp</small></a>
+			</div>
+		</section>
+	</aside>
+</div>
+{% endblock %}

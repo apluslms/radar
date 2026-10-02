@@ -72,6 +72,7 @@
 			data-student-a-key="{{ comparison.submission_a.student.key }}"
 			data-submission-b-id="{{ comparison.submission_b.external_key }}"
 			data-student-b-key="{{ comparison.submission_b.student.key }}"
+			data-exercise-key="{{ comparison.submission_a.exercise.key }}"
 			data-course-key="{{ course.api_id }}">Create Comparison in CheaterSheet</button>
 </div>
 
@@ -189,7 +190,8 @@ $(function() {
         var submissionAId = button.data('submission-a-id');
         var studentAKey = button.data('student-a-key');
         var submissionBId = button.data('submission-b-id');
-        var studentBKey = button.data('student-b-key');
+		var studentBKey = button.data('student-b-key');
+		var exerciseKey = button.data('exercise-key');
         var courseKey = button.data('course-key');
 
 		if (!submissionAId || !submissionBId || submissionAId === 'None' || submissionBId === 'None') {
@@ -204,7 +206,8 @@ $(function() {
             type: 'POST',
             data: {
                 "comparison": true,
-                "submission_id": submissionAId,
+				"submission_id": submissionAId,
+				"exercise_key": exerciseKey,
                 "student_key": studentAKey,
                 "other_submission_id": submissionBId,
                 "other_student_key": studentBKey,
