@@ -49,7 +49,10 @@ def load_radar_page_data(course_id, operation, arguments, key):
     store = caches["course_report_progress"]
     try:
         course = Course.objects.get(pk=course_id)
-        if operation == "summary":
+        if operation == "course_home":
+            include_all, students_page, version = arguments
+            result = views._build_course_home_data(course, include_all, students_page)
+        elif operation == "summary":
             if course.provider == "a+":
                 try:
                     aplus.sync_student_names(course)
@@ -86,7 +89,7 @@ def load_radar_page_data(course_id, operation, arguments, key):
             result = views._build_hub_report_data(exercise, include_all, newest)
         else:
             raise ValueError("Unknown background operation")
-        store.set(key, {"status": "ready", "result": result}, 600)
+        store.set(key, {"status": "ready", "result": result}, 30 if operation == "course_home" else 600)
     except Exception:
         logger.exception("Background Radar page data failed for course=%s operation=%s", course_id, operation)
         store.set(key, {"status": "failed", "message": "Background loading failed. Check the worker log and retry."}, 600)

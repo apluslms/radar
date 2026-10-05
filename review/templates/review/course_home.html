@@ -30,6 +30,14 @@
 {% endblock %}
 
 {% block content %}
+{% if background_state.status != 'ready' %}
+<h2>{{ course.name }}</h2>
+<nav aria-label="Course navigation">
+	<a href="{% url 'dolos_hub' course_key=course.key %}?course_report=1">Whole Course report</a>
+	<a href="{% url 'students_hub' course_key=course.key %}">Student overview</a>
+</nav>
+{% include 'review/_background_loading.html' %}
+{% else %}
 <div class="home-wrap">
 	<div>
 		<section class="home-hero">
@@ -169,4 +177,5 @@
 		</section>
 	</aside>
 </div>
+{% endif %}
 {% endblock %}
