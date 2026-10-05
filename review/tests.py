@@ -262,6 +262,9 @@ class CreateCheatersheetComparisonTests(TestCase):
             def __init__(self):
                 self.requested_slice = None
 
+            def only(self, *fields):
+                return self
+
             def count(self):
                 return 12
 
@@ -283,10 +286,59 @@ class CreateCheatersheetComparisonTests(TestCase):
         response = self.client.get(reverse("course_home", kwargs={"course_key": self.course.key}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["flagged_count"], 12)
+        self.assertContains(response, "Loading report data")
+        result = views._build_course_home_data(self.course, False, 1)
+        self.assertEqual(result["flagged_count"], 12)
         self.assertEqual(rows.requested_slice.stop, 10)
-        self.assertEqual(len(response.context["other_students"]), 50)
-        self.assertTrue(response.context["other_students"].has_next())
+        self.assertEqual(len(result["other_students"]), 50)
+        self.assertTrue(result["other_students"].has_next())
+        self.assertEqual(result["other_students"].paginator.count, 51)
+
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "home-locks"},
+        "course_report_progress": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "home-results"},
+    })
+    @patch("provider.tasks.load_radar_page_data.apply_async")
+    def test_course_home_renders_without_heavy_queries_even_after_worker_completion(self, enqueue):
+        from provider.tasks import load_radar_page_data
+
+        caches["default"].clear()
+        caches["course_report_progress"].clear()
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        Comparison.objects.create(
+            submission_a=self.submission_a, submission_b=self.submission_b,
+            review=10, similarity=0.9,
+        )
+        url = reverse("course_home", kwargs={"course_key": self.course.key})
+        with patch("review.views._build_course_home_data", side_effect=AssertionError("Heavy work in web request")):
+            with CaptureQueriesContext(connection) as queries:
+                response = self.client.get(url)
+                self.assertEqual(self.client.get(url + "?background=1").json()["status"], "idle")
+            self.assertContains(response, "Course 42")
+            self.assertContains(response, "Loading report data")
+            enqueue.assert_not_called()
+            for query in queries:
+                self.assertNotIn('"data_submission"', query["sql"])
+                self.assertNotIn('"data_comparison"', query["sql"])
+            self.assertEqual(self.client.post(url + "?background=1").json()["status"], "pending")
+
+        load_radar_page_data.run(*enqueue.call_args.kwargs["args"])
+        self.assertEqual(self.client.get(url + "?background=1").json()["status"], "ready")
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(url)
+        self.assertEqual(response.context["submission_count"], 2)
+        self.assertEqual(response.context["flagged_count"], 1)
+        self.assertContains(response, "studentA and studentB")
+        for query in queries:
+            self.assertNotIn('"data_submission"', query["sql"])
+            self.assertNotIn('"data_comparison"', query["sql"])
+        pin_url = reverse("toggle_student_pin", kwargs={"course_key": self.course.key, "student_key": "studentA"})
+        self.client.post(pin_url)
+        self.assertEqual(self.client.get(url + "?background=1").json()["status"], "idle")
+        caches["default"].clear()
+        caches["course_report_progress"].clear()
 
     def test_legacy_students_view_uses_student_number_when_name_is_missing(self):
         html = render_to_string(

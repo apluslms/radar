@@ -214,46 +214,64 @@ def course_home(request, course_key=None, course=None) -> HttpResponse:
         return redirect("course", course_key=course.key)
 
     include_all = request.GET.get("all") == "1"
-    exercises = list(course.exercises.annotate(submission_count=Count("submissions")))
+    try:
+        students_page = max(1, int(request.GET.get("students_page", 1)))
+    except (ValueError, TypeError):
+        students_page = 1
+    version = cache.get("course_home_version:%s" % course.pk, "initial")
+    state = background_result(request, course, "course_home", [include_all, students_page, version])
+    if request.GET.get("background") == "1":
+        return JsonResponse(public_status(state))
+    context = dict(state.get("result", {}))
+    context.update({
+        "hierarchy": ((settings.APP_NAME, reverse("index")), (course.name, None)),
+        "course": course,
+        "include_all": include_all,
+        "background_state": public_status(state),
+    })
+    return render(request, "review/course_home.html", context)
+
+
+def _build_course_home_data(course, include_all, students_page):
+    exercises = list(
+        course.exercises.only("id", "key", "name").annotate(submission_count=Count("submissions"))
+    )
     exercises.sort(key=_natural_sort_key)
     report_ids = _exercise_report_ids(course, include_all=include_all)
-    _latest_report_id, latest_completed_at = _read_latest_course_report(course, request)
 
     pinned_students = list(course.students.filter(is_pinned=True))
     flag_stats = _student_flag_stats(course, pinned_students)
     for student in pinned_students:
         student.flag_count, student.flag_top_similarity = flag_stats.get(student.id, (0, None))
 
-    flagged = _flagged_comparisons(course)
+    flagged = _flagged_comparisons(course).only(
+        "id", "similarity", "review",
+        "submission_a__id", "submission_a__student__id", "submission_a__student__key",
+        "submission_a__student__name", "submission_a__exercise__id", "submission_a__exercise__name",
+        "submission_b__id", "submission_b__student__id", "submission_b__student__key",
+        "submission_b__student__name",
+    )
     flagged_count = flagged.count()
     recent_flags = list(flagged[:10])
     other_students = Paginator(
         course.students.filter(is_pinned=False).order_by("key"), 50
-    ).get_page(request.GET.get("students_page"))
+    ).get_page(students_page)
+    other_students.object_list = list(other_students.object_list)
+    other_students.paginator.object_list = ()
 
-    return render(
-        request,
-        "review/course_home.html",
-        {
-            "hierarchy": (
-                (settings.APP_NAME, reverse("index")),
-                (course.name, None),
-            ),
-            "course": course,
+    return {
             "exercises": exercises,
             "exercise_count": len(exercises),
             "student_count": course.students.count(),
-            "submission_count": course.submissions.count(),
+            "submission_count": sum(exercise.submission_count for exercise in exercises),
             "include_all": include_all,
             "reports_generated": len(report_ids),
-            "course_report_completed_at": latest_completed_at,
-            "course_report_task_status": _current_course_report_status(course, request),
+            "course_report_completed_at": cache.get(_course_report_completed_cache_key(course)),
             "pinned_students": pinned_students,
             "other_students": other_students,
             "recent_flags": recent_flags,
             "flagged_count": flagged_count,
-        },
-    )
+    }
 
 
 @require_POST
@@ -262,6 +280,7 @@ def toggle_student_pin(request, course_key=None, student_key=None, course=None, 
     """Pin/unpin a student on the course home page."""
     student.is_pinned = not student.is_pinned
     student.save(update_fields=["is_pinned"])
+    cache.set("course_home_version:%s" % course.pk, time.time(), 86400)
     next_url = request.POST.get("next", "")
     if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
         return redirect(next_url)
@@ -2440,6 +2459,7 @@ def flag_new_radar_pair(
     else:
         return HttpResponseBadRequest("The pair has not been flagged")
 
+    cache.set("course_home_version:%s" % course.pk, time.time(), 86400)
     return redirect(request.POST.get("next") or reverse("students_hub", kwargs={"course_key": course.key}))
 
 
