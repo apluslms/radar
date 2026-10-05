@@ -1,0 +1,47 @@
+{% if background_state.status != 'ready' %}
+<div data-background-loading role="status" aria-live="polite">
+    <span data-background-message>{% if background_state.message %}{{ background_state.message }}{% else %}Loading report data...{% endif %}</span>
+    <form data-background-retry method="post" hidden>
+        {% csrf_token %}
+        <button type="submit" class="secondary outline">Retry</button>
+    </form>
+</div>
+<script>
+(function () {
+    var panel = document.querySelector('[data-background-loading]');
+    var message = panel.querySelector('[data-background-message]');
+    var form = panel.querySelector('form');
+    var url = new URL(location.href);
+    url.searchParams.set('background', '1');
+    var deadline = Date.now() + 670000;
+    function fail(text) {
+        message.textContent = text;
+        form.hidden = false;
+    }
+    function check(method, retry) {
+        if (Date.now() > deadline) { fail('Background loading timed out. Retry when the worker is available.'); return; }
+        var options = {method: method, headers: {'X-Requested-With': 'XMLHttpRequest'}};
+        if (method === 'POST') {
+            options.body = new FormData(form);
+            if (retry) { options.body.set('retry', '1'); }
+        }
+        fetch(url, options).then(function (response) {
+            if (!response.ok) { throw new Error('Background loading request failed.'); }
+            return response.json();
+        }).then(function (data) {
+            if (data.status === 'ready') { location.reload(); }
+            else if (data.status === 'failed') { fail(data.message); }
+            else { setTimeout(function () { check('GET'); }, 2000); }
+        }).catch(function (error) { fail(error.message); });
+    }
+    form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        form.hidden = true;
+        deadline = Date.now() + 670000;
+        message.textContent = 'Loading report data...';
+        check('POST', true);
+    });
+    check('POST');
+})();
+</script>
+{% endif %}

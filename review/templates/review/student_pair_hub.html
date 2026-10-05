@@ -29,6 +29,7 @@
 
 {% block content %}
 <div class="pair-wrap">
+	{% include 'review/_background_loading.html' %}
 	{% include 'review/_course_report_panel.html' %}
 
 	<div class="pair-head">
@@ -57,6 +58,7 @@
 
 	{% if not latest_report_ids %}
 	<article class="pair-card">Generate a course-wide report first to inspect pair similarities.</article>
+	{% elif background_state.status != 'ready' %}
 	{% elif not pair_rows %}
 	<article class="pair-card">No similarities found for this pair in the latest course report(s).</article>
 	{% else %}

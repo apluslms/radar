@@ -103,7 +103,7 @@
 		</section>
 
 		<section class="home-card">
-			<h4>All students</h4>
+			<h4>Students</h4>
 			<div class="home-scroll">
 			<table class="home-table">
 				<tbody>
@@ -119,10 +119,17 @@
 						</td>
 					</tr>
 					{% empty %}
-					<tr><td class="muted">No students yet.</td></tr>
+					<tr><td class="muted">No unpinned students.</td></tr>
 					{% endfor %}
 				</tbody>
 			</table>
+			{% if other_students.has_other_pages %}
+			<nav aria-label="Student pages">
+				{% if other_students.has_previous %}<a href="?students_page={{ other_students.previous_page_number }}{% if include_all %}&amp;all=1{% endif %}">Previous</a>{% endif %}
+				<small>Page {{ other_students.number }} of {{ other_students.paginator.num_pages }}</small>
+				{% if other_students.has_next %}<a href="?students_page={{ other_students.next_page_number }}{% if include_all %}&amp;all=1{% endif %}">Next</a>{% endif %}
+			</nav>
+			{% endif %}
 			</div>
 		</section>
 	</div>
@@ -143,7 +150,7 @@
 					{% for exercise in exercises %}
 					<tr>
 						<td><a href="{% url 'dolos_hub_exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }} &rarr;</a></td>
-						<td style="text-align: right;" class="muted">{{ exercise.submissions.count }} submission{{ exercise.submissions.count|pluralize }}</td>
+						<td style="text-align: right;" class="muted">{{ exercise.submission_count }} submission{{ exercise.submission_count|pluralize }}</td>
 					</tr>
 					{% empty %}
 					<tr><td class="muted">No exercises yet.</td></tr>

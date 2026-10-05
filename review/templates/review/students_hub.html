@@ -46,6 +46,7 @@
 		{% endfor %}
 	</aside>
 	<main class="hub-main">
+		{% include 'review/_background_loading.html' %}
 		{% include 'review/_course_report_panel.html' %}
 
 		<div class="summary-head">
@@ -176,7 +177,7 @@
 				</tbody>
 			</table>
 		</div>
-		{% else %}
+		{% elif background_state.status == 'ready' %}
 		<div class="placeholder">
 			<h4>No summary yet</h4>
 			<p>Generate {% if include_all %}all-submissions{% else %}best-per-student{% endif %} exercise reports first.</p>

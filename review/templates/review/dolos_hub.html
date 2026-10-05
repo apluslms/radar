@@ -129,6 +129,7 @@
 {% endif %}
 {% elif loading %}
 <article id="hub-status" aria-busy="true">
+	<form id="hub-job-form" hidden>{% csrf_token %}</form>
 	<p id="hub-status-text">Generating the Dolos report&hellip; this can take a while for large exercises.</p>
 	<progress id="hub-status-progress"></progress>
 </article>
@@ -136,10 +137,26 @@
 <iframe class="hub-frame" id="hub-frame" style="display:none;" title="Dolos report"></iframe>
 <script>
 (function () {
-	fetch("{{ report_status_url|escapejs }}", { headers: { "X-Requested-With": "XMLHttpRequest" } })
+	var url = new URL("{{ report_status_url|escapejs }}", location.origin);
+	url.searchParams.set("background", "1");
+	if (url.searchParams.get("force") === "1") { url.searchParams.set("run", String(Date.now())); }
+	var deadline = Date.now() + 670000;
+	function poll(method) {
+	if (Date.now() > deadline) {
+		document.getElementById("hub-status-text").textContent = "Background generation timed out. Check the Celery worker and reload to retry.";
+		document.getElementById("hub-status-progress").remove();
+		return;
+	}
+	fetch(url, {
+		method: method,
+		body: method === "POST" ? new FormData(document.getElementById("hub-job-form")) : undefined,
+		headers: { "X-Requested-With": "XMLHttpRequest" }
+	})
 		.then(function (response) { return response.json(); })
 		.then(function (data) {
-			if (data.status === "ready") {
+			if (data.status === "pending" || data.status === "idle") {
+				setTimeout(function () { poll("GET"); }, 2000);
+			} else if (data.status === "ready") {
 				var frame = document.getElementById("hub-frame");
 				frame.dataset.reportId = data.report_id;
 				frame.src = data.report_url;
@@ -170,12 +187,14 @@
 			document.getElementById("hub-status-text").textContent =
 				"Failed to generate the report. Try reloading the page."
 		});
+	}
+	poll("POST");
 })();
 </script>
 {% elif no_submissions %}
 <article>
 	<p><strong>This course has no submissions yet.</strong></p>
-	<p>New submissions appear here automatically once the provider sends them. To import existing submissions, <a href="{% url 'configure_course' course_key=course.key %}">configure the course</a> to add its exercises, then use &#8635; Refresh &rsaquo; Re-fetch submissions.</p>
+	<p>New submissions will appear here automatically when received from the course provider.</p>
 </article>
 {% else %}
 <article>{{ message }}</article>

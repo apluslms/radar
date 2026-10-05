@@ -53,7 +53,8 @@
 			</form>
 			<span class="mini-meta">Report {{ report_id }} for {{ student_a.display_name }} vs {{ student_b.display_name }} in {{ exercise.name }}</span>
 		</div>
-		<iframe class="mini-frame" src="{{ report_url }}" title="Dolos mini report"></iframe>
+		{% include 'review/_background_loading.html' %}
+		{% if report_url %}<iframe class="mini-frame" src="{{ report_url }}" title="Dolos mini report"></iframe>{% endif %}
 	</div>
 </div>
 {% endblock %}
