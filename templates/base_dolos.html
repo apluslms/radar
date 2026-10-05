@@ -1,11 +1,11 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Radar{% for i in hierarchy %}{% if forloop.counter > 1 %} — {{ i.0 }}{% endif %}{% endfor %}</title>
-	{# ponytail: Pico via CDN = instant modern look, zero build. Vendor locally for offline/prod. #}
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+	<link rel="stylesheet" href="{% static 'pico.min.css' %}">
 	<style>
 		body { display: flex; flex-direction: column; min-height: 100vh; margin: 0; }
 		[role="button"], button { width: auto; }  /* Pico defaults buttons to full width */

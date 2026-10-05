@@ -24,6 +24,7 @@
 
 {% block content %}
 <div class="group-wrap">
+	{% include 'review/_background_loading.html' %}
 	{% include 'review/_course_report_panel.html' %}
 
 	<div class="group-head">
@@ -56,6 +57,7 @@
 
 	{% if not latest_report_ids %}
 	<article class="group-card">Generate a course-wide report first to inspect group similarities.</article>
+	{% elif background_state.status != 'ready' %}
 	{% elif not comparison_rows %}
 	<article class="group-card">No similarities found between these students in the latest course report(s).</article>
 	{% else %}

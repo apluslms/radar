@@ -1,0 +1,18 @@
+[Unit]
+Description=Radar background page computations
+After=network.target
+
+[Service]
+User=radar
+Group=radar
+WorkingDirectory=/srv/radar/radar
+Environment="PATH=/sbin:/bin:/usr/sbin:/usr/bin:/srv/radar/venv/bin"
+ExecStart=/srv/radar/venv/bin/celery --app radar worker --pool=prefork --concurrency=1 --queues=radar_background --hostname=worker_background@radar --loglevel=info --max-tasks-per-child=20
+Restart=on-failure
+CPUQuota=100%
+MemoryMax=1G
+Nice=10
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

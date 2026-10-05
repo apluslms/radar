@@ -18,7 +18,9 @@ logger = logging.getLogger("radar.cheatersheet")
 
 def send_cheatersheet_comparison(payload, submission_id):
     invalid_values = {None, '', 'None', 'null', 'undefined'}
-    base_url = getattr(settings, 'CHEATERSHEET_WEB_SERVER_URL', '').rstrip('/')
+    base_url = getattr(
+        settings, 'CHEATERSHEET_WEB_SERVER_URL', 'http://localhost:8072'
+    ).rstrip('/')
     api_token = getattr(settings, 'CHEATERSHEET_API_TOKEN', '')
     submission_id = str(submission_id)
     payload = dict(payload.items())
@@ -26,9 +28,9 @@ def send_cheatersheet_comparison(payload, submission_id):
     other_submission_id = payload.get('other_submission_id')
     exercise_key = payload.get('exercise_key')
 
-    if not base_url or api_token in invalid_values or api_token == 'CONFIGURE IN LOCAL_SETTINGS.PY':
+    if not base_url:
         return JsonResponse(
-            {'error': 'CheaterSheet API URL and token must be configured in local_settings.py'},
+            {'error': 'CheaterSheet URL must be configured in local_settings.py'},
             status=503,
         )
 
@@ -43,6 +45,9 @@ def send_cheatersheet_comparison(payload, submission_id):
         )
 
     try:
+        headers = {'Content-Type': 'application/json'}
+        if api_token not in invalid_values and api_token != 'CONFIGURE IN LOCAL_SETTINGS.PY':
+            headers['Authorization'] = 'Token %s' % api_token
         response = requests.post(
             '%s/create-comparison/%s/%s/' % (
                 base_url,
@@ -50,10 +55,7 @@ def send_cheatersheet_comparison(payload, submission_id):
                 quote(str(exercise_key), safe=''),
             ),
             json=payload,
-            headers={
-                'Authorization': 'Token %s' % api_token,
-                'Content-Type': 'application/json',
-            },
+            headers=headers,
             timeout=15,
         )
     except requests.RequestException as exc:

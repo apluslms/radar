@@ -42,6 +42,58 @@ from review.dolos_reports import (
 logger = get_task_logger(__name__)
 
 
+@celery.shared_task(soft_time_limit=570, time_limit=600, ignore_result=True)
+def load_radar_page_data(course_id, operation, arguments, key):
+    from review import views
+
+    store = caches["course_report_progress"]
+    try:
+        course = Course.objects.get(pk=course_id)
+        if operation == "summary":
+            if course.provider == "a+":
+                try:
+                    aplus.sync_student_names(course)
+                except Exception:
+                    logger.warning("Background roster refresh failed", exc_info=True)
+            for report_id in arguments[0]:
+                views._fetch_dolos_pairs_rows(report_id)
+            result = views._build_course_similarity_summary(course, *arguments)
+        elif operation == "student_matches":
+            student_key, include_all, report_ids = arguments
+            for report_id in report_ids:
+                views._fetch_dolos_pairs_rows(report_id)
+            result = views._student_exercise_matches(course, student_key, include_all)
+        elif operation == "group_pairs":
+            for report_id in arguments[0]:
+                views._fetch_dolos_pairs_rows(report_id)
+            result = views._build_group_pair_rows(course, *arguments)
+        elif operation == "mini_report":
+            exercise_id, left_id, right_id = arguments
+            exercise = course.exercises.get(pk=exercise_id)
+            submissions = list(exercise.submissions.filter(pk__in=[left_id, right_id]).select_related("student"))
+            if len(submissions) != 2:
+                raise ValueError("Mini report submissions no longer exist")
+            result = views._generate_dolos_report(
+                submissions, views._dolos_report_name(exercise.name),
+                dolos_language(exercise.tokenizer),
+                label_fn=lambda submission: submission.student.display_name,
+            )
+            if not result:
+                raise ValueError("Dolos returned no mini report")
+        elif operation == "exercise_report":
+            exercise_id, include_all, newest = arguments
+            exercise = course.exercises.get(pk=exercise_id)
+            result = views._build_hub_report_data(exercise, include_all, newest)
+        else:
+            raise ValueError("Unknown background operation")
+        store.set(key, {"status": "ready", "result": result}, 600)
+    except Exception:
+        logger.exception("Background Radar page data failed for course=%s operation=%s", course_id, operation)
+        store.set(key, {"status": "failed", "message": "Background loading failed. Check the worker log and retry."}, 600)
+    finally:
+        caches["default"].delete(key + ":lock")
+
+
 class ProviderAPIError(Exception):
     pass
 

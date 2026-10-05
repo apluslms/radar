@@ -25,7 +25,8 @@ AUTH_USER_MODEL = "accounts.RadarUser"
 APP_NAME = "Radar"
 
 APLUS_ROBOT_TOKEN = "CONFIGURE IN LOCAL_SETTINGS.PY"
-CHEATERSHEET_API_TOKEN="CONFIGURE IN LOCAL_SETTINGS.PY"
+CHEATERSHEET_WEB_SERVER_URL = "http://localhost:8072"
+CHEATERSHEET_API_TOKEN = "CONFIGURE IN LOCAL_SETTINGS.PY"
 
 # Authentication and authorization library settings
 # see https://pypi.org/project/aplus-auth/ for explanations
