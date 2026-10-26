@@ -42,8 +42,9 @@
 			{% if student.is_pinned %}&#9733; {% endif %}{{ student.display_name }}
 		</a>
 		{% empty %}
-		<p class="muted">No students yet.</p>
+		<p class="muted">No students on this page.</p>
 		{% endfor %}
+		{% include 'review/_overview_pagination.html' with page=students_page label="Student pages" %}
 	</aside>
 	<main class="hub-main">
 		{% include 'review/_background_loading.html' %}
@@ -81,10 +82,11 @@
 						</td>
 					</tr>
 					{% empty %}
-					<tr><td colspan="5" class="muted">No pairs or submissions have been flagged.</td></tr>
+					<tr><td colspan="5" class="muted">No flagged pairs or submissions on this page.</td></tr>
 					{% endfor %}
 				</tbody>
 			</table>
+			{% include 'review/_overview_pagination.html' with page=flagged_page label="Flagged pair pages" %}
 		</div>
 
 		{% if course_report_summary_error %}

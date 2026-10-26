@@ -144,6 +144,43 @@ def get_api_client(course):
     return _api_client
 
 
+def _update_course_roster(course, roster_rows):
+    students_by_key = {}
+    for student_id, full_name in roster_rows:
+        if not student_id:
+            continue
+        key = URLKeyField.safe_version(str(student_id))
+        normalized_name = (full_name or "").strip()
+        if normalized_name.lower() in {"no name", "no_name", "none"}:
+            normalized_name = ""
+        if key not in students_by_key:
+            students_by_key[key] = normalized_name
+        elif normalized_name:
+            students_by_key[key] = normalized_name
+
+    Student.objects.bulk_create(
+        [
+            Student(course=course, key=key, name=name)
+            for key, name in students_by_key.items()
+        ],
+        ignore_conflicts=True,
+        batch_size=500,
+    )
+    students = {
+        student.key: student
+        for student in course.students.filter(key__in=students_by_key)
+    }
+    changed_students = []
+    for key, name in students_by_key.items():
+        student = students.get(key)
+        if name and student and student.name != name:
+            student.name = name
+            changed_students.append(student)
+    if changed_students:
+        Student.objects.bulk_update(changed_students, ["name"], batch_size=500)
+    return len(students_by_key), len(changed_students)
+
+
 def import_missing_course_metadata(course, refresh=False):
     if course.provider != "a+":
         return
@@ -201,42 +238,10 @@ def import_missing_course_metadata(course, refresh=False):
             batch_size=500,
         )
 
-        students_by_key = {}
-        for student_id, full_name in roster_rows:
-            if not student_id:
-                continue
-            key = URLKeyField.safe_version(str(student_id))
-            normalized_name = (full_name or "").strip()
-            if normalized_name.lower() in {"no name", "no_name", "none"}:
-                normalized_name = ""
-            if key not in students_by_key:
-                students_by_key[key] = normalized_name
-            elif normalized_name:
-                students_by_key[key] = normalized_name
-
-        Student.objects.bulk_create(
-            [
-                Student(course=course, key=key, name=name)
-                for key, name in students_by_key.items()
-            ],
-            ignore_conflicts=True,
-            batch_size=500,
-        )
-        students = {
-            student.key: student
-            for student in course.students.filter(key__in=students_by_key)
-        }
-        changed_students = []
-        for key, name in students_by_key.items():
-            student = students.get(key)
-            if name and student and student.name != name:
-                student.name = name
-                changed_students.append(student)
-        if changed_students:
-            Student.objects.bulk_update(changed_students, ["name"], batch_size=500)
+        student_count, renamed_count = _update_course_roster(course, roster_rows)
         logger.info(
             "A+ refresh database updated course=%s exercises=%s students=%s renamed=%s seconds=%.3f",
-            course.pk, len(exercise_rows), len(students_by_key), len(changed_students),
+            course.pk, len(exercise_rows), student_count, renamed_count,
             time.monotonic() - update_started,
         )
         return

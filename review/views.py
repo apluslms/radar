@@ -41,7 +41,6 @@ from kombu import Connection
 from cheatersheet.views import send_cheatersheet_comparison
 from data import graph
 from data.models import Comparison, Course, Exercise, ExerciseDolosReport, Student, Submission
-from provider import aplus
 from provider.tasks import generate_course_dolos_task, recompare_all, refresh_course_submissions_task
 from radar.celery import app
 from radar.config import configured_function, provider_config
@@ -217,14 +216,7 @@ def _build_course_home_data(course, include_all, students_page):
     exercises.sort(key=_natural_sort_key)
     pinned_students = list(course.students.filter(is_pinned=True))
 
-    flagged = _flagged_comparisons(course).only(
-        "id", "similarity", "review",
-        "submission_a__id", "submission_a__student__id", "submission_a__student__key",
-        "submission_a__student__name", "submission_a__exercise__id", "submission_a__exercise__name",
-        "submission_b__id", "submission_b__student__id", "submission_b__student__key",
-        "submission_b__student__name",
-    )
-    recent_flags = list(flagged[:10])
+    recent_flags = list(_flagged_comparisons(course)[:10])
     other_students = Paginator(
         course.students.filter(is_pinned=False).order_by("key"), 50
     ).get_page(students_page)
@@ -2183,7 +2175,7 @@ def _build_course_similarity_summary(course, report_ids, min_similarity, min_exe
         "min_similarity_percent": round(min_similarity * 100),
         "min_exercises": min_exercises,
     }
-    return {"pair_rows": pair_rows, "group_rows": group_rows, "stats": stats}
+    return {"pair_rows": pair_rows[:40], "group_rows": group_rows, "stats": stats}
 
 
 def _compress_matches_by_student(matches):
@@ -2251,6 +2243,14 @@ def _flagged_comparisons(course):
             "submission_a__student",
             "submission_b__student",
         )
+        .only(
+            "id", "similarity", "review",
+            "submission_a__id", "submission_a__key",
+            "submission_a__student__id", "submission_a__student__key", "submission_a__student__name",
+            "submission_a__exercise__id", "submission_a__exercise__name",
+            "submission_b__id", "submission_b__key",
+            "submission_b__student__id", "submission_b__student__key", "submission_b__student__name",
+        )
         .order_by("-similarity")
     )
 
@@ -2266,6 +2266,28 @@ def _flagged_submission_pairs(course):
     }
 
 
+def _overview_page(request, queryset, parameter):
+    try:
+        number = max(1, int(request.GET.get(parameter, 1)))
+    except (TypeError, ValueError):
+        number = 1
+    offset = (number - 1) * 50
+    rows = list(queryset[offset:offset + 51])
+    parameters = request.GET.copy()
+    parameters.pop("background", None)
+
+    def page_url(page_number):
+        parameters[parameter] = page_number
+        return "?" + parameters.urlencode()
+
+    return {
+        "items": rows[:50],
+        "number": number,
+        "previous_url": page_url(number - 1) if number > 1 else None,
+        "next_url": page_url(number + 1) if len(rows) > 50 else None,
+    }
+
+
 @access_resource
 def students_hub(request, course_key=None, course=None) -> HttpResponse:
     """New Radar: list of students in the course, linking to their
@@ -2276,9 +2298,6 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
     include_all = request.GET.get("all") == "1"
     latest_course_report_ids = _exercise_report_ids(course, include_all=include_all)
     latest_course_report_id = latest_course_report_ids[0] if latest_course_report_ids else None
-    _latest_report_id, latest_completed_at = _read_latest_course_report(course, request)
-    course_report_task_status = _current_course_report_status(course, request)
-
     summary = None
     summary_error = None
     exercise_count = course.exercises.count()
@@ -2295,13 +2314,23 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
         state = background_result(request, course, "summary", [
             latest_course_report_ids, min_similarity_percent / 100, min_exercises,
         ])
-        if request.GET.get("background") == "1":
-            return JsonResponse(public_status(state))
         summary = state.get("result")
         summary_error = state.get("message")
     else:
         state = {"status": "ready"}
 
+    if request.GET.get("background") == "1":
+        return JsonResponse(public_status(state))
+
+    _latest_report_id, latest_completed_at = _read_latest_course_report(course, request)
+    students_page = _overview_page(
+        request,
+        course.students.only("course_id", "key", "name", "is_pinned").order_by("-is_pinned", "key"),
+        "students_page",
+    )
+    flagged_page = _overview_page(
+        request, _flagged_comparisons(course).order_by("-similarity", "-pk"), "flags_page",
+    )
     return render(
         request,
         "review/students_hub.html",
@@ -2312,14 +2341,15 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
                 ("Students", None),
             ),
             "course": course,
-            "students": course.students.order_by("-is_pinned", "key"),
-            "flagged_comparisons": _flagged_comparisons(course),
+            "students": students_page["items"],
+            "students_page": students_page,
+            "flagged_comparisons": flagged_page["items"],
+            "flagged_page": flagged_page,
             "course_report_id": latest_course_report_id,
             "course_report_completed_at": latest_completed_at,
             "course_report_summary": summary,
             "background_state": public_status(state),
             "course_report_summary_error": summary_error,
-            "course_report_task_status": course_report_task_status,
             "min_similarity_percent": min_similarity_percent,
             "min_exercises": min_exercises,
             "exercise_count": exercise_count,
@@ -3398,7 +3428,9 @@ def download_timestamps_csv(request, course_key=None, course=None) -> HttpRespon
 
 
 @access_resource
-def download_student_timestamps_csv(request, course_key=None, student_key=None, course=None, student=None) -> HttpResponse:
+def download_student_timestamps_csv(
+    request, course_key=None, student_key=None, course=None, student=None,
+) -> HttpResponse:
     """CSV timeline of one student's submissions across the course."""
     include_all = request.GET.get("all") == "1"
     submissions = sorted(
@@ -3452,6 +3484,7 @@ def download_dataset_zip(request, course_key=None, course=None):
     )
     # The zip lives in a temp dir: delete it once the response has been sent.
     original_close = response.close
+
     def _close_and_cleanup():
         original_close()
         os.remove(zip_path)
