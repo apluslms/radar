@@ -37,6 +37,7 @@
 	var taskId = null;
 	var pollHandle = null;
 	var pollAttempts = 0;
+	var statusRequestPending = false;
 
 	function el(id) {
 		return document.getElementById(id);
@@ -251,6 +252,9 @@
 	}
 
 	function checkCourseReportStatus() {
+		if (statusRequestPending) {
+			return;
+		}
 		if (!taskId) {
 			stopPolling();
 			return;
@@ -260,6 +264,7 @@
 			showFailure('Gave up waiting for a response after a very long time. Please try again.');
 			return;
 		}
+		statusRequestPending = true;
 		fetch(checkUrlTemplate.replace('__TASK__', taskId), {
 			headers: { 'X-Requested-With': 'XMLHttpRequest' }
 		})
@@ -277,6 +282,9 @@
 			})
 			.catch(function () {
 				// Transient network hiccup: keep polling rather than giving up.
+			})
+			.finally(function () {
+				statusRequestPending = false;
 			});
 	}
 
