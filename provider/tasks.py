@@ -43,13 +43,19 @@ from review.dolos_reports import (
 logger = get_task_logger(__name__)
 
 
-@celery.shared_task(soft_time_limit=570, time_limit=600, ignore_result=True)
-def load_radar_page_data(course_id, operation, arguments, key):
-    from review import views
-
-    store = caches["course_report_progress"]
-    started = time.monotonic()
-    logger.info("Radar background start course=%s operation=%s key=%s", course_id, operation, key)
+def _load_course_home_data(course, arguments, views):
+    include_all, students_page, version = arguments
+    refresh_key = "course_home_refresh:%s" % course.pk
+    refresh = caches["default"].get(refresh_key) == version
+    metadata_started = time.monotonic()
+    aplus.import_missing_course_metadata(course, refresh=refresh)
+    logger.info(
+        "Radar course-home metadata ready course=%s refresh=%s seconds=%.3f",
+        course.pk, refresh, time.monotonic() - metadata_started,
+    )
+    if refresh and caches["default"].get(refresh_key) == version:
+        caches["default"].delete(refresh_key)
+    build_started = time.monotonic()
 
     def time_query(execute, sql, params, many, context):
         query_started = time.monotonic()
@@ -60,30 +66,47 @@ def load_radar_page_data(course_id, operation, arguments, key):
             if elapsed >= 1:
                 logger.warning(
                     "Slow Radar background SQL course=%s operation=%s seconds=%.3f sql=%s",
-                    course_id, operation, elapsed, sql,
+                    course.pk, "course_home", elapsed, sql,
                 )
+
+    with connection.execute_wrapper(time_query):
+        result = views._build_course_home_data(course, include_all, students_page)
+    logger.info(
+        "Radar course-home data ready course=%s seconds=%.3f",
+        course.pk, time.monotonic() - build_started,
+    )
+    return result
+
+
+def _load_mini_report(course, arguments, views):
+    exercise_id, left_id, right_id = arguments
+    exercise = course.exercises.get(pk=exercise_id)
+    submissions = list(exercise.submissions.filter(pk__in=[left_id, right_id]).select_related("student"))
+    if len(submissions) != 2:
+        raise ValueError("Mini report submissions no longer exist")
+    result = views._generate_dolos_report(
+        submissions, views._dolos_report_name(exercise.name),
+        dolos_language(exercise.tokenizer),
+        label_fn=lambda submission: submission.student.display_name,
+    )
+    if not result:
+        raise ValueError("Dolos returned no mini report")
+    return result
+
+
+@celery.shared_task(soft_time_limit=570, time_limit=600, ignore_result=True)
+def load_radar_page_data(course_id, operation, arguments, key):
+    # Views also import provider tasks; defer this import until task execution.
+    from review import views  # pylint: disable=import-outside-toplevel
+
+    store = caches["course_report_progress"]
+    started = time.monotonic()
+    logger.info("Radar background start course=%s operation=%s key=%s", course_id, operation, key)
 
     try:
         course = Course.objects.get(pk=course_id)
         if operation == "course_home":
-            include_all, students_page, version = arguments
-            refresh_key = "course_home_refresh:%s" % course.pk
-            refresh = caches["default"].get(refresh_key) == version
-            metadata_started = time.monotonic()
-            aplus.import_missing_course_metadata(course, refresh=refresh)
-            logger.info(
-                "Radar course-home metadata ready course=%s refresh=%s seconds=%.3f",
-                course_id, refresh, time.monotonic() - metadata_started,
-            )
-            if refresh and caches["default"].get(refresh_key) == version:
-                caches["default"].delete(refresh_key)
-            build_started = time.monotonic()
-            with connection.execute_wrapper(time_query):
-                result = views._build_course_home_data(course, include_all, students_page)
-            logger.info(
-                "Radar course-home data ready course=%s seconds=%.3f",
-                course_id, time.monotonic() - build_started,
-            )
+            result = _load_course_home_data(course, arguments, views)
         elif operation == "summary":
             for report_id in arguments[0]:
                 views._fetch_dolos_pairs_rows(report_id)
@@ -98,18 +121,7 @@ def load_radar_page_data(course_id, operation, arguments, key):
                 views._fetch_dolos_pairs_rows(report_id)
             result = views._build_group_pair_rows(course, *arguments)
         elif operation == "mini_report":
-            exercise_id, left_id, right_id = arguments
-            exercise = course.exercises.get(pk=exercise_id)
-            submissions = list(exercise.submissions.filter(pk__in=[left_id, right_id]).select_related("student"))
-            if len(submissions) != 2:
-                raise ValueError("Mini report submissions no longer exist")
-            result = views._generate_dolos_report(
-                submissions, views._dolos_report_name(exercise.name),
-                dolos_language(exercise.tokenizer),
-                label_fn=lambda submission: submission.student.display_name,
-            )
-            if not result:
-                raise ValueError("Dolos returned no mini report")
+            result = _load_mini_report(course, arguments, views)
         elif operation == "exercise_report":
             exercise_id, include_all, newest = arguments
             exercise = course.exercises.get(pk=exercise_id)
@@ -132,7 +144,9 @@ def load_radar_page_data(course_id, operation, arguments, key):
         store.set(key, {"status": "failed", "message": message}, 600)
     except Exception:
         logger.exception("Background Radar page data failed for course=%s operation=%s", course_id, operation)
-        store.set(key, {"status": "failed", "message": "Background loading failed. Check the worker log and retry."}, 600)
+        store.set(
+            key, {"status": "failed", "message": "Background loading failed. Check the worker log and retry."}, 600,
+        )
     finally:
         caches["default"].delete(key + ":lock")
 

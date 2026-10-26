@@ -57,9 +57,9 @@ class TokenMatch:
         self.length = length
 
     def overlaps(self, another):
-        return ((self.a > another.a - self.length and self.a < another.a + self.length)
+        return ((another.a - self.length < self.a < another.a + self.length)
                 or
-                (self.b > another.b - self.length and self.b < another.b + self.length))
+                (another.b - self.length < self.b < another.b + self.length))
 
     def reversed(self):
         return TokenMatch(self.b, self.a, self.length)

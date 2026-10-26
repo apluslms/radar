@@ -4,6 +4,8 @@ import time
 
 from django.core.cache import caches
 
+from provider import tasks
+
 
 def result_key(course_id, operation, arguments):
     digest = hashlib.sha256(
@@ -13,8 +15,6 @@ def result_key(course_id, operation, arguments):
 
 
 def background_result(request, course, operation, arguments):
-    from provider.tasks import load_radar_page_data
-
     store = caches["course_report_progress"]
     locks = caches["default"]
     key = result_key(course.pk, operation, [arguments, request.GET.get("run", "")])
@@ -32,12 +32,14 @@ def background_result(request, course, operation, arguments):
             if locks.add(key + ":lock", pending, 900):
                 store.set(key, pending, 900)
                 try:
-                    load_radar_page_data.apply_async(
+                    tasks.load_radar_page_data.apply_async(
                         args=[course.pk, operation, arguments, key],
                         queue="radar_background", retry=False, expires=600,
                     )
                 except Exception:
-                    state = {"status": "failed", "message": "Could not queue background loading. Check the task queue."}
+                    state = {
+                        "status": "failed", "message": "Could not queue background loading. Check the task queue.",
+                    }
                     store.set(key, state, 600)
                     locks.delete(key + ":lock")
                 else:
