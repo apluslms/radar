@@ -97,7 +97,7 @@ def _load_mini_report(course, arguments, views):
 @celery.shared_task(soft_time_limit=570, time_limit=600, ignore_result=True)
 def load_radar_page_data(course_id, operation, arguments, key):
     # Views also import provider tasks; defer this import until task execution.
-    from review import views  # pylint: disable=import-outside-toplevel
+    from review import background, views  # pylint: disable=import-outside-toplevel
 
     store = caches["course_report_progress"]
     started = time.monotonic()
@@ -128,7 +128,7 @@ def load_radar_page_data(course_id, operation, arguments, key):
             result = views._build_hub_report_data(exercise, include_all, newest)
         else:
             raise ValueError("Unknown background operation")
-        store.set(key, {"status": "ready", "result": result}, 600)
+        background.store_background_state(store, key, {"status": "ready", "result": result}, 600)
         logger.info(
             "Radar background ready course=%s operation=%s key=%s seconds=%.3f",
             course_id, operation, key, time.monotonic() - started,
@@ -141,11 +141,12 @@ def load_radar_page_data(course_id, operation, arguments, key):
             message = "A saved Dolos report is missing. Regenerate the full course report, then reload this page."
         else:
             message = "Background loading failed. Check the worker log and retry."
-        store.set(key, {"status": "failed", "message": message}, 600)
+        background.store_background_state(store, key, {"status": "failed", "message": message}, 600)
     except Exception:
         logger.exception("Background Radar page data failed for course=%s operation=%s", course_id, operation)
-        store.set(
-            key, {"status": "failed", "message": "Background loading failed. Check the worker log and retry."}, 600,
+        background.store_background_state(
+            store, key,
+            {"status": "failed", "message": "Background loading failed. Check the worker log and retry."}, 600,
         )
     finally:
         caches["default"].delete(key + ":lock")
