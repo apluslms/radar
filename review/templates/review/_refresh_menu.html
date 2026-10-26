@@ -27,19 +27,9 @@
 				<button type="submit">Re-fetch submissions<small>Download every exercise's submissions again from the provider</small></button>
 			</form>
 		</li>
-		{% if current_exercise and not course_report_mode %}
+		{% if current_exercise %}
 		<li>
 			<a href="{{ request.path }}?force=1{% if include_all %}&amp;all=1{% elif newest %}&amp;newest={{ newest }}{% endif %}">Re-run analysis for {{ current_exercise.name }}<small>Regenerate this exercise's Dolos report</small></a>
-		</li>
-		{% endif %}
-		{% if has_course_panel %}
-		<li>
-			<button id="generateCourseBtn" type="button" data-force="{% if course_report_completed_at %}1{% else %}0{% endif %}">{% if course_report_completed_at %}Regenerate Course Report{% else %}Generate Course Report{% endif %}</button>
-			<small>One Dolos report for every exercise in the course</small>
-		</li>
-		{% elif exercises %}
-		<li>
-			<a href="{% url 'dolos_hub' course_key=course.key %}?course_report=1&amp;generate=1">Regenerate course report<small>One Dolos report for every exercise in the course</small></a>
 		</li>
 		{% endif %}
 	</ul>

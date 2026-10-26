@@ -1,5 +1,5 @@
 /**
- * Whole-course Dolos report generation widget: "Generate Course Report"
+	 * Shared course-report generation action and progress panel.
  * button + progress panel, shared by dolos_hub.html and students_hub.html
  * (both include review/_course_report_panel.html, which loads this file).
  *
@@ -11,8 +11,7 @@
  * future template that omits a piece of the panel degrades instead of
  * breaking the whole handler.
  *
- * On success this stays on the current page and shows a clear success
- * message. Users explicitly asked to avoid redirect/reload jumps.
+	 * On success this stays on the current page.
  */
 (function () {
 	var scriptEl = document.currentScript;
@@ -33,11 +32,11 @@
 	// reports "failed", so this just guards against an unexpected client-side
 	// infinite loop rather than being the primary timeout.
 	var MAX_POLL_ATTEMPTS = 500;
+	var REPORT_BUTTON_TEXT = 'Regenerate course reports';
 
 	var taskId = null;
 	var pollHandle = null;
 	var pollAttempts = 0;
-	var gameHandle = null;
 
 	function el(id) {
 		return document.getElementById(id);
@@ -130,7 +129,7 @@
 		if (data.phase === 'complete') {
 			return 'All exercises processed successfully!';
 		}
-		return 'Generating course-wide report\u2026 this can take a few minutes.';
+		return 'Regenerating course reports\u2026';
 	}
 
 	function updateProgressText(data) {
@@ -147,110 +146,6 @@
 		var btn = el('generateCourseBtn');
 		if (btn) {
 			btn.disabled = busy;
-		}
-	}
-
-	function idleButtonText(btn) {
-		return btn && btn.getAttribute('data-force') === '1'
-			? 'Regenerate Course Report'
-			: 'Generate Course Report';
-	}
-
-	function isGameHidden() {
-		try {
-			return window.localStorage.getItem('radar_pong_hidden') === '1';
-		} catch (error) {
-			return false;
-		}
-	}
-
-	function syncGameToggle() {
-		var toggle = el('hubCourseGameToggle');
-		if (toggle) {
-			toggle.textContent = isGameHidden() ? 'Show game' : 'Hide game';
-		}
-	}
-
-	function toggleGame() {
-		var hide = !isGameHidden();
-		try {
-			window.localStorage.setItem('radar_pong_hidden', hide ? '1' : '0');
-		} catch (error) {
-			// Storage unavailable: the toggle still works for this page view.
-		}
-		if (hide) {
-			stopGame();
-		} else {
-			startGame();
-		}
-		syncGameToggle();
-	}
-
-	function startGame() {
-		var canvas = el('canvas');
-		if (!canvas || gameHandle || isGameHidden()) {
-			return;
-		}
-		canvas.classList.add('active');
-		var ctx = canvas.getContext('2d');
-		var paddles = [0, 0];
-		var ball = [0, 0, -0.016, 0];
-		var score = [0, 0];
-		var cursor = 0;
-		var reactionSpeed = 6;
-		var reactionDistance = -0.5;
-
-		canvas.addEventListener('pointermove', function (event) {
-			var bounds = canvas.getBoundingClientRect();
-			cursor = (event.clientY - bounds.top) / bounds.height * 2 - 1;
-		});
-		ctx.textAlign = 'center';
-		ctx.font = '50px "Press Start 2P", Arial, sans-serif';
-		ctx.fillStyle = 'white';
-
-		gameHandle = window.setInterval(function () {
-			if (Math.abs(ball[0]) >= 1) {
-				score[ball[0] < 0 ? 1 : 0] += 1;
-				ball = [0, 0, ball[0] < 0 ? -0.016 : 0.016, 0];
-				reactionDistance = -0.5;
-				reactionSpeed = 6;
-				return;
-			}
-			ctx.clearRect(0, 0, 500, 500);
-			if (Math.abs(ball[1]) >= 1) { ball[3] = -ball[3]; }
-			ball[0] += ball[2];
-			ball[1] += ball[3];
-			paddles[0] = cursor;
-			if (ball[0] > reactionDistance && ball[2] > 0) {
-				paddles[1] += ball[1] > paddles[1] + 10 / 250 ? reactionSpeed / 250 : ball[1] < paddles[1] - 10 / 250 ? -reactionSpeed / 250 : 0;
-			}
-			if (Math.abs(paddles[0]) > 210 / 250) { paddles[0] = paddles[0] / Math.abs(paddles[0]) * 210 / 250; }
-			if (Math.abs(paddles[1]) > 210 / 250) { paddles[1] = paddles[1] / Math.abs(paddles[1]) * 210 / 250; }
-			ctx.fillRect(20, paddles[0] * 250 + 225, 10, 50);
-			ctx.fillRect(470, paddles[1] * 250 + 225, 10, 50);
-			ctx.fillRect(ball[0] * 250 + 245, ball[1] * 250 + 245, 10, 10);
-			ctx.fillText(score[0] + ' : ' + score[1], 250, 100);
-			if ((ball[0] > -220 / 250 && ball[0] + ball[2] <= -220 / 250 && Math.abs(paddles[0] - ball[1] - ball[3] * (-220 / 250 - ball[0]) / ball[2]) <= 30 / 250) ||
-				(ball[0] < 220 / 250 && ball[0] + ball[2] >= 220 / 250 && Math.abs(paddles[1] - ball[1] - ball[3] * (220 / 250 - ball[0]) / ball[2]) <= 30 / 250)) {
-				var alpha = (ball[0] < 0 ? 1 : -1) * (7 / 16 * (Math.atan(ball[3] / -ball[2]) + Math.PI / 2) + 0.004375 * Math.PI * (ball[1] - paddles[ball[0] < 0 ? 0 : 1]) * 500 + 27 / 64 * Math.PI - Math.atan(ball[3] / -ball[2]) + Math.PI * 3 / 8);
-				var nextX = ball[2] * Math.cos(alpha) - ball[3] * Math.sin(alpha);
-				var nextY = ball[2] * Math.sin(alpha) + ball[3] * Math.cos(alpha);
-				ball[2] = nextX * 1.02;
-				ball[3] = nextY * 1.02;
-				reactionSpeed = Math.random() * 4.5 + 1.7;
-				reactionDistance = Math.random() * 0.7 - 1;
-			}
-		}, 1000 / 60);
-	}
-
-	function stopGame() {
-		if (gameHandle) {
-			window.clearInterval(gameHandle);
-			gameHandle = null;
-		}
-		var canvas = el('canvas');
-		if (canvas) {
-			canvas.classList.remove('active');
 		}
 	}
 
@@ -282,9 +177,8 @@
 		setBusy(false);
 		var btn = el('generateCourseBtn');
 		if (btn) {
-			btn.textContent = idleButtonText(btn);
+			btn.textContent = REPORT_BUTTON_TEXT;
 		}
-		stopGame();
 		stopPolling();
 	}
 
@@ -318,10 +212,8 @@
 		setCourseMeta(data && data.completed_at);
 		setBusy(false);
 		if (btn) {
-			btn.setAttribute('data-force', '1');
-			btn.textContent = idleButtonText(btn);
+			btn.textContent = REPORT_BUTTON_TEXT;
 		}
-		stopGame();
 		stopPolling();
 	}
 
@@ -334,19 +226,12 @@
 		}
 		if (text) {
 			text.classList.remove('status-error');
-			text.textContent = 'Queuing course-wide report generation\u2026';
+			text.textContent = 'Queuing course report regeneration\u2026';
 		}
 		setHint(null);
 		setProgressBar(null);
-		startGame();
 
-		var btn = el('generateCourseBtn');
-		var requestUrl = generateUrl;
-		if (btn && btn.getAttribute('data-force') === '1') {
-			requestUrl += (requestUrl.indexOf('?') === -1 ? '?' : '&') + 'force=1';
-		}
-
-		fetch(requestUrl, {
+		fetch(generateUrl, {
 			method: 'GET',
 			headers: { 'X-Requested-With': 'XMLHttpRequest' }
 		})
@@ -414,7 +299,6 @@
 					if (btn) {
 						btn.textContent = 'Report In Progress';
 					}
-					startGame();
 					startPolling();
 				} else if (data.status === 'ready') {
 					showReady(data);
@@ -433,26 +317,5 @@
 	if (button) {
 		button.addEventListener('click', startCourseReportGeneration);
 	}
-	var initialCanvas = el('canvas');
-	var gameToggle = el('hubCourseGameToggle');
-	if (gameToggle) {
-		gameToggle.addEventListener('click', toggleGame);
-	}
-	syncGameToggle();
-	if (initialCanvas && isGameHidden()) {
-		initialCanvas.classList.remove('active');
-	}
-	if (initialCanvas && initialCanvas.classList.contains('active')) {
-		startGame();
-	}
-	// ?generate=1 comes from the Refresh menu on pages without the course panel.
-	var params = new URLSearchParams(window.location.search);
-	if (button && params.get('generate') === '1') {
-		params.delete('generate');
-		var query = params.toString();
-		history.replaceState(null, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
-		startCourseReportGeneration();
-	} else {
-		restoreStatusAfterRefresh();
-	}
+	restoreStatusAfterRefresh();
 })();

@@ -7,10 +7,6 @@
 	.home-hero { border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: .9rem 1rem; margin-bottom: 1rem; }
 	.home-hero h2 { margin: 0 0 .2rem 0; }
 	.home-hero .muted { color: var(--pico-muted-color); font-size: .88rem; }
-	.home-stats { display: flex; flex-wrap: wrap; gap: .6rem; margin: .8rem 0 0; }
-	.home-stat { flex: 1 1 110px; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: .55rem .7rem; }
-	.home-stat .n { font-size: 1.3rem; font-weight: 700; }
-	.home-stat .k { font-size: .78rem; color: var(--pico-muted-color); }
 	.home-card { border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: .8rem .9rem; margin-bottom: 1rem; }
 	.home-card h4 { margin: 0 0 .6rem 0; font-size: .95rem; }
 	.home-card .muted { color: var(--pico-muted-color); font-size: .85rem; }
@@ -30,12 +26,18 @@
 {% endblock %}
 
 {% block content %}
+{% if course.provider == 'a+' and background_state.status == 'ready' %}
+<form method="post" style="margin-bottom: .75rem;">
+	{% csrf_token %}
+	<button type="submit" name="refresh_metadata" value="1" class="secondary outline" title="Refresh course roster and exercises from A+">&#8635; Refresh roster and exercises</button>
+</form>
+{% endif %}
 {% if background_state.status != 'ready' %}
 <h2>{{ course.name }}</h2>
 <nav aria-label="Course navigation">
-	<a href="{% url 'dolos_hub' course_key=course.key %}?course_report=1">Whole Course report</a>
 	<a href="{% url 'students_hub' course_key=course.key %}">Student overview</a>
 </nav>
+{% if course.provider == 'a+' %}<p>Loading course roster and exercises...</p>{% endif %}
 {% include 'review/_background_loading.html' %}
 {% else %}
 <div class="home-wrap">
@@ -46,28 +48,20 @@
 				{{ course.provider_name }} &middot; added {{ course.created|date:"Y-m-d" }}
 				{% if course_report_completed_at %} &middot; course report generated {{ course_report_completed_at|date:"Y-m-d H:i" }}{% endif %}
 			</span>
-			<div class="home-stats">
-				<div class="home-stat"><div class="n">{{ exercise_count }}</div><div class="k">Exercises</div></div>
-				<div class="home-stat"><div class="n">{{ student_count }}</div><div class="k">Students</div></div>
-				<div class="home-stat"><div class="n">{{ submission_count }}</div><div class="k">Submissions</div></div>
-				<div class="home-stat"><div class="n">{{ reports_generated }}/{{ exercise_count }}</div><div class="k">Reports generated</div></div>
-				<div class="home-stat"><div class="n">{{ flagged_count }}</div><div class="k">Flagged pairs</div></div>
-			</div>
 		</section>
+		{% include 'review/_course_report_panel.html' %}
 
 		<section class="home-card">
 			<h4>Pinned students</h4>
 			<div class="home-scroll">
 			<table class="home-table">
 				<thead>
-					<tr><th>Student</th><th>Flagged pairs</th><th>Top flagged similarity</th><th></th></tr>
+					<tr><th>Student</th><th></th></tr>
 				</thead>
 				<tbody>
 					{% for student in pinned_students %}
 					<tr>
 						<td><a href="{% url 'student_hub' course_key=course.key student_key=student.key %}">{{ student.display_name }}</a></td>
-						<td>{{ student.flag_count }}</td>
-						<td>{% if student.flag_top_similarity != None %}{{ student.flag_top_similarity|percent }}{% else %}<span class="muted">&mdash;</span>{% endif %}</td>
 						<td>
 							<form method="post" action="{% url 'toggle_student_pin' course_key=course.key student_key=student.key %}">
 								{% csrf_token %}
@@ -77,7 +71,7 @@
 						</td>
 					</tr>
 					{% empty %}
-					<tr><td colspan="4" class="muted">No pinned students yet. Pin students from the list on the right to keep an eye on them here.</td></tr>
+					<tr><td colspan="2" class="muted">No pinned students yet. Pin students from the list on the right to keep an eye on them here.</td></tr>
 					{% endfor %}
 				</tbody>
 			</table>
@@ -144,27 +138,20 @@
 
 	<aside>
 		<section class="home-card">
-			<h4>Links</h4>
-			<div class="home-links">
-				<a href="{% url 'dolos_hub' course_key=course.key %}?course_report=1">Whole Course report<small>One Dolos report spanning every exercise</small></a>
-				<a href="{% url 'students_hub' course_key=course.key %}">Student overview<small>Per-student similarity across exercises</small></a>
-			</div>
-		</section>
-
-		<section class="home-card">
 			<h4>Exercises</h4>
+			<div class="home-scroll">
 			<table class="home-table">
 				<tbody>
 					{% for exercise in exercises %}
 					<tr>
 						<td><a href="{% url 'dolos_hub_exercise' course_key=course.key exercise_key=exercise.key %}">{{ exercise.name }} &rarr;</a></td>
-						<td style="text-align: right;" class="muted">{{ exercise.submission_count }} submission{{ exercise.submission_count|pluralize }}</td>
 					</tr>
 					{% empty %}
 					<tr><td class="muted">No exercises yet.</td></tr>
 					{% endfor %}
 				</tbody>
 			</table>
+			</div>
 		</section>
 
 		<section class="home-card">

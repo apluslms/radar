@@ -1,4 +1,6 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor
+import time
 from django.conf import settings
 import requests
 
@@ -7,7 +9,7 @@ from aplus_auth.requests import get as aplus_get
 from aplus_auth.payload import Permission, Permissions
 from aplus_client.client import AplusTokenClient
 
-from data.models import Student, URLKeyField
+from data.models import Exercise, Student, URLKeyField
 from provider import tasks
 import matcher.tasks as matcher_tasks
 import radar.config as config_loaders
@@ -140,6 +142,127 @@ def get_api_client(course):
         client.session.mount("http://", adapter)
         _api_client = client
     return _api_client
+
+
+def import_missing_course_metadata(course, refresh=False):
+    if course.provider != "a+":
+        return
+
+    if refresh:
+        def load_exercises():
+            started = time.monotonic()
+            client = AplusTokenClient(settings.APLUS_ROBOT_TOKEN)
+            data = client.load_data(build_api_url(course, course.url), skip_cache=True)
+            if data is None:
+                raise AplusProviderError("The provider returned no course metadata")
+            rows = [
+                (
+                    URLKeyField.safe_version(str(exercise_data["id"])),
+                    exercise_data.get("display_name"),
+                )
+                for exercise_data in submittable_exercises(data.get("exercises", []))
+            ]
+            logger.info(
+                "A+ refresh exercises fetched course=%s count=%s seconds=%.3f",
+                course.pk, len(rows), time.monotonic() - started,
+            )
+            return rows
+
+        def load_roster():
+            started = time.monotonic()
+            client = AplusTokenClient(settings.APLUS_ROBOT_TOKEN)
+            url = build_api_url(course, API_COURSE_STUDENTS_URL % {"cid": course.api_id})
+            roster = client.load_data(url, skip_cache=True)
+            if roster is None:
+                raise AplusProviderError("The provider returned no course roster")
+            rows = [
+                (roster_student.get("student_id") or roster_student.get("username"), roster_student.get("full_name"))
+                for roster_student in roster
+            ]
+            logger.info(
+                "A+ refresh roster fetched course=%s count=%s seconds=%.3f",
+                course.pk, len(rows), time.monotonic() - started,
+            )
+            return rows
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            exercise_rows = executor.submit(load_exercises)
+            roster_rows = executor.submit(load_roster)
+            exercise_rows = exercise_rows.result()
+            roster_rows = roster_rows.result()
+
+        update_started = time.monotonic()
+        Exercise.objects.bulk_create(
+            [
+                Exercise(course=course, key=exercise_key, name=exercise_name or exercise_key)
+                for exercise_key, exercise_name in exercise_rows
+            ],
+            ignore_conflicts=True,
+            batch_size=500,
+        )
+
+        students_by_key = {}
+        for student_id, full_name in roster_rows:
+            if not student_id:
+                continue
+            key = URLKeyField.safe_version(str(student_id))
+            normalized_name = (full_name or "").strip()
+            if normalized_name.lower() in {"no name", "no_name", "none"}:
+                normalized_name = ""
+            if key not in students_by_key:
+                students_by_key[key] = normalized_name
+            elif normalized_name:
+                students_by_key[key] = normalized_name
+
+        Student.objects.bulk_create(
+            [
+                Student(course=course, key=key, name=name)
+                for key, name in students_by_key.items()
+            ],
+            ignore_conflicts=True,
+            batch_size=500,
+        )
+        students = {
+            student.key: student
+            for student in course.students.filter(key__in=students_by_key)
+        }
+        changed_students = []
+        for key, name in students_by_key.items():
+            student = students.get(key)
+            if name and student and student.name != name:
+                student.name = name
+                changed_students.append(student)
+        if changed_students:
+            Student.objects.bulk_update(changed_students, ["name"], batch_size=500)
+        logger.info(
+            "A+ refresh database updated course=%s exercises=%s students=%s renamed=%s seconds=%.3f",
+            course.pk, len(exercise_rows), len(students_by_key), len(changed_students),
+            time.monotonic() - update_started,
+        )
+        return
+
+    client = get_api_client(course)
+    if not course.exercises.exists():
+        data = client.load_data(build_api_url(course, course.url))
+        if data is None:
+            raise AplusProviderError("The provider returned no course metadata")
+        for exercise_data in submittable_exercises(data.get("exercises", [])):
+            exercise_key = URLKeyField.safe_version(str(exercise_data["id"]))
+            Exercise.objects.get_or_create(
+                course=course,
+                key=exercise_key,
+                defaults={"name": exercise_data.get("display_name") or exercise_key},
+            )
+    if not course.students.exists():
+        url = build_api_url(course, API_COURSE_STUDENTS_URL % {"cid": course.api_id})
+        roster = client.load_data(url)
+        if roster is None:
+            raise AplusProviderError("The provider returned no course roster")
+        for roster_student in roster:
+            student_id = roster_student.get("student_id") or roster_student.get("username")
+            if not student_id:
+                continue
+            course.get_student(str(student_id), name=roster_student.get("full_name"))
 
 
 def sync_student_names(course):

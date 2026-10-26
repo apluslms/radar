@@ -22,6 +22,133 @@ from review import views
     CHEATERSHEET_API_TOKEN="secret",
 )
 class CreateCheatersheetComparisonTests(TestCase):
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "refresh-locks"},
+        "course_report_progress": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "refresh-results"},
+    })
+    @patch("provider.tasks.load_radar_page_data.apply_async")
+    @patch("provider.aplus.AplusTokenClient")
+    @patch("provider.aplus.get_api_client")
+    def test_course_home_refresh_updates_metadata_in_worker_and_preserves_submissions(self, get_client, client_class, enqueue):
+        from provider.tasks import load_radar_page_data
+
+        caches["default"].clear()
+        caches["course_report_progress"].clear()
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        self.exercise.override_minimum_match_tokens = 37
+        self.exercise.save()
+        student_b = self.course.students.get(key="studentB")
+        student_b.name = "Keep Bob"
+        student_b.save(update_fields=["name"])
+        url = reverse("course_home", kwargs={"course_key": self.course.key})
+        response = self.client.post(url + "?all=1&students_page=1", {"refresh_metadata": "1"})
+        self.assertRedirects(response, url + "?all=1&students_page=1")
+        get_client.assert_not_called()
+        enqueue.assert_not_called()
+        poll_url = url + "?all=1&students_page=1&background=1"
+        self.assertEqual(self.client.post(poll_url).json()["status"], "pending")
+        def load_data(url, skip_cache=False):
+            if url == self.course.url:
+                return {"exercises": [
+                    {"id": "ex1", "display_name": "Changed provider name", "is_submittable": True},
+                    {"id": "ex2", "display_name": "New exercise", "is_submittable": True},
+                ]}
+            return [
+                {"student_id": "studentA", "full_name": "Updated Alice"},
+                {"student_id": "studentB", "full_name": "No Name"},
+                {"student_id": "studentC", "full_name": "New Student"},
+            ]
+
+        client_class.return_value.load_data.side_effect = load_data
+        load_radar_page_data.run(*enqueue.call_args.kwargs["args"])
+        self.assertEqual(self.client.get(poll_url).json()["status"], "ready")
+        self.assertEqual(client_class.call_count, 2)
+        self.assertEqual(client_class.return_value.load_data.call_count, 2)
+        for call in client_class.return_value.load_data.call_args_list:
+            self.assertTrue(call.kwargs["skip_cache"])
+        self.exercise.refresh_from_db()
+        self.assertEqual(self.exercise.name, "Exercise 1")
+        self.assertEqual(self.exercise.override_minimum_match_tokens, 37)
+        self.assertTrue(self.course.exercises.filter(key="ex2").exists())
+        self.assertEqual(self.course.students.get(key="studentA").name, "Updated Alice")
+        self.assertEqual(self.course.students.get(key="studentB").name, "Keep Bob")
+        self.assertTrue(self.course.students.filter(key="studentC").exists())
+        self.assertEqual(self.course.submissions.count(), 2)
+        self.assertIsNone(caches["default"].get("course_home_refresh:%s" % self.course.pk))
+        self.assertContains(self.client.get(url + "?all=1&students_page=1"), "Refresh roster and exercises")
+        caches["default"].clear()
+        caches["course_report_progress"].clear()
+
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "metadata-locks"},
+        "course_report_progress": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "metadata-results"},
+    })
+    @patch("provider.aplus.get_api_client")
+    def test_course_home_worker_imports_missing_metadata_without_legacy_setup(self, get_client):
+        from provider import aplus
+        from provider.tasks import load_radar_page_data
+
+        self.course.exercises.all().delete()
+        self.course.students.all().delete()
+        get_client.return_value.load_data.side_effect = [
+            {"exercises": [{"exercises": [
+                {"id": 71, "display_name": "New Exercise", "is_submittable": True},
+                {"id": 72, "display_name": "Reading", "is_submittable": False},
+            ]}]},
+            [
+                {"student_id": "12345", "full_name": "Alice Example"},
+                {"student_id": None, "username": "bob", "full_name": "No Name"},
+                {"student_id": None, "username": None, "full_name": "No Identifier"},
+            ],
+        ]
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        response = self.client.get(reverse("course_home", kwargs={"course_key": self.course.key}))
+        self.assertEqual(response.status_code, 200)
+        get_client.assert_not_called()
+
+        with self.assertLogs("provider.tasks", level="INFO") as task_logs:
+            load_radar_page_data.run(self.course.pk, "course_home", [False, 1, "initial"], "metadata-test")
+        self.assertTrue(any("Radar course-home metadata ready" in message for message in task_logs.output))
+        self.assertTrue(any("Radar course-home data ready" in message for message in task_logs.output))
+        state = caches["course_report_progress"].get("metadata-test")
+        self.assertEqual(state["status"], "ready")
+        self.assertEqual([exercise.key for exercise in state["result"]["exercises"]], ["71"])
+        self.assertEqual(self.course.students.count(), 2)
+        self.assertEqual(Submission.objects.filter(exercise__course=self.course).count(), 0)
+        exercise = self.course.exercises.get(key="71")
+        self.assertEqual(exercise.name, "New Exercise")
+        self.assertEqual(self.course.students.get(key="12345").name, "Alice Example")
+        self.assertEqual(self.course.students.get(key="bob").name, "")
+        exercise.name = "Locally configured name"
+        exercise.override_minimum_match_tokens = 37
+        exercise.save()
+        get_client.return_value.load_data.reset_mock()
+        aplus.import_missing_course_metadata(self.course)
+        get_client.return_value.load_data.assert_not_called()
+        exercise.refresh_from_db()
+        self.assertEqual(exercise.name, "Locally configured name")
+        self.assertEqual(exercise.override_minimum_match_tokens, 37)
+        self.assertEqual(self.course.students.count(), 2)
+        caches["course_report_progress"].delete("metadata-test")
+
+    @patch("provider.aplus.get_api_client")
+    def test_course_metadata_import_skips_filesystem_and_reports_provider_failure(self, get_client):
+        from provider import aplus
+
+        self.course.provider = "filesystem"
+        aplus.import_missing_course_metadata(self.course)
+        get_client.assert_not_called()
+        self.course.provider = "a+"
+        self.course.exercises.all().delete()
+        get_client.return_value.load_data.return_value = None
+        with self.assertRaises(aplus.AplusProviderError):
+            aplus.import_missing_course_metadata(self.course)
+        self.assertFalse(self.course.exercises.exists())
+
     def setUp(self):
         user = get_user_model().objects.create_user("reviewer", password="password")
         self.user = user
@@ -101,6 +228,28 @@ class CreateCheatersheetComparisonTests(TestCase):
         store.clear()
 
     @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "summary-roster-locks"},
+        "course_report_progress": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "summary-roster-results"},
+    })
+    @patch("provider.aplus.sync_student_names")
+    @patch("review.views._build_course_similarity_summary", return_value={"pairs": []})
+    def test_summary_worker_uses_stored_roster_without_refreshing_provider(self, build_summary, sync_roster):
+        from provider.tasks import load_radar_page_data
+
+        caches["default"].clear()
+        caches["course_report_progress"].clear()
+        load_radar_page_data.run(self.course.pk, "summary", [[], 0.83, 1], "summary-roster-test")
+
+        sync_roster.assert_not_called()
+        build_summary.assert_called_once_with(self.course, [], 0.83, 1)
+        self.assertEqual(
+            caches["course_report_progress"].get("summary-roster-test"),
+            {"status": "ready", "result": {"pairs": []}},
+        )
+        caches["default"].clear()
+        caches["course_report_progress"].clear()
+
+    @override_settings(CACHES={
         "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
         "course_report_progress": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "async-failure-test"},
     })
@@ -142,9 +291,13 @@ class CreateCheatersheetComparisonTests(TestCase):
             reverse("student_pair_hub", kwargs={"course_key": self.course.key, "a_key": "studentA", "b_key": "studentB"}),
             reverse("student_group_hub", kwargs={"course_key": self.course.key, "member_keys": "studentA-studentB-studentC"}),
             reverse("dolos_mini_comparison", kwargs={"course_key": self.course.key, "a_key": "studentA", "b_key": "studentB", "exercise_key": self.exercise.key, "left_submission_id": self.submission_a.pk, "right_submission_id": self.submission_b.pk}),
+            reverse("dolos_hub_exercise", kwargs={"course_key": self.course.key, "exercise_key": self.exercise.key}),
         ]
         for url in urls:
-            self.assertEqual(self.client.get(url).status_code, 200)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            if url != reverse("index") and url != reverse("course_home", kwargs={"course_key": self.course.key}):
+                self.assertContains(response, "Regenerate course reports")
         fetch.assert_not_called()
         generate.assert_not_called()
         roster.assert_not_called()
@@ -179,6 +332,39 @@ class CreateCheatersheetComparisonTests(TestCase):
             load_radar_page_data.run(self.course.pk, "student_matches", ["studentA", False, ["REPORT"]], "worker-error")
         self.assertEqual(store.get("worker-error")["status"], "failed")
         store.delete("worker-error")
+
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "missing-report-locks"},
+        "course_report_progress": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "missing-report-results"},
+    })
+    @patch("review.views._fetch_dolos_pairs_rows")
+    def test_missing_dolos_report_suggests_regenerating_course_report(self, fetch):
+        from provider.tasks import load_radar_page_data
+
+        fetch.side_effect = requests.HTTPError(response=Mock(status_code=404))
+        store = caches["course_report_progress"]
+        with self.assertLogs("provider.tasks", level="ERROR"):
+            load_radar_page_data.run(
+                self.course.pk,
+                "student_matches",
+                ["studentA", False, ["MISSING_REPORT"]],
+                "missing-report-test",
+            )
+
+        result = store.get("missing-report-test")
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("Regenerate the full course report", result["message"])
+        store.delete("missing-report-test")
+
+    @patch("review.views.generate_course_dolos_task.delay", return_value=Mock(id="course-task"))
+    def test_course_report_requests_always_force_per_exercise_reports(self, enqueue):
+        response = self.client.get(
+            reverse("generate_course_dolos_async", kwargs={"course_key": self.course.key})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "queued")
+        enqueue.assert_called_once_with(self.course.key, force=True)
 
     def test_radar_mode_selection_is_idempotent(self):
         url = reverse("toggle_radar_mode")
@@ -224,6 +410,20 @@ class CreateCheatersheetComparisonTests(TestCase):
         self.assertEqual(first_course.home_submission_count, 2)
         self.assertEqual(first_course.home_matched_count, 0)
 
+    def test_whole_course_report_url_redirects_to_course_home(self):
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+
+        response = self.client.get(
+            reverse("dolos_hub", kwargs={"course_key": self.course.key}) + "?course_report=1"
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("course_home", kwargs={"course_key": self.course.key}),
+        )
+
     def test_new_radar_pair_flag_is_shown_in_student_overview(self):
         session = self.client.session
         session["legacy_radar"] = False
@@ -256,17 +456,21 @@ class CreateCheatersheetComparisonTests(TestCase):
         self.assertEqual(comparison.review, 0)
         self.assertContains(response, "Pair flag removed.")
 
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "home-bounds-locks"},
+        "course_report_progress": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "home-bounds-results"},
+    })
     @patch("review.views._flagged_comparisons")
-    def test_course_home_bounds_lists_and_keeps_full_flag_count(self, flagged_query):
+    def test_course_home_bounds_lists_without_aggregate_counts(self, flagged_query):
+        caches["default"].clear()
+        caches["course_report_progress"].clear()
+
         class FlaggedRows:
             def __init__(self):
                 self.requested_slice = None
 
             def only(self, *fields):
                 return self
-
-            def count(self):
-                return 12
 
             def __getitem__(self, requested_slice):
                 self.requested_slice = requested_slice
@@ -288,11 +492,17 @@ class CreateCheatersheetComparisonTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Loading report data")
         result = views._build_course_home_data(self.course, False, 1)
-        self.assertEqual(result["flagged_count"], 12)
+        self.assertNotIn("exercise_count", result)
+        self.assertNotIn("student_count", result)
+        self.assertNotIn("submission_count", result)
+        self.assertNotIn("reports_generated", result)
+        self.assertNotIn("flagged_count", result)
         self.assertEqual(rows.requested_slice.stop, 10)
         self.assertEqual(len(result["other_students"]), 50)
         self.assertTrue(result["other_students"].has_next())
         self.assertEqual(result["other_students"].paginator.count, 51)
+        caches["default"].clear()
+        caches["course_report_progress"].clear()
 
     @override_settings(CACHES={
         "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "home-locks"},
@@ -328,9 +538,10 @@ class CreateCheatersheetComparisonTests(TestCase):
         self.assertEqual(self.client.get(url + "?background=1").json()["status"], "ready")
         with CaptureQueriesContext(connection) as queries:
             response = self.client.get(url)
-        self.assertEqual(response.context["submission_count"], 2)
-        self.assertEqual(response.context["flagged_count"], 1)
+        self.assertNotIn("submission_count", response.context)
+        self.assertNotIn("flagged_count", response.context)
         self.assertContains(response, "studentA and studentB")
+        self.assertContains(response, "Regenerate course reports")
         for query in queries:
             self.assertNotIn('"data_submission"', query["sql"])
             self.assertNotIn('"data_comparison"', query["sql"])
@@ -412,7 +623,7 @@ class CreateCheatersheetComparisonTests(TestCase):
         self.assertContains(newest_response, ">Apply</button>")
         self.assertContains(newest_response, "?newest=3")
 
-    def test_course_report_waiting_panel_includes_active_game(self):
+    def test_course_report_waiting_panel_is_compact_and_consistent(self):
         html = render_to_string(
             "review/_course_report_panel.html",
             {
@@ -421,10 +632,9 @@ class CreateCheatersheetComparisonTests(TestCase):
             },
         )
 
-        self.assertIn(
-            'class="hub-course-game active" id="canvas" width="500" height="500"',
-            html,
-        )
+        self.assertIn("Regenerate course reports", html)
+        self.assertIn('class="hub-course-progress active"', html)
+        self.assertNotIn("<canvas", html)
 
     def test_exercise_submissions_selects_n_newest_per_student(self):
         student_b = self.submission_b.student

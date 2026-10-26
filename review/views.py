@@ -175,43 +175,20 @@ def course(request, course_key=None, course=None):
     return render(request, "review/course.html", context)
 
 
-def _student_flag_stats(course, students):
-    """{student_id: (flagged pair count, highest flagged similarity)} for the
-    given students, from comparisons reviewed as Suspicious or worse."""
-    student_ids = {student.id for student in students}
-    if not student_ids:
-        return {}
-
-    flagged = Comparison.objects.filter(
-        submission_a__exercise__course=course,
-        submission_b__isnull=False,
-        review__gte=5,
-    ).filter(
-        Q(submission_a__student_id__in=student_ids)
-        | Q(submission_b__student_id__in=student_ids)
-    ).values_list(
-        "submission_a__student_id", "submission_b__student_id", "similarity"
-    )
-    stats = {student_id: [0, None] for student_id in student_ids}
-    wanted = student_ids
-    for a_id, b_id, similarity in flagged:
-        for student_id in (a_id, b_id):
-            if student_id in wanted:
-                entry = stats[student_id]
-                entry[0] += 1
-                if similarity is not None and (entry[1] is None or similarity > entry[1]):
-                    entry[1] = similarity
-    return {student_id: (count, top) for student_id, (count, top) in stats.items()}
-
-
 @access_resource
 def course_home(request, course_key=None, course=None) -> HttpResponse:
-    """New Radar: course home page. Overview of the course (exercise/student/
-    submission counts, report status), pinned students, recent flagged pairs,
+    """New Radar: course home page. Overview of exercises and students,
+    pinned students, recent flagged pairs,
     and the entry points (analysis, students, downloads, settings) that
     previously had no obvious home."""
     if request.session.get("legacy_radar", True):
         return redirect("course", course_key=course.key)
+
+    if request.method == "POST" and request.POST.get("refresh_metadata") == "1":
+        version = str(time.time_ns())
+        cache.set("course_home_refresh:%s" % course.pk, version, 86400)
+        cache.set("course_home_version:%s" % course.pk, version, 86400)
+        return redirect(request.get_full_path())
 
     include_all = request.GET.get("all") == "1"
     try:
@@ -228,21 +205,17 @@ def course_home(request, course_key=None, course=None) -> HttpResponse:
         "course": course,
         "include_all": include_all,
         "background_state": public_status(state),
+        "course_report_task_status": _current_course_report_status(course, request),
     })
     return render(request, "review/course_home.html", context)
 
 
 def _build_course_home_data(course, include_all, students_page):
     exercises = list(
-        course.exercises.only("id", "key", "name").annotate(submission_count=Count("submissions"))
+        course.exercises.only("id", "key", "name")
     )
     exercises.sort(key=_natural_sort_key)
-    report_ids = _exercise_report_ids(course, include_all=include_all)
-
     pinned_students = list(course.students.filter(is_pinned=True))
-    flag_stats = _student_flag_stats(course, pinned_students)
-    for student in pinned_students:
-        student.flag_count, student.flag_top_similarity = flag_stats.get(student.id, (0, None))
 
     flagged = _flagged_comparisons(course).only(
         "id", "similarity", "review",
@@ -251,7 +224,6 @@ def _build_course_home_data(course, include_all, students_page):
         "submission_b__id", "submission_b__student__id", "submission_b__student__key",
         "submission_b__student__name",
     )
-    flagged_count = flagged.count()
     recent_flags = list(flagged[:10])
     other_students = Paginator(
         course.students.filter(is_pinned=False).order_by("key"), 50
@@ -261,16 +233,11 @@ def _build_course_home_data(course, include_all, students_page):
 
     return {
             "exercises": exercises,
-            "exercise_count": len(exercises),
-            "student_count": course.students.count(),
-            "submission_count": sum(exercise.submission_count for exercise in exercises),
             "include_all": include_all,
-            "reports_generated": len(report_ids),
             "course_report_completed_at": cache.get(_course_report_completed_cache_key(course)),
             "pinned_students": pinned_students,
             "other_students": other_students,
             "recent_flags": recent_flags,
-            "flagged_count": flagged_count,
     }
 
 
@@ -1360,13 +1327,13 @@ def generate_course_dolos_async(request, course_key=None, course=None) -> JsonRe
     if request.method not in ("GET", "POST"):
         return JsonResponse({"status": "failed", "message": "Method not allowed"}, status=405)
 
-    force = request.GET.get("force") == "1" or request.POST.get("force") == "1"
+    force = True
 
     # Reuse a currently running task for this course so refreshes and repeated
     # clicks continue tracking one job instead of queueing duplicates.
     existing_task_id = request.session.get(_course_report_task_session_key(course))
 
-    if existing_task_id and not force:
+    if existing_task_id:
         started = request.session.get(_course_report_started_session_key(course))
         existing_status = _resolve_course_task_status(course, existing_task_id, started_at=started)
         if existing_status["status"] == "pending":
@@ -1581,7 +1548,8 @@ def dolos_hub(request, course_key=None, exercise_key=None, course=None, exercise
             return redirect("exercise", course_key=course.key, exercise_key=exercise.key)
         return redirect("course", course_key=course.key)
 
-    course_report_mode = request.GET.get("course_report") == "1"
+    if request.GET.get("course_report") == "1":
+        return redirect("course_home", course_key=course.key)
 
     if exercise is None:
         first_exercise = course.exercises.first()
@@ -1599,54 +1567,6 @@ def dolos_hub(request, course_key=None, exercise_key=None, course=None, exercise
                     "current_exercise": None,
                     "course_report_mode": False,
                     "no_submissions": True,
-                },
-            )
-
-        if course_report_mode:
-            latest_report_id, completed_at = _read_latest_course_report(course, request)
-            latest_report_ids = _read_latest_course_report_ids(course, request)
-            report_url = None
-            report_urls = None
-            message = None
-            if latest_report_ids:
-                report_urls = [
-                    "%s/#/share/%s" % (DOLOS_PROXY_WEB_URL, report_id)
-                    for report_id in latest_report_ids
-                ]
-                report_url = report_urls[0]
-            elif latest_report_id:
-                report_url = "%s/#/share/%s" % (DOLOS_PROXY_WEB_URL, latest_report_id)
-            else:
-                message = "No course-wide report yet. Generate one with 'Generate Course Report'."
-
-            report_status_url = reverse(
-                "dolos_hub_exercise_report",
-                kwargs={"course_key": course.key, "exercise_key": first_exercise.key},
-            )
-
-            return render(
-                request,
-                "review/dolos_hub.html",
-                {
-                    "hierarchy": (
-                        (settings.APP_NAME, reverse("index")),
-                        (course.name, reverse("course", kwargs={"course_key": course.key})),
-                        ("Course-wide report", None),
-                    ),
-                    "course": course,
-                    "exercises": _dolos_hub_exercises(course),
-                    "current_exercise": first_exercise,
-                    "include_all": False,
-                    "message": message,
-                    "report_url": report_url,
-                    "report_urls": report_urls,
-                    "exercises_processed": len(report_urls) if report_urls else None,
-                    "loading": False,
-                    "report_status_url": report_status_url,
-                    "course_report_completed_at": completed_at,
-                    "course_report_task_status": _current_course_report_status(course, request),
-                    "course_report_mode": True,
-                    "reports_reused": request.session.get(_course_report_reused_session_key(course)),
                 },
             )
 
@@ -1712,7 +1632,6 @@ def dolos_hub(request, course_key=None, exercise_key=None, course=None, exercise
             "report_status_url": report_status_url,
             "course_report_completed_at": _read_latest_course_report(course, request)[1],
             "course_report_task_status": _current_course_report_status(course, request),
-            "course_report_mode": False,
             "report_reused": stored_report is not None and not force,
             "report_generated_at": stored_report.generated_at if stored_report else None,
             "new_submissions_count": (
@@ -2728,6 +2647,7 @@ def dolos_mini_comparison(
             "background_state": public_status(state),
             "similarity": comparison.similarity if comparison else None,
             "comparison": comparison,
+            "course_report_task_status": _current_course_report_status(course, request),
             "report_id": report_id,
             "report_url": report_url,
             "open_report_url": report_url,
@@ -2844,6 +2764,7 @@ def student_hub(request, course_key=None, student_key=None, course=None, student
             "rows": rows,
             "background_state": public_status(state),
             "include_all": include_all,
+            "course_report_task_status": _current_course_report_status(course, request),
         },
     )
 

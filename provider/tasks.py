@@ -17,6 +17,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.cache import caches
+from django.db import connection
 
 from data.models import Course, Exercise, ExerciseDolosReport, TaskError
 from matcher import tasks as matcher_tasks
@@ -47,17 +48,43 @@ def load_radar_page_data(course_id, operation, arguments, key):
     from review import views
 
     store = caches["course_report_progress"]
+    started = time.monotonic()
+    logger.info("Radar background start course=%s operation=%s key=%s", course_id, operation, key)
+
+    def time_query(execute, sql, params, many, context):
+        query_started = time.monotonic()
+        try:
+            return execute(sql, params, many, context)
+        finally:
+            elapsed = time.monotonic() - query_started
+            if elapsed >= 1:
+                logger.warning(
+                    "Slow Radar background SQL course=%s operation=%s seconds=%.3f sql=%s",
+                    course_id, operation, elapsed, sql,
+                )
+
     try:
         course = Course.objects.get(pk=course_id)
         if operation == "course_home":
             include_all, students_page, version = arguments
-            result = views._build_course_home_data(course, include_all, students_page)
+            refresh_key = "course_home_refresh:%s" % course.pk
+            refresh = caches["default"].get(refresh_key) == version
+            metadata_started = time.monotonic()
+            aplus.import_missing_course_metadata(course, refresh=refresh)
+            logger.info(
+                "Radar course-home metadata ready course=%s refresh=%s seconds=%.3f",
+                course_id, refresh, time.monotonic() - metadata_started,
+            )
+            if refresh and caches["default"].get(refresh_key) == version:
+                caches["default"].delete(refresh_key)
+            build_started = time.monotonic()
+            with connection.execute_wrapper(time_query):
+                result = views._build_course_home_data(course, include_all, students_page)
+            logger.info(
+                "Radar course-home data ready course=%s seconds=%.3f",
+                course_id, time.monotonic() - build_started,
+            )
         elif operation == "summary":
-            if course.provider == "a+":
-                try:
-                    aplus.sync_student_names(course)
-                except Exception:
-                    logger.warning("Background roster refresh failed", exc_info=True)
             for report_id in arguments[0]:
                 views._fetch_dolos_pairs_rows(report_id)
             result = views._build_course_similarity_summary(course, *arguments)
@@ -89,7 +116,20 @@ def load_radar_page_data(course_id, operation, arguments, key):
             result = views._build_hub_report_data(exercise, include_all, newest)
         else:
             raise ValueError("Unknown background operation")
-        store.set(key, {"status": "ready", "result": result}, 30 if operation == "course_home" else 600)
+        store.set(key, {"status": "ready", "result": result}, 600)
+        logger.info(
+            "Radar background ready course=%s operation=%s key=%s seconds=%.3f",
+            course_id, operation, key, time.monotonic() - started,
+        )
+    except requests.HTTPError as exc:
+        logger.exception("Background Radar page data failed for course=%s operation=%s", course_id, operation)
+        if exc.response is not None and exc.response.status_code == 404 and operation in {
+            "summary", "student_matches", "group_pairs",
+        }:
+            message = "A saved Dolos report is missing. Regenerate the full course report, then reload this page."
+        else:
+            message = "Background loading failed. Check the worker log and retry."
+        store.set(key, {"status": "failed", "message": message}, 600)
     except Exception:
         logger.exception("Background Radar page data failed for course=%s operation=%s", course_id, operation)
         store.set(key, {"status": "failed", "message": "Background loading failed. Check the worker log and retry."}, 600)

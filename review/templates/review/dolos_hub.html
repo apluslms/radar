@@ -55,12 +55,10 @@
 	<nav class="hub-tabs">
 		<a href="{% url 'course_home' course_key=course.key %}"
 		   role="button" class="secondary" title="Back to the course overview: pinned students, flags, downloads and settings">&#8962; Course home</a>
-		<a href="{% url 'dolos_hub' course_key=course.key %}?course_report=1"
-		   role="button" class="{% if not course_report_mode %}secondary outline{% endif %}">Whole Course</a>
 		{% for ex in exercises %}
 		<a href="{% url 'dolos_hub_exercise' course_key=course.key exercise_key=ex.key %}{% if newest %}?newest={{ newest }}{% elif include_all %}?all=1{% endif %}"
-		   role="button" class="{% if course_report_mode or current_exercise.key != ex.key %}secondary outline{% endif %}"
-		   {% if ex.dolos_report_cached_best or ex.dolos_report_cached_all %}title="Cached:{% if ex.dolos_report_cached_best %} Best per student{% endif %}{% if ex.dolos_report_cached_all %} All submissions{% endif %}"{% endif %}>{{ ex.name }}{% if course_report_mode %}{% if ex.dolos_report_cached_best %}<span class="report-cached" aria-label="Best per student report cached">B&#10003;</span>{% endif %}{% if ex.dolos_report_cached_all %}<span class="report-cached" aria-label="All submissions report cached">A&#10003;</span>{% endif %}{% elif not newest %}{% if include_all and ex.dolos_report_cached_all or not include_all and ex.dolos_report_cached_best %}<span class="report-cached" aria-label="Report cached">&#10003;</span>{% endif %}{% endif %}</a>
+		   role="button" class="{% if current_exercise.key != ex.key %}secondary outline{% endif %}"
+		   {% if ex.dolos_report_cached_best or ex.dolos_report_cached_all %}title="Cached:{% if ex.dolos_report_cached_best %} Best per student{% endif %}{% if ex.dolos_report_cached_all %} All submissions{% endif %}"{% endif %}>{{ ex.name }}{% if not newest %}{% if include_all and ex.dolos_report_cached_all or not include_all and ex.dolos_report_cached_best %}<span class="report-cached" aria-label="Report cached">&#10003;</span>{% endif %}{% endif %}</a>
 		{% endfor %}
 	</nav>
 	<div class="hub-main">
@@ -68,7 +66,7 @@
 		<a href="{% url 'students_hub' course_key=course.key %}{% if include_all %}?all=1{% endif %}"
 		   role="button" class="secondary outline hub-students-link"
 		   title="Review student similarity across every exercise">Student overview</a>
-		{% if not course_report_mode and current_exercise %}
+		{% if current_exercise %}
 		<div class="hub-mode-switch">
 			<span class="hub-mode-label">Submission set:</span>
 			<div class="hub-mode-options" role="group" aria-label="Submission set">
@@ -90,12 +88,9 @@
 			{% endif %}
 		</div>
 		{% endif %}
-		{% include 'review/_refresh_menu.html' with has_course_panel=course_report_mode %}
+		{% include 'review/_refresh_menu.html' %}
 	</div>
-
-{% if course_report_mode %}
-{% include 'review/_course_report_panel.html' %}
-{% endif %}
+	{% include 'review/_course_report_panel.html' %}
 
 {% if report_reused %}
 <div class="hub-cache-notice">
@@ -105,28 +100,10 @@
 </div>
 {% endif %}
 
-{% if report_url or report_urls %}
-{% if report_urls %}
-<!-- Multiple per-exercise reports -->
-<div class="hub-multi-report">
-	<p><strong>Course report ready.</strong> {{ exercises_processed }} exercise report(s) available.{% if reports_reused %} {{ reports_reused }} reused from cache.{% endif %}</p>
-	<a href="{% url 'students_hub' course_key=course.key %}" role="button" class="secondary">Open Students View</a>
-	{% if exercises_failed %}
-	<article class="warning">
-		<strong>{{ exercises_failed|length }} exercise(s) failed to generate:</strong>
-		<ul>
-			{% for failed in exercises_failed %}
-			<li>{{ failed.name }}: {{ failed.error }}</li>
-			{% endfor %}
-		</ul>
-	</article>
-	{% endif %}
-</div>
-{% else %}
+{% if report_url %}
 <!-- Single report (legacy format) -->
 {% include 'review/_dolos_cheatersheet_toolbar.html' %}
 <iframe class="hub-frame" data-report-id="{{ report_id }}" src="{{ report_url }}" title="Dolos report"></iframe>
-{% endif %}
 {% elif loading %}
 <article id="hub-status" aria-busy="true">
 	<form id="hub-job-form" hidden>{% csrf_token %}</form>

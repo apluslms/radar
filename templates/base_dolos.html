@@ -73,9 +73,11 @@
 				if (!response.ok) { throw new Error(data.error || "CheaterSheet rejected the comparison"); }
 				return data;
 			});
-		}).then(function () {
+		}).then(function (data) {
 			button.textContent = "Sent to CheaterSheet";
-			status.textContent = "Comparison created";
+			status.textContent = data.status === "queued"
+				? "Queued: import the submissions in CheaterSheet to complete the comparison."
+				: data.status === "comparison already exists" ? "Comparison already exists" : "Comparison created";
 		}).catch(function (error) {
 			button.disabled = false;
 			button.textContent = originalText;

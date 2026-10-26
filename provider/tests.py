@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from threading import Barrier
 from unittest import mock
 
 from django.test import SimpleTestCase
@@ -8,6 +9,41 @@ from provider import tasks
 
 
 class AplusApiUrlTests(SimpleTestCase):
+    def test_metadata_refresh_fetches_course_and_roster_concurrently(self):
+        both_started = Barrier(2)
+        course_data = mock.Mock()
+        course_data.get.return_value = []
+
+        def course_response(*args, **kwargs):
+            both_started.wait(timeout=2)
+            return course_data
+
+        def roster_response(*args, **kwargs):
+            both_started.wait(timeout=2)
+            return []
+
+        course_client = mock.Mock()
+        course_client.load_data.side_effect = course_response
+        roster_client = mock.Mock()
+        roster_client.load_data.side_effect = roster_response
+        course = SimpleNamespace(
+            provider="a+",
+            pk=42,
+            url="https://plus.example.com/api/v2/courses/42/",
+            api_id=42,
+            get_student=mock.Mock(),
+            students=SimpleNamespace(filter=mock.Mock(return_value=[])),
+        )
+
+        with (
+            mock.patch("provider.aplus.AplusTokenClient", side_effect=[course_client, roster_client]),
+            mock.patch("provider.aplus.build_api_url", side_effect=lambda _course, path: path),
+        ):
+            aplus.import_missing_course_metadata(course, refresh=True)
+
+        course_client.load_data.assert_called_once_with(course.url, skip_cache=True)
+        roster_client.load_data.assert_called_once_with("/api/v2/courses/42/students/", skip_cache=True)
+
     @mock.patch("provider.aplus.config_loaders.provider_config")
     def test_build_api_url_uses_provider_host_for_relative_paths(self, provider_config):
         provider_config.return_value = {"host": "https://plus.example.com"}
