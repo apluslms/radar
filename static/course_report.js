@@ -204,6 +204,13 @@
 	}
 
 	function showReady(data) {
+		if (data && data.exercises_failed && data.exercises_failed.length) {
+			var failures = data.exercises_failed.map(function (exercise) {
+				return (exercise.name || exercise.key) + ': ' + (exercise.error || 'Unknown error');
+			});
+			showFailure('Some exercise reports were not replaced. ' + failures.join('; '));
+			return false;
+		}
 		var progress = el('hubCourseProgress');
 		var btn = el('generateCourseBtn');
 		if (progress) {
@@ -216,6 +223,7 @@
 			btn.textContent = REPORT_BUTTON_TEXT;
 		}
 		stopPolling();
+		return true;
 	}
 
 	function startCourseReportGeneration() {
@@ -271,8 +279,9 @@
 			.then(function (response) { return response.json(); })
 			.then(function (data) {
 				if (data.status === 'ready') {
-					showReady(data);
-					reloadOnceForReport(data);
+					if (showReady(data)) {
+						reloadOnceForReport(data);
+					}
 				} else if (data.status === 'failed') {
 					showFailure(data.message);
 				} else if (data.status === 'pending') {
@@ -309,8 +318,9 @@
 					}
 					startPolling();
 				} else if (data.status === 'ready') {
-					showReady(data);
-					reloadOnceForReport(data);
+					if (showReady(data)) {
+						reloadOnceForReport(data);
+					}
 				} else if (data.status === 'failed') {
 					showFailure(data.message);
 				}

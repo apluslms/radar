@@ -1336,6 +1336,7 @@ def generate_course_dolos_async(request, course_key=None, course=None) -> JsonRe
         return JsonResponse({"status": "failed", "message": "Method not allowed"}, status=405)
 
     force = True
+    include_all = request.GET.get("all") == "1"
 
     # Reuse a currently running task for this course so refreshes and repeated
     # clicks continue tracking one job instead of queueing duplicates.
@@ -1363,7 +1364,7 @@ def generate_course_dolos_async(request, course_key=None, course=None) -> JsonRe
     _clear_latest_course_report(course, request)
 
     try:
-        task = generate_course_dolos_task.delay(course_key, force=force)
+        task = generate_course_dolos_task.delay(course_key, force=force, include_all=include_all)
     except Exception as first_exc:
         # A broker/channel error (e.g. RabbitMQ closing a channel after a
         # previous task held it too long) can leave a broken connection
@@ -1384,7 +1385,7 @@ def generate_course_dolos_async(request, course_key=None, course=None) -> JsonRe
                     pass
             except Exception:
                 pass  # Ignore errors during cleanup
-            task = generate_course_dolos_task.delay(course_key, force=force)
+            task = generate_course_dolos_task.delay(course_key, force=force, include_all=include_all)
         except Exception as exc:
             logger.exception("Failed to queue course-wide Dolos report for %s", course_key)
             return JsonResponse({
