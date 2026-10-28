@@ -14,7 +14,7 @@ def result_key(course_id, operation, arguments):
     digest = hashlib.sha256(
         json.dumps([course_id, operation, arguments], sort_keys=True).encode()
     ).hexdigest()
-    version = "v3" if operation in {"student_matches", "group_pairs"} else "v2"
+    version = "v4" if operation == "student_matches" else "v3" if operation == "group_pairs" else "v2"
     return "radar_background:%s:" % version + digest
 
 

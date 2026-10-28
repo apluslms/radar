@@ -54,6 +54,7 @@
 	{% elif not pair_rows %}
 	<article class="pair-card">No similarities found for this pair in the available course report(s).</article>
 	{% else %}
+	<p class="muted">Up to 50 submission comparisons per page, strongest first. Similarities below are for this page.</p>
 	<div class="pair-card">
 		<table class="pair-table">
 			<thead>
@@ -105,5 +106,6 @@
 		</table>
 	</div>
 	{% endif %}
+	{% include 'review/_overview_pagination.html' with page=comparisons_page label="Comparison pages" %}
 </div>
 {% endblock %}

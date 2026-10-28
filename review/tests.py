@@ -403,7 +403,7 @@ class CreateCheatersheetComparisonTests(TestCase):
         store = caches["course_report_progress"]
         with self.assertLogs("provider.tasks", level="ERROR"):
             load_radar_page_data.run(
-                self.course.pk, "student_matches", ["studentA", False, ["REPORT"]], "worker-error",
+                self.course.pk, "student_matches", ["studentA", False, ["REPORT"], 1], "worker-error",
             )
         self.assertEqual(store.get("worker-error")["status"], "failed")
         store.delete("worker-error")
@@ -475,9 +475,9 @@ class CreateCheatersheetComparisonTests(TestCase):
         session["legacy_radar"] = False
         session.save()
         cases = [
-            ("student_matches", ["studentA", False, ["PURGED", "AVAILABLE"]], "student_hub",
+            ("student_matches", ["studentA", False, ["PURGED", "AVAILABLE"], 1], "student_hub",
              {"student_key": "studentA"}),
-            ("group_pairs", [["PURGED", "AVAILABLE"], ["studentA", "studentB"]], "student_pair_hub",
+            ("student_pair", [["PURGED", "AVAILABLE"], ["studentA", "studentB"], 1, "initial"], "student_pair_hub",
              {"a_key": "studentA", "b_key": "studentB"}),
         ]
         for operation, arguments, view_name, kwargs in cases:
@@ -493,8 +493,8 @@ class CreateCheatersheetComparisonTests(TestCase):
                     self.assertEqual(result["rows"][0][2], ("studentB", .91))
                     missing = result["missing_reports"]
                 else:
-                    self.assertEqual(result[0][0]["similarity"], .91)
-                    missing = result[1]
+                    self.assertEqual(result["pair_rows"][0]["similarity"], .91)
+                    missing = result["missing_reports"]
                 self.assertEqual(missing, [{"report_id": "PURGED", "exercise_name": "Multiple choice"}])
                 with patch("review.views.background_result", return_value=state):
                     response = self.client.get(reverse(view_name, kwargs={"course_key": self.course.key, **kwargs}))
@@ -539,7 +539,7 @@ class CreateCheatersheetComparisonTests(TestCase):
             ])
 
     def test_new_student_cache_keys_do_not_reuse_old_failures_or_result_shapes(self):
-        self.assertTrue(result_key(self.course.pk, "student_matches", []).startswith("radar_background:v3:"))
+        self.assertTrue(result_key(self.course.pk, "student_matches", []).startswith("radar_background:v4:"))
         self.assertTrue(result_key(self.course.pk, "group_pairs", []).startswith("radar_background:v3:"))
         self.assertTrue(result_key(self.course.pk, "summary", []).startswith("radar_background:v2:"))
 
@@ -556,13 +556,168 @@ class CreateCheatersheetComparisonTests(TestCase):
         session = self.client.session
         session["legacy_radar"] = False
         session.save()
-        with patch("review.views.background_result", return_value={"status": "ready", "result": pair_result}):
+        state = {"status": "ready", "result": {"pair_rows": [], "missing_reports": pair_result[1]}}
+        with patch("review.views.background_result", return_value=state):
             response = self.client.get(reverse("student_pair_hub", kwargs={
                 "course_key": self.course.key, "a_key": "studentA", "b_key": "studentB",
             }))
         self.assertContains(response, "No exercise report data is available")
         self.assertContains(response, "Missing/failed report for following exercises:")
         self.assertNotContains(response, "No similarities found")
+
+    @patch("review.views.AsyncResult", side_effect=AssertionError("Celery backend in web request"))
+    @patch("review.views._current_course_report_status", side_effect=AssertionError("Task status in render"))
+    @patch("review.views._flagged_submission_pairs", side_effect=AssertionError("Flags in web request"))
+    @patch("review.views._fetch_dolos_pairs_rows", side_effect=AssertionError("Dolos in web request"))
+    @patch("review.views.background_result", return_value={"status": "pending"})
+    def test_student_pages_never_load_reports_flags_or_task_backend_in_web_process(
+        self, background, fetch, flags, task_status, async_result,
+    ):
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="REPORT", include_all=False)
+        session = self.client.session
+        session["legacy_radar"] = False
+        session[views._course_report_task_session_key(self.course)] = "running-task"
+        session.save()
+        urls = [
+            reverse("student_hub", kwargs={"course_key": self.course.key, "student_key": "studentA"}),
+            reverse("student_pair_hub", kwargs={
+                "course_key": self.course.key, "a_key": "studentA", "b_key": "studentB",
+            }),
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                with CaptureQueriesContext(connection) as queries:
+                    response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "?cache_only=1")
+                self.assertFalse(any('FROM "data_comparison"' in query["sql"] for query in queries))
+                with patch("review.views._overview_page", side_effect=AssertionError("Roster in poll")):
+                    self.assertEqual(self.client.get(url + "?background=1").json(), {"status": "pending"})
+                    self.assertEqual(self.client.post(url + "?background=1").json(), {"status": "pending"})
+        for dependency in (fetch, flags, task_status, async_result):
+            dependency.assert_not_called()
+
+    @patch("review.views.background_result", return_value={"status": "ready", "result": {}})
+    def test_student_sidebar_is_count_free_and_bounded(self, background):
+        Student.objects.bulk_create([
+            Student(course=self.course, key="extra%03d" % index, name="Extra %s" % index)
+            for index in range(120)
+        ])
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        url = reverse("student_hub", kwargs={"course_key": self.course.key, "student_key": "studentA"})
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(url + "?all=1")
+        self.assertEqual(len(response.context["students"]), 50)
+        self.assertContains(response, "students_page=2")
+        self.assertIn("all=1", response.context["students_page"]["next_url"])
+        roster_queries = [query["sql"] for query in queries if 'FROM "data_student"' in query["sql"]]
+        self.assertTrue(any("LIMIT 51" in sql for sql in roster_queries))
+        self.assertFalse(any("COUNT(" in sql for sql in roster_queries))
+
+    @patch("review.views._fetch_dolos_pairs_rows", return_value=[])
+    def test_student_worker_pages_exercises_without_fetching_other_pages(self, fetch):
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="FIRST", include_all=False)
+        for index in range(2, 53):
+            exercise = Exercise.objects.create(course=self.course, key="ex%s" % index, name="Exercise %s" % index)
+            ExerciseDolosReport.objects.create(exercise=exercise, report_id="REPORT%s" % index, include_all=False)
+        result = views._student_exercise_matches(self.course, "studentA", page=1)
+        self.assertEqual(len(result["rows"]), 50)
+        self.assertTrue(result["has_next"])
+        self.assertEqual(fetch.call_count, 50)
+        fetch.reset_mock()
+        result = views._student_exercise_matches(self.course, "studentA", page=2)
+        self.assertEqual(len(result["rows"]), 2)
+        self.assertFalse(result["has_next"])
+        self.assertEqual(fetch.call_count, 2)
+
+    @patch("review.views._dolos_pairs_for_student", return_value=[("other%s" % n, .9) for n in range(120)])
+    @patch("review.views._fetch_dolos_pairs_rows", return_value=[])
+    def test_student_worker_bounds_nested_matches_and_discloses_total(self, fetch, matches):
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="REPORT", include_all=False)
+        result = views._student_exercise_matches(self.course, "studentA")
+        self.assertEqual(len(result["rows"][0][3]), 50)
+        self.assertEqual(result["match_counts"][self.exercise.key], 120)
+
+    @patch("review.views._build_group_pair_rows")
+    def test_pair_worker_pages_results_and_queries_flags_only_for_visible_submissions(self, build):
+        row = {
+            "exercise": self.exercise, "similarity": .91,
+            "left_submission_id": str(self.submission_a.pk), "right_submission_id": str(self.submission_b.pk),
+        }
+        build.return_value = ([dict(row) for _ in range(120)], [])
+        Comparison.objects.create(submission_a=self.submission_b, submission_b=self.submission_a, review=10)
+        with CaptureQueriesContext(connection) as queries:
+            result = views._build_student_pair_page(self.course, ["REPORT"], ["studentA", "studentB"], 1)
+        self.assertTrue(result["has_next"])
+        self.assertEqual(sum(len(row["comparison_rows"]) for row in result["pair_rows"]), 50)
+        self.assertTrue(result["pair_rows"][0]["flagged"])
+        self.assertTrue(all(row["flagged"] for row in result["pair_rows"][0]["comparison_rows"]))
+        sql = next(query["sql"] for query in queries if 'FROM "data_comparison"' in query["sql"])
+        self.assertIn('"submission_a_id" IN', sql)
+        self.assertIn('"submission_b_id" IN', sql)
+        result = views._build_student_pair_page(self.course, ["REPORT"], ["studentA", "studentB"], 3)
+        self.assertFalse(result["has_next"])
+        self.assertEqual(sum(len(row["comparison_rows"]) for row in result["pair_rows"]), 20)
+
+    def test_both_student_pages_return_503_for_query_deadline_exceeded(self):
+        class QueryCancelled(Exception):
+            pgcode = "57014"
+
+        cancelled = OperationalError("statement timeout")
+        cancelled.__cause__ = QueryCancelled()
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        urls = [
+            reverse("student_hub", kwargs={"course_key": self.course.key, "student_key": "studentA"}),
+            reverse("student_pair_hub", kwargs={
+                "course_key": self.course.key, "a_key": "studentA", "b_key": "studentB",
+            }),
+        ]
+        with patch("review.views._exercise_report_ids", side_effect=cancelled):
+            for url in urls:
+                with self.assertLogs("radar.review", level="ERROR"):
+                    response = self.client.get(url)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response["Retry-After"], "30")
+
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "pair-page-locks"},
+        "course_report_progress": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "pair-page-results",
+        },
+    })
+    @patch("provider.tasks.load_radar_page_data.apply_async")
+    @patch("review.views._build_student_pair_page")
+    def test_pair_page_queues_bounded_worker_result_and_invalidates_after_flag_changes(self, build, enqueue):
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="REPORT", include_all=True)
+        store = caches["course_report_progress"]
+        self.addCleanup(store.clear)
+        self.addCleanup(caches["default"].clear)
+        build.return_value = {"pair_rows": [], "missing_reports": [], "has_next": True}
+        url = reverse("student_pair_hub", kwargs={
+            "course_key": self.course.key, "a_key": "studentA", "b_key": "studentB",
+        }) + "?all=1&comparisons_page=2"
+        self.assertEqual(self.client.post(url + "&background=1").json()["status"], "pending")
+        args = enqueue.call_args.kwargs["args"]
+        self.assertEqual(args[1:3], ["student_pair", [["REPORT"], ["studentA", "studentB"], 2, "initial"]])
+        self.assertEqual(enqueue.call_args.kwargs["queue"], "radar_background")
+        load_radar_page_data.run(*args)
+        build.assert_called_once()
+        self.assertEqual(build.call_args.args, (self.course, ["REPORT"], ["studentA", "studentB"], 2))
+        with patch("review.views._flagged_submission_pairs", side_effect=AssertionError("Flags on cache hit")):
+            response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("comparisons_page=3", response.context["comparisons_page"]["next_url"])
+        self.assertIn("all=1", response.context["comparisons_page"]["next_url"])
+        self.assertEqual(self.client.get(url + "&background=1").json(), {"status": "ready"})
+        self.client.post(reverse("flag_new_radar_pair", kwargs={
+            "course_key": self.course.key,
+            "left_submission_id": self.submission_a.pk, "right_submission_id": self.submission_b.pk,
+        }), {"flagged": "true"})
+        self.assertEqual(self.client.get(url + "&background=1").json(), {"status": "idle"})
 
     @patch("review.views.generate_course_dolos_task.delay", return_value=Mock(id="course-task"))
     def test_course_report_requests_always_force_per_exercise_reports(self, enqueue):
@@ -922,11 +1077,11 @@ class CreateCheatersheetComparisonTests(TestCase):
         )
 
         best_response = self.client.get(url)
-        self.assertEqual(background.call_args.args[3], ["studentA", False, ["BEST_REPORT"]])
+        self.assertEqual(background.call_args.args[3], ["studentA", False, ["BEST_REPORT"], 1])
         self.assertContains(best_response, 'href="%s" aria-current="true"' % url)
 
         all_response = self.client.get(url + "?all=1")
-        self.assertEqual(background.call_args.args[3], ["studentA", True, ["ALL_REPORT"]])
+        self.assertEqual(background.call_args.args[3], ["studentA", True, ["ALL_REPORT"], 1])
         self.assertContains(all_response, 'href="%s?all=1" aria-current="true"' % url)
 
     @patch("review.views.background_result", return_value={"status": "pending"})

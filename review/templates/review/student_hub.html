@@ -45,6 +45,7 @@
 			{% if listed_student.is_pinned %}&#9733; {% endif %}{{ listed_student.display_name }}
 		</a>
 		{% endfor %}
+		{% include 'review/_overview_pagination.html' with page=students_page label="Student pages" %}
 	</aside>
 	<main class="hub-main">
 		{% include 'review/_background_loading.html' %}
@@ -95,7 +96,8 @@
 						</a>
 						{% if row.all_matches|length > 1 %}
 						<details class="match-list">
-							<summary>All matches ({{ row.all_matches|length }})</summary>
+							<summary>{% if row.match_count > row.all_matches|length %}Strongest {{ row.all_matches|length }} of {{ row.match_count }} matches{% else %}All matches ({{ row.all_matches|length }}){% endif %}</summary>
+							{% if row.match_count > row.all_matches|length %}<p class="muted">Open the exercise report to inspect all matches.</p>{% endif %}
 							<ul>
 								{% for m in row.all_matches %}
 								<li>
@@ -112,6 +114,7 @@
 				{% endfor %}
 			</tbody>
 		</table>
+		{% include 'review/_overview_pagination.html' with page=exercises_page label="Exercise pages" %}
 	</main>
 </div>
 {% endblock %}

@@ -126,8 +126,13 @@ def load_radar_page_data(course_id, operation, arguments, key):
         elif operation == "summary":
             result = views._build_course_similarity_summary(course, *arguments, report_progress=report_progress)
         elif operation == "student_matches":
-            student_key, include_all, _report_ids = arguments
-            result = views._student_exercise_matches(course, student_key, include_all, report_progress=report_progress)
+            student_key, include_all, _report_ids, page = arguments
+            result = views._student_exercise_matches(
+                course, student_key, include_all, report_progress=report_progress, page=page,
+            )
+        elif operation == "student_pair":
+            report_ids, members, page, _version = arguments
+            result = views._build_student_pair_page(course, report_ids, members, page, report_progress=report_progress)
         elif operation == "group_pairs":
             result = views._build_group_pair_rows(course, *arguments, report_progress=report_progress)
         elif operation == "mini_report":
