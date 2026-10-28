@@ -223,7 +223,10 @@ class CreateCheatersheetComparisonTests(TestCase):
         self.assertEqual(enqueue.call_args.kwargs["queue"], "radar_background")
         matches.assert_not_called()
 
-        matches.return_value = [(self.exercise, "REPORT", ("studentB", 0.8), [("studentB", 0.8)])]
+        matches.return_value = {
+            "rows": [(self.exercise, "REPORT", ("studentB", 0.8), [("studentB", 0.8)])],
+            "missing_reports": [],
+        }
         load_radar_page_data.run(*enqueue.call_args.kwargs["args"])
         self.assertEqual(self.client.get(url + "?background=1").json(), {"status": "ready"})
         response = self.client.get(url)
@@ -396,6 +399,7 @@ class CreateCheatersheetComparisonTests(TestCase):
     })
     @patch("review.views._fetch_dolos_pairs_rows", side_effect=requests.ConnectionError("Dolos unavailable"))
     def test_background_worker_failure_is_not_an_empty_success(self, fetch):
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="REPORT", include_all=False)
         store = caches["course_report_progress"]
         with self.assertLogs("provider.tasks", level="ERROR"):
             load_radar_page_data.run(
@@ -449,21 +453,116 @@ class CreateCheatersheetComparisonTests(TestCase):
         },
     })
     @patch("review.views._fetch_dolos_pairs_rows")
-    def test_missing_dolos_report_suggests_regenerating_course_report(self, fetch):
-        fetch.side_effect = requests.HTTPError(response=Mock(status_code=404))
-        store = caches["course_report_progress"]
-        with self.assertLogs("provider.tasks", level="ERROR"):
-            load_radar_page_data.run(
-                self.course.pk,
-                "student_matches",
-                ["studentA", False, ["MISSING_REPORT"]],
-                "missing-report-test",
-            )
+    def test_student_and_pair_workers_keep_available_reports_when_one_exercise_is_missing(self, fetch):
+        missing_exercise = Exercise.objects.create(course=self.course, key="ex2", name="Multiple choice")
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="AVAILABLE", include_all=False)
+        ExerciseDolosReport.objects.create(exercise=missing_exercise, report_id="PURGED", include_all=False)
+        row = {
+            "leftFilePath": "course42/ex1/studentA_%s.txt" % self.submission_a.pk,
+            "rightFilePath": "course42/ex1/studentB_%s.txt" % self.submission_b.pk,
+            "similarity": "0.91",
+        }
 
-        result = store.get("missing-report-test")
-        self.assertEqual(result["status"], "failed")
-        self.assertIn("Regenerate the full course report", result["message"])
-        store.delete("missing-report-test")
+        def fetch_rows(report_id):
+            if report_id == "PURGED":
+                raise requests.HTTPError(response=Mock(status_code=404))
+            return [row]
+
+        fetch.side_effect = fetch_rows
+        store = caches["course_report_progress"]
+        self.addCleanup(store.clear)
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        cases = [
+            ("student_matches", ["studentA", False, ["PURGED", "AVAILABLE"]], "student_hub",
+             {"student_key": "studentA"}),
+            ("group_pairs", [["PURGED", "AVAILABLE"], ["studentA", "studentB"]], "student_pair_hub",
+             {"a_key": "studentA", "b_key": "studentB"}),
+        ]
+        for operation, arguments, view_name, kwargs in cases:
+            with self.subTest(operation=operation):
+                fetch.reset_mock()
+                with self.assertLogs("radar.review", level="WARNING"):
+                    load_radar_page_data.run(self.course.pk, operation, arguments, "partial-students")
+                state = store.get("partial-students")
+                self.assertEqual(state["status"], "ready")
+                self.assertEqual(fetch.call_count, 2)
+                result = state["result"]
+                if operation == "student_matches":
+                    self.assertEqual(result["rows"][0][2], ("studentB", .91))
+                    missing = result["missing_reports"]
+                else:
+                    self.assertEqual(result[0][0]["similarity"], .91)
+                    missing = result[1]
+                self.assertEqual(missing, [{"report_id": "PURGED", "exercise_name": "Multiple choice"}])
+                with patch("review.views.background_result", return_value=state):
+                    response = self.client.get(reverse(view_name, kwargs={"course_key": self.course.key, **kwargs}))
+                self.assertContains(response, "91")
+                self.assertContains(response, "Missing/failed report for following exercises:")
+                self.assertContains(response, "Multiple choice")
+                self.assertNotContains(response, "Regenerate the full course report")
+                if operation == "student_matches":
+                    self.assertContains(response, "Report data unavailable")
+                    self.assertNotContains(response, "No similar submissions found")
+
+    @patch("review.views._fetch_dolos_pairs_rows")
+    def test_student_and_pair_builders_do_not_hide_network_or_server_errors(self, fetch):
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="REPORT", include_all=False)
+        for error in (requests.HTTPError(response=Mock(status_code=500)), requests.Timeout("Dolos timeout")):
+            fetch.side_effect = error
+            for builder, arguments in [
+                (views._student_exercise_matches, ["studentA", False]),
+                (views._build_group_pair_rows, [["REPORT"], ["studentA", "studentB"]]),
+            ]:
+                with self.subTest(builder=builder.__name__, error=type(error).__name__):
+                    with self.assertRaises(type(error)):
+                        builder(self.course, *arguments)
+
+    @patch("review.views._fetch_dolos_pairs_rows", return_value=[])
+    def test_student_reports_use_only_selected_submission_scope(self, fetch):
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="BEST", include_all=False)
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="ALL", include_all=True)
+        for include_all, report_id in [(False, "BEST"), (True, "ALL")]:
+            fetch.reset_mock()
+            progress = Mock()
+            result = views._student_exercise_matches(
+                self.course, "studentA", include_all, report_progress=progress,
+            )
+            fetch.assert_called_once_with(report_id)
+            self.assertEqual(result["rows"][0][1:3], (report_id, None))
+            self.assertEqual(result["missing_reports"], [])
+            progress.assert_has_calls([
+                call("Loading exercise reports", 0, 1),
+                call("Loading exercise reports", 1, 1),
+                call("Calculating student matches..."),
+            ])
+
+    def test_new_student_cache_keys_do_not_reuse_old_failures_or_result_shapes(self):
+        self.assertTrue(result_key(self.course.pk, "student_matches", []).startswith("radar_background:v3:"))
+        self.assertTrue(result_key(self.course.pk, "group_pairs", []).startswith("radar_background:v3:"))
+        self.assertTrue(result_key(self.course.pk, "summary", []).startswith("radar_background:v2:"))
+
+    @patch("review.views._fetch_dolos_pairs_rows")
+    def test_all_missing_reports_are_disclosed_instead_of_claiming_no_matches(self, fetch):
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="PURGED", include_all=False)
+        fetch.side_effect = requests.HTTPError(response=Mock(status_code=404))
+        with self.assertLogs("radar.review", level="WARNING"):
+            result = views._student_exercise_matches(self.course, "studentA")
+            pair_result = views._build_group_pair_rows(self.course, ["PURGED"], ["studentA", "studentB"])
+        self.assertEqual(result["rows"][0][2:], (None, []))
+        self.assertEqual(len(result["missing_reports"]), 1)
+        self.assertEqual(pair_result, ([], result["missing_reports"]))
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        with patch("review.views.background_result", return_value={"status": "ready", "result": pair_result}):
+            response = self.client.get(reverse("student_pair_hub", kwargs={
+                "course_key": self.course.key, "a_key": "studentA", "b_key": "studentB",
+            }))
+        self.assertContains(response, "No exercise report data is available")
+        self.assertContains(response, "Missing/failed report for following exercises:")
+        self.assertNotContains(response, "No similarities found")
 
     @patch("review.views.generate_course_dolos_task.delay", return_value=Mock(id="course-task"))
     def test_course_report_requests_always_force_per_exercise_reports(self, enqueue):

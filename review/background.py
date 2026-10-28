@@ -14,7 +14,8 @@ def result_key(course_id, operation, arguments):
     digest = hashlib.sha256(
         json.dumps([course_id, operation, arguments], sort_keys=True).encode()
     ).hexdigest()
-    return "radar_background:v2:" + digest
+    version = "v3" if operation in {"student_matches", "group_pairs"} else "v2"
+    return "radar_background:%s:" % version + digest
 
 
 def store_background_state(store, key, state, timeout):

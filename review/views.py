@@ -1899,11 +1899,10 @@ def _mini_dolos_report_cache_key(course_key, exercise_key, left_submission_id, r
     )
 
 
-def _dolos_pairs_for_student(report_id, student_key):
+def _dolos_pairs_for_student(rows, student_key):
     """This student's matches in an already-generated report, sourced from
     Dolos's own pairs data (never recomputed by Radar), highest similarity
     first. Each match is (other_student_key, similarity)."""
-    rows = _fetch_dolos_pairs_rows(report_id)
     matches = []
     for row in rows:
         left = _student_key_from_path(row["leftFilePath"])
@@ -2079,7 +2078,7 @@ def _build_group_rows(pair_rows, students_by_key, limit=20):
     return group_rows
 
 
-def _build_group_pair_rows(course, report_ids, member_keys):
+def _build_group_pair_rows(course, report_ids, member_keys, report_progress=None):
     """Build raw comparison rows for a group-scoped mini Dolos report."""
     member_keys = [key for key in member_keys if key]
     member_set = set(member_keys)
@@ -2087,20 +2086,11 @@ def _build_group_pair_rows(course, report_ids, member_keys):
     students_by_key = {s.key: s.display_name for s in course.students.all()}
 
     comparison_rows = {}
-    load_errors = []
+    reports, missing_reports = _load_available_report_pairs(course, report_ids, report_progress)
+    if report_progress:
+        report_progress("Calculating student comparisons...")
 
-    for report_id in report_ids:
-        try:
-            rows = _fetch_dolos_pairs_rows(report_id)
-        except Exception as exc:
-            logger.exception(
-                "Failed to load Dolos pair rows for group report course=%s report=%s",
-                course.key,
-                report_id,
-            )
-            load_errors.append("%s: %s" % (report_id, exc))
-            continue
-
+    for report_id, rows in reports.items():
         for row in rows:
             left_path = row.get("leftFilePath", "")
             right_path = row.get("rightFilePath", "")
@@ -2163,21 +2153,12 @@ def _build_group_pair_rows(course, report_ids, member_keys):
         ),
         reverse=True,
     )
-    return comparison_rows, load_errors
+    return comparison_rows, missing_reports
 
 
-def _build_course_similarity_summary(course, report_ids, min_similarity, min_exercises, report_progress=None):
-    """Build pair/group summaries from a course-wide Dolos report set.
-
-    Returns dict with:
-    - pair_rows: strongest student pairs ranked by shared exercises
-    - group_rows: connected student groups (size >= 3) using repeated-pair edges
-    - stats: headline counts for quick scanning
-    """
-    exercises_by_key = {ex.key: ex for ex in course.exercises.only("key", "name", "course_id")}
-    students_by_key = {s.key: s.display_name for s in course.students.only("key", "name", "course_id")}
-
-    rows = []
+def _load_available_report_pairs(course, report_ids, report_progress=None):
+    """Load available exercise reports; disclose missing pair data without hiding other errors."""
+    reports = {}
     missing_reports = []
     report_exercises = dict(
         ExerciseDolosReport.objects.filter(exercise__course=course, report_id__in=report_ids)
@@ -2191,7 +2172,7 @@ def _build_course_similarity_summary(course, report_ids, min_similarity, min_exe
             if exc.response is None or exc.response.status_code != 404:
                 raise
             logger.warning(
-                "Unavailable Dolos pair data in overview course=%s report=%s", course.key, report_id,
+                "Unavailable Dolos pair data course=%s report=%s", course.key, report_id,
                 exc_info=True,
             )
             return report_id, (), True
@@ -2207,9 +2188,19 @@ def _build_course_similarity_summary(course, report_ids, min_similarity, min_exe
                     "report_id": report_id, "exercise_name": report_exercises.get(report_id, "Unknown exercise"),
                 })
             else:
-                rows.extend(report_rows)
+                reports[report_id] = report_rows
             if report_progress:
                 report_progress("Loading exercise reports", completed, len(report_ids))
+    missing_reports.sort(key=lambda item: (item["exercise_name"], item["report_id"]))
+    return reports, missing_reports
+
+
+def _build_course_similarity_summary(course, report_ids, min_similarity, min_exercises, report_progress=None):
+    """Build pair/group summaries from available course reports, disclosing unavailable exercises."""
+    exercises_by_key = {ex.key: ex for ex in course.exercises.only("key", "name", "course_id")}
+    students_by_key = {s.key: s.display_name for s in course.students.only("key", "name", "course_id")}
+    reports, missing_reports = _load_available_report_pairs(course, report_ids, report_progress)
+    rows = [row for report_id in report_ids for row in reports.get(report_id, ())]
 
     if report_progress:
         report_progress("Calculating student-pair similarities...")
@@ -2247,7 +2238,7 @@ def _compress_matches_by_student(matches):
     return sorted(best_by_student.items(), key=lambda item: item[1], reverse=True)
 
 
-def _student_exercise_matches(course, student_key, include_all=False):
+def _student_exercise_matches(course, student_key, include_all=False, report_progress=None):
     """Per exercise in course, this student's best Dolos match -- sourced
     straight from that exercise's own generated report so it always agrees
     with what the report itself shows, instead of a separately-computed
@@ -2262,24 +2253,23 @@ def _student_exercise_matches(course, student_key, include_all=False):
             exercise__course=course, include_all=include_all
         ).values_list("exercise_id", "report_id")
     )
+    reports, missing_reports = _load_available_report_pairs(
+        course, list(reports_by_exercise.values()), report_progress,
+    )
+    if report_progress:
+        report_progress("Calculating student matches...")
 
-    def fallback_lookup(exercise):
+    rows = []
+    for exercise in exercises:
         report_id = reports_by_exercise.get(exercise.id)
-
         match = None
         all_matches = []
-        if report_id:
-            try:
-                matches = _dolos_pairs_for_student(report_id, student_key)
-                all_matches = _compress_matches_by_student(matches)
-                match = all_matches[0] if all_matches else None
-            except Exception:
-                match = None
-                all_matches = []
-        return exercise, report_id, match, all_matches
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        return list(executor.map(fallback_lookup, exercises))
+        if report_id in reports:
+            matches = _dolos_pairs_for_student(reports[report_id], student_key)
+            all_matches = _compress_matches_by_student(matches)
+            match = all_matches[0] if all_matches else None
+        rows.append((exercise, report_id, match, all_matches))
+    return {"rows": rows, "missing_reports": missing_reports}
 
 
 def _exercise_report_ids(course, include_all=False):
@@ -2505,7 +2495,7 @@ def student_pair_hub(request, course_key=None, a_key=None, b_key=None, course=No
         return JsonResponse(public_status(state))
     pair_exercise_scores = {}
     pair_exercise_rows = {}
-    comparison_rows, load_errors = state.get("result", ([], []))
+    comparison_rows, missing_reports = state.get("result", ([], []))
     for comparison_row in comparison_rows:
         exercise_key = comparison_row["exercise"].key
         pair_exercise_rows.setdefault(exercise_key, []).append(comparison_row)
@@ -2556,7 +2546,7 @@ def student_pair_hub(request, course_key=None, a_key=None, b_key=None, course=No
             "background_state": public_status(state),
             "latest_report_ids": latest_report_ids,
             "pair_rows": pair_rows,
-            "load_errors": load_errors,
+            "missing_reports": missing_reports,
             "course_report_task_status": _current_course_report_status(course, request),
             "include_all": include_all,
         },
@@ -2781,13 +2771,13 @@ def student_group_hub(request, course_key=None, member_keys=None, course=None) -
     include_all = request.GET.get("all") == "1"
     latest_report_ids = _exercise_report_ids(course, include_all=include_all)
     comparison_rows = []
-    load_errors = []
+    missing_reports = []
 
     if latest_report_ids:
         state = background_result(request, course, "group_pairs", [latest_report_ids, resolved_member_keys])
         if request.GET.get("background") == "1":
             return JsonResponse(public_status(state))
-        comparison_rows, load_errors = state.get("result", ([], []))
+        comparison_rows, missing_reports = state.get("result", ([], []))
     else:
         state = {"status": "ready"}
 
@@ -2806,7 +2796,7 @@ def student_group_hub(request, course_key=None, member_keys=None, course=None) -
             "background_state": public_status(state),
             "latest_report_ids": latest_report_ids,
             "comparison_rows": comparison_rows,
-            "load_errors": load_errors,
+            "missing_reports": missing_reports,
             "course_report_task_status": _current_course_report_status(course, request),
             "include_all": include_all,
         },
@@ -2834,10 +2824,13 @@ def student_hub(request, course_key=None, student_key=None, course=None, student
     if request.GET.get("background") == "1":
         return JsonResponse(public_status(state))
     students_by_key = {s.key: s.display_name for s in course.students.all()}
+    result = state.get("result", {})
+    missing_report_ids = {missing["report_id"] for missing in result.get("missing_reports", [])}
     rows = [
         {
             "exercise": exercise,
             "generated": report_id is not None,
+            "unavailable": report_id in missing_report_ids,
             "match": match,
             "all_matches": [
                 {
@@ -2852,7 +2845,7 @@ def student_hub(request, course_key=None, student_key=None, course=None, student
                 kwargs={"course_key": course.key, "exercise_key": exercise.key},
             ) + ("?all=1" if include_all else ""),
         }
-        for exercise, report_id, match, all_matches in state.get("result", [])
+        for exercise, report_id, match, all_matches in result.get("rows", [])
     ]
 
     return render(
@@ -2869,6 +2862,7 @@ def student_hub(request, course_key=None, student_key=None, course=None, student
             "student": student,
             "students": course.students.order_by("-is_pinned", "key"),
             "rows": rows,
+            "missing_reports": result.get("missing_reports", []),
             "background_state": public_status(state),
             "include_all": include_all,
             "course_report_task_status": _current_course_report_status(course, request),

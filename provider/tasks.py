@@ -116,10 +116,6 @@ def load_radar_page_data(course_id, operation, arguments, key):
     try:
         report_progress("Starting background loading...")
         course = Course.objects.get(pk=course_id)
-        if operation in {"student_matches", "group_pairs"}:
-            report_ids = arguments[2] if operation == "student_matches" else arguments[0]
-            for report_id in report_ids:
-                views._fetch_dolos_pairs_rows(report_id)
         if operation == "course_home":
             result = _load_course_home_data(course, arguments, views, report_progress)
         elif operation == "overview_flags":
@@ -130,10 +126,10 @@ def load_radar_page_data(course_id, operation, arguments, key):
         elif operation == "summary":
             result = views._build_course_similarity_summary(course, *arguments, report_progress=report_progress)
         elif operation == "student_matches":
-            student_key, include_all, report_ids = arguments
-            result = views._student_exercise_matches(course, student_key, include_all)
+            student_key, include_all, _report_ids = arguments
+            result = views._student_exercise_matches(course, student_key, include_all, report_progress=report_progress)
         elif operation == "group_pairs":
-            result = views._build_group_pair_rows(course, *arguments)
+            result = views._build_group_pair_rows(course, *arguments, report_progress=report_progress)
         elif operation == "mini_report":
             result = _load_mini_report(course, arguments, views)
         elif operation == "exercise_report":
@@ -148,15 +144,6 @@ def load_radar_page_data(course_id, operation, arguments, key):
             "Radar background ready course=%s operation=%s key=%s seconds=%.3f",
             course_id, operation, key, time.monotonic() - started,
         )
-    except requests.HTTPError as exc:
-        logger.exception("Background Radar page data failed for course=%s operation=%s", course_id, operation)
-        if exc.response is not None and exc.response.status_code == 404 and operation in {
-            "summary", "student_matches", "group_pairs",
-        }:
-            message = "A saved Dolos report is missing. Regenerate the full course report, then reload this page."
-        else:
-            message = "Background loading failed. Check the worker log and retry."
-        background.store_background_state(store, key, {"status": "failed", "message": message}, 600)
     except Exception:
         logger.exception("Background Radar page data failed for course=%s operation=%s", course_id, operation)
         background.store_background_state(

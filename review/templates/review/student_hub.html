@@ -50,7 +50,7 @@
 		{% include 'review/_background_loading.html' %}
 		{% include 'review/_course_report_panel.html' %}
 		<div class="hub-heading">
-			<h3>{{ student.display_name }}</h3>
+			<h3>{{ student.display_name }} {% include 'review/_missing_reports.html' %}</h3>
 			<div class="hub-mode-options" role="group" aria-label="Submission set">
 				<a href="{{ request.path }}"{% if not include_all %} aria-current="true"{% endif %}>Best per student</a>
 				<a href="{{ request.path }}?all=1"{% if include_all %} aria-current="true"{% endif %}>All submissions</a>
@@ -83,6 +83,8 @@
 					</td>
 					{% if not row.generated %}
 					<td class="muted">Not analysed yet</td>
+					{% elif row.unavailable %}
+					<td class="muted">Report data unavailable</td>
 					{% elif not row.match %}
 					<td class="muted">No similar submissions found</td>
 					{% else %}
