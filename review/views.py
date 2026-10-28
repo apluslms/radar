@@ -2172,22 +2172,31 @@ def _build_course_similarity_summary(course, report_ids, min_similarity, min_exe
     students_by_key = {s.key: s.display_name for s in course.students.only("key", "name", "course_id")}
 
     rows = []
+    missing_reports = []
+    report_exercises = dict(
+        ExerciseDolosReport.objects.filter(exercise__course=course, report_id__in=report_ids)
+        .values_list("report_id", "exercise__name")
+    )
 
     def fetch_report(report_id):
         try:
             return report_id, _fetch_dolos_pairs_rows(report_id), None
-        except Exception:
+        except requests.HTTPError as exc:
+            if exc.response is None or exc.response.status_code != 404:
+                raise
+            logger.warning(
+                "Unavailable Dolos pair data in overview course=%s report=%s", course.key, report_id,
+                exc_info=True,
+            )
             return report_id, (), True
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         fetched_reports = executor.map(fetch_report, report_ids)
         for report_id, report_rows, failed in fetched_reports:
             if failed:
-                logger.error(
-                    "Failed to load Dolos pair rows for course summary course=%s report=%s",
-                    course.key,
-                    report_id,
-                )
+                missing_reports.append({
+                    "report_id": report_id, "exercise_name": report_exercises.get(report_id, "Unknown exercise"),
+                })
             else:
                 rows.extend(report_rows)
 
@@ -2207,7 +2216,10 @@ def _build_course_similarity_summary(course, report_ids, min_similarity, min_exe
         "min_similarity_percent": round(min_similarity * 100),
         "min_exercises": min_exercises,
     }
-    return {"pair_rows": pair_rows[:40], "group_rows": group_rows, "stats": stats}
+    return {
+        "pair_rows": pair_rows[:40], "group_rows": group_rows, "stats": stats,
+        "missing_reports": missing_reports,
+    }
 
 
 def _compress_matches_by_student(matches):

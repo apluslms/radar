@@ -95,6 +95,19 @@
 		{% if course_report_summary_error %}
 		<article class="error">Failed to load summary data: {{ course_report_summary_error }}</article>
 		{% elif course_report_summary %}
+		{% if course_report_summary.missing_reports %}
+		<article class="error" role="alert">
+			<strong>Incomplete summary: {{ course_report_summary.missing_reports|length }} exercise report(s) unavailable.</strong>
+			<p>Counts, pairs and groups below use only available reports and may omit matches.
+			A missing report does not mean there are no matches for that exercise.
+			Regenerate the selected submission scope and check for exercise failures.</p>
+			<ul>
+				{% for missing in course_report_summary.missing_reports %}
+				<li>{{ missing.exercise_name }} — report {{ missing.report_id }}: pair data missing or purged.</li>
+				{% endfor %}
+			</ul>
+		</article>
+		{% endif %}
 		<form class="summary-filters" method="get">
 			{% if include_all %}<input type="hidden" name="all" value="1">{% endif %}
 			<label>Minimum similarity (%)

@@ -105,7 +105,7 @@ def load_radar_page_data(course_id, operation, arguments, key):
 
     try:
         course = Course.objects.get(pk=course_id)
-        if operation in {"summary", "student_matches", "group_pairs"}:
+        if operation in {"student_matches", "group_pairs"}:
             report_ids = arguments[2] if operation == "student_matches" else arguments[0]
             for report_id in report_ids:
                 views._fetch_dolos_pairs_rows(report_id)
