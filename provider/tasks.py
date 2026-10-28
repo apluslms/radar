@@ -97,7 +97,7 @@ def _load_mini_report(course, arguments, views):
 @celery.shared_task(soft_time_limit=570, time_limit=600, ignore_result=True)
 def load_radar_page_data(course_id, operation, arguments, key):
     # Views also import provider tasks; defer this import until task execution.
-    from review import background, views  # pylint: disable=import-outside-toplevel
+    from review import background, decorators, views  # pylint: disable=import-outside-toplevel
 
     store = caches["course_report_progress"]
     started = time.monotonic()
@@ -105,20 +105,22 @@ def load_radar_page_data(course_id, operation, arguments, key):
 
     try:
         course = Course.objects.get(pk=course_id)
+        if operation in {"student_matches", "group_pairs"}:
+            report_ids = arguments[2] if operation == "student_matches" else arguments[0]
+            for report_id in report_ids:
+                views._fetch_dolos_pairs_rows(report_id)
         if operation == "course_home":
             result = _load_course_home_data(course, arguments, views)
+        elif operation == "overview_flags":
+            offset = (arguments[0] - 1) * 50
+            with decorators.database_timeout(5000):
+                result = list(views._flagged_comparisons(course).order_by("-similarity", "-pk")[offset:offset + 51])
         elif operation == "summary":
-            for report_id in arguments[0]:
-                views._fetch_dolos_pairs_rows(report_id)
             result = views._build_course_similarity_summary(course, *arguments)
         elif operation == "student_matches":
             student_key, include_all, report_ids = arguments
-            for report_id in report_ids:
-                views._fetch_dolos_pairs_rows(report_id)
             result = views._student_exercise_matches(course, student_key, include_all)
         elif operation == "group_pairs":
-            for report_id in arguments[0]:
-                views._fetch_dolos_pairs_rows(report_id)
             result = views._build_group_pair_rows(course, *arguments)
         elif operation == "mini_report":
             result = _load_mini_report(course, arguments, views)
@@ -149,6 +151,7 @@ def load_radar_page_data(course_id, operation, arguments, key):
             {"status": "failed", "message": "Background loading failed. Check the worker log and retry."}, 600,
         )
     finally:
+        views._fetch_dolos_pairs_rows.cache_clear()
         caches["default"].delete(key + ":lock")
 
 
@@ -782,7 +785,7 @@ def _report_course_progress(task, progress_cache_key, **payload):
     soft_time_limit=25 * 60,
     time_limit=30 * 60,
 )
-def generate_course_dolos_task(self, course_key, force=False):
+def generate_course_dolos_task(self, course_key, force=False, include_all=None):
     """
     Generate course-wide Dolos report by analyzing each exercise separately
     and combining the results.
@@ -826,11 +829,13 @@ def generate_course_dolos_task(self, course_key, force=False):
             )
 
             try:
-                include_all = _should_include_all_submissions(exercise)
+                exercise_include_all = (
+                    _should_include_all_submissions(exercise) if include_all is None else include_all
+                )
                 stored_report = None
                 if not force:
                     stored_report = ExerciseDolosReport.objects.filter(
-                        exercise=exercise, include_all=include_all
+                        exercise=exercise, include_all=exercise_include_all
                     ).first()
                 if stored_report:
                     exercise_result = {
@@ -839,7 +844,7 @@ def generate_course_dolos_task(self, course_key, force=False):
                         "report_id": stored_report.report_id,
                         "submissions_included": stored_report.submissions_included,
                         "submissions_skipped": 0,
-                        "include_all_used": include_all,
+                        "include_all_used": exercise_include_all,
                         "reused": True,
                     }
                 else:
@@ -853,12 +858,12 @@ def generate_course_dolos_task(self, course_key, force=False):
                     )
                     exercise_result = _build_exercise_dolos_report(
                         exercise,
-                        include_all=include_all,
+                        include_all=exercise_include_all,
                         report_progress=progress_callback,
                     )
                     ExerciseDolosReport.objects.update_or_create(
                         exercise=exercise,
-                        include_all=include_all,
+                        include_all=exercise_include_all,
                         defaults={
                             "report_id": exercise_result["report_id"],
                             "submissions_included": exercise_result["submissions_included"],
@@ -874,13 +879,6 @@ def generate_course_dolos_task(self, course_key, force=False):
                     "name": exercise.name,
                     "error": str(exc),
                 })
-
-        report_progress(
-            phase="complete",
-            exercises_done=total_exercises,
-            exercises_total=total_exercises,
-            report_ids=[r["report_id"] for r in report_results],
-        )
 
         final_result = {
             "report_ids": [r["report_id"] for r in report_results],

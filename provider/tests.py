@@ -101,6 +101,33 @@ class AplusApiUrlTests(SimpleTestCase):
 
 class CourseDolosReportTests(SimpleTestCase):
     @mock.patch("provider.tasks._report_course_progress")
+    @mock.patch("provider.tasks._should_include_all_submissions", side_effect=AssertionError("Scope must be explicit"))
+    @mock.patch("provider.tasks._build_exercise_dolos_report")
+    @mock.patch("provider.tasks.Course.objects.get")
+    def test_forced_regeneration_replaces_the_requested_scope_for_every_exercise(
+        self, get_course, build_report, automatic_scope, _report_progress,
+    ):
+        exercises = [
+            SimpleNamespace(id=11, key="ex1", name="Exercise 1"),
+            SimpleNamespace(id=12, key="ex2", name="Exercise 2"),
+        ]
+        get_course.return_value.exercises.select_related.return_value.all.return_value = exercises
+        build_report.return_value = {"report_id": "NEW_REPORT", "submissions_included": 2}
+        for include_all in (False, True):
+            with self.subTest(include_all=include_all):
+                build_report.reset_mock()
+                with mock.patch("provider.tasks.ExerciseDolosReport.objects") as reports:
+                    result = tasks.generate_course_dolos_task.run("course", force=True, include_all=include_all)
+                self.assertEqual(result["exercises_failed"], [])
+                self.assertEqual(build_report.call_count, 2)
+                self.assertEqual([call.kwargs["include_all"] for call in build_report.call_args_list],
+                                 [include_all, include_all])
+                self.assertEqual([call.kwargs["include_all"] for call in reports.update_or_create.call_args_list],
+                                 [include_all, include_all])
+                reports.filter.assert_not_called()
+        automatic_scope.assert_not_called()
+
+    @mock.patch("provider.tasks._report_course_progress")
     @mock.patch("provider.tasks._should_include_all_submissions", side_effect=[False, True])
     @mock.patch("provider.tasks._build_exercise_dolos_report")
     @mock.patch("provider.tasks.Course.objects.get")

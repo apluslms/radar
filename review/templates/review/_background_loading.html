@@ -8,11 +8,12 @@
 </div>
 <script>
 (function () {
-    var panel = document.querySelector('[data-background-loading]');
+    var panel = document.currentScript.previousElementSibling;
     var message = panel.querySelector('[data-background-message]');
     var form = panel.querySelector('form');
     var url = new URL(location.href);
     url.searchParams.set('background', '1');
+    {% if background_section %}url.searchParams.set('section', '{{ background_section|escapejs }}');{% endif %}
     var deadline = Date.now() + 670000;
     function fail(text) {
         message.textContent = text;

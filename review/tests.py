@@ -7,7 +7,7 @@ import requests
 from aplus_client.django.models import ApiNamespace
 from django.contrib.auth import get_user_model
 from django.core.cache import caches
-from django.db import connection
+from django.db import connection, OperationalError
 from django.template.loader import render_to_string
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
@@ -18,6 +18,7 @@ from data.models import Comparison, Course, Exercise, ExerciseDolosReport, Stude
 from provider import aplus
 from provider.tasks import load_radar_page_data
 from review import views
+from review.decorators import database_timeout
 from review.background import background_result, result_key, store_background_state
 
 
@@ -422,7 +423,24 @@ class CreateCheatersheetComparisonTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "queued")
-        enqueue.assert_called_once_with(self.course.key, force=True)
+        enqueue.assert_called_once_with(self.course.key, force=True, include_all=False)
+
+    @patch("review.views.generate_course_dolos_task.delay", return_value=Mock(id="all-course-task"))
+    def test_course_report_regeneration_preserves_all_submissions_scope(self, enqueue):
+        response = self.client.get(
+            reverse("generate_course_dolos_async", kwargs={"course_key": self.course.key}) + "?all=1"
+        )
+        self.assertEqual(response.json()["status"], "queued")
+        enqueue.assert_called_once_with(self.course.key, force=True, include_all=True)
+
+    def test_course_report_button_preserves_selected_submission_scope(self):
+        generate_url = reverse("generate_course_dolos_async", kwargs={"course_key": self.course.key})
+        for include_all in (False, True):
+            with self.subTest(include_all=include_all):
+                html = render_to_string(
+                    "review/_course_report_panel.html", {"course": self.course, "include_all": include_all},
+                )
+                self.assertIn('data-generate-url="%s?all=%s"' % (generate_url, int(include_all)), html)
 
     def test_radar_mode_selection_is_idempotent(self):
         url = reverse("toggle_radar_mode")
@@ -482,7 +500,17 @@ class CreateCheatersheetComparisonTests(TestCase):
             reverse("course_home", kwargs={"course_key": self.course.key}),
         )
 
-    def test_new_radar_pair_flag_is_shown_in_student_overview(self):
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "overview-flags-locks"},
+        "course_report_progress": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "overview-flags-results",
+        },
+    })
+    @patch("provider.tasks.load_radar_page_data.apply_async")
+    def test_new_radar_pair_flag_is_shown_in_student_overview(self, enqueue):
+        caches["default"].clear()
+        caches["course_report_progress"].clear()
+        enqueue.side_effect = lambda args, **kwargs: load_radar_page_data.run(*args)
         session = self.client.session
         session["legacy_radar"] = False
         session.save()
@@ -503,7 +531,11 @@ class CreateCheatersheetComparisonTests(TestCase):
             submission_b=self.submission_b,
         )
         self.assertEqual(comparison.review, 10)
-        overview = self.client.get(reverse("students_hub", kwargs={"course_key": self.course.key}))
+        overview_url = reverse("students_hub", kwargs={"course_key": self.course.key})
+        poll_url = overview_url + "?background=1&section=flags"
+        self.assertEqual(self.client.post(poll_url).json()["status"], "pending")
+        first_key = enqueue.call_args.kwargs["args"][3]
+        overview = self.client.get(overview_url)
         self.assertContains(overview, "Flagged Pairs and Submissions")
         self.assertContains(overview, "radarA and radarB")
 
@@ -513,6 +545,10 @@ class CreateCheatersheetComparisonTests(TestCase):
         comparison.refresh_from_db()
         self.assertEqual(comparison.review, 0)
         self.assertContains(response, "Pair flag removed.")
+        self.assertNotContains(response, "radarA and radarB")
+        self.assertEqual(self.client.post(poll_url).json()["status"], "pending")
+        self.assertNotEqual(enqueue.call_args.kwargs["args"][3], first_key)
+        self.assertContains(self.client.get(overview_url), "No flagged pairs")
 
     @override_settings(CACHES={
         "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "home-bounds-locks"},
@@ -763,15 +799,22 @@ class CreateCheatersheetComparisonTests(TestCase):
         session["legacy_radar"] = False
         session.save()
 
+        with patch("review.background.store_background_state") as store_state:
+            with CaptureQueriesContext(connection) as worker_queries:
+                load_radar_page_data.run(self.course.pk, "overview_flags", [1], "overview-flags-test")
+        flags_state = store_state.call_args.args[2]
+        self.assertEqual(flags_state["status"], "ready")
+        background.return_value = flags_state
         with CaptureQueriesContext(connection) as queries:
             response = self.client.get(reverse("students_hub", kwargs={"course_key": self.course.key}))
 
         self.assertContains(response, "radarA and radarB")
         comparison_queries = [
-            query["sql"] for query in queries
+            query["sql"] for query in worker_queries
             if 'FROM "data_comparison"' in query["sql"]
         ]
         self.assertEqual(len(comparison_queries), 1)
+        self.assertFalse(any('FROM "data_comparison"' in query["sql"] for query in queries))
         flagged = list(response.context["flagged_comparisons"])
         self.assertEqual([comparison.similarity for comparison in flagged], [0.91, 0.89])
         with self.assertNumQueries(0):
@@ -806,7 +849,101 @@ class CreateCheatersheetComparisonTests(TestCase):
                 self.assertEqual(self.client.get(url + "?all=1&background=1").json(), {"status": "ready"})
         task_status.assert_not_called()
 
-    def test_students_overview_paginates_lists_without_counting_and_preserves_filters(self):
+    @patch("review.views.background_result", return_value={"status": "pending"})
+    @patch("review.views._flagged_comparisons", side_effect=AssertionError("Comparison scan in web process"))
+    def test_students_overview_never_queries_comparisons_even_with_cold_flags(self, flagged, background):
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        url = reverse("students_hub", kwargs={"course_key": self.course.key})
+        response = self.client.get(url)
+        self.assertContains(response, "Flagged Pairs and Submissions")
+        self.assertNotContains(response, "No flagged pairs")
+        self.assertEqual(response.context["flags_background_state"], {"status": "pending"})
+        with patch("review.views._exercise_report_ids", side_effect=AssertionError("Summary SQL in flag poll")):
+            for method in (self.client.get, self.client.post):
+                self.assertEqual(method(url + "?background=1&section=flags").json(), {"status": "pending"})
+        self.assertEqual(background.call_args.args[2], "overview_flags")
+        self.assertEqual(background.call_args.args[3][0], 1)
+        flagged.assert_not_called()
+
+    @patch("review.views.background_result", return_value={"status": "pending"})
+    def test_overview_defers_large_legacy_course_graphs(self, background):
+        payload = "large legacy graph " * 100000
+        Course.objects.filter(pk=self.course.pk).update(similarity_graph_json=payload, clusters_json=payload)
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(reverse("students_hub", kwargs={"course_key": self.course.key}))
+        self.assertEqual(response.status_code, 200)
+        for query in queries:
+            self.assertNotIn('"similarity_graph_json"', query["sql"])
+            self.assertNotIn('"clusters_json"', query["sql"])
+        self.assertEqual(
+            response.context["course"].get_deferred_fields(), {"similarity_graph_json", "clusters_json"},
+        )
+        with self.assertNumQueries(1):
+            self.assertEqual(response.context["course"].clusters_json, payload)
+
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "overview-status-locks"},
+        "course_report_progress": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "overview-status-results",
+        },
+    })
+    @patch("review.views.AsyncResult", side_effect=AssertionError("Celery backend reached from overview polling"))
+    def test_overview_widgets_poll_cached_progress_without_celery_backend(self, async_result):
+        store = caches["course_report_progress"]
+        store.clear()
+        session = self.client.session
+        session["legacy_radar"] = False
+        session[views._course_report_task_session_key(self.course)] = "course-task"
+        session[views._course_report_started_session_key(self.course)] = time.time()
+        session[views._refresh_task_session_key(self.course)] = "refresh-task"
+        session[views._refresh_started_session_key(self.course)] = time.time()
+        session.save()
+        overview = self.client.get(reverse("students_hub", kwargs={"course_key": self.course.key}))
+        urls = [
+            reverse("check_course_dolos_task", kwargs={"course_key": self.course.key, "task_id": "course-task"}),
+            reverse("check_course_dolos_task_current", kwargs={"course_key": self.course.key}),
+            reverse("check_refresh_submissions_task", kwargs={"course_key": self.course.key}),
+        ]
+        for url in urls:
+            # The task-specific URL uses a sentinel until JavaScript knows the task ID.
+            if url != urls[0]:
+                self.assertContains(overview, url + "?cache_only=1")
+            self.assertEqual(self.client.get(url + "?cache_only=1").json()["status"], "pending")
+        store.set(views._course_report_progress_cache_key("course-task"), {"report_ids": ["REPORT"]})
+        store.set(views.refresh_progress_cache_key("refresh-task"), {"phase": "complete"})
+        self.assertEqual(self.client.get(urls[0] + "?cache_only=1").json()["status"], "ready")
+        self.assertEqual(self.client.get(urls[2] + "?cache_only=1").json()["status"], "ready")
+        self.assertEqual(views._cached_task_status("lost", "missing", time.time() - 3600)["status"], "failed")
+        async_result.assert_not_called()
+        store.clear()
+
+    def test_overview_returns_logged_503_for_cancelled_query_but_not_other_database_errors(self):
+        class QueryCancelled(Exception):
+            pgcode = "57014"
+
+        cancelled = OperationalError("cancelled after statement timeout")
+        cancelled.__cause__ = QueryCancelled()
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        url = reverse("students_hub", kwargs={"course_key": self.course.key})
+        with patch("review.views._exercise_report_ids", side_effect=cancelled):
+            with self.assertLogs("radar.review", level="ERROR"):
+                response = self.client.get(url)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response["Retry-After"], "30")
+        self.assertContains(response, "database is busy", status_code=503)
+        with patch("review.views._exercise_report_ids", side_effect=OperationalError("unrelated database failure")):
+            with self.assertRaisesMessage(OperationalError, "unrelated database failure"):
+                self.client.get(url)
+
+    @patch("review.views.background_result")
+    def test_students_overview_paginates_lists_without_counting_and_preserves_filters(self, background):
         session = self.client.session
         session["legacy_radar"] = False
         session.save()
@@ -827,6 +964,11 @@ class CreateCheatersheetComparisonTests(TestCase):
         next_url = url + "?all=1&similarity=90&exercises=1&run=release"
         student_ids, comparison_ids = [], []
         for number in range(1, 4):
+            with patch("review.background.store_background_state") as store_state:
+                with CaptureQueriesContext(connection) as worker_queries:
+                    load_radar_page_data.run(self.course.pk, "overview_flags", [number], "overview-flags-test")
+            background.return_value = store_state.call_args.args[2]
+            self.assertEqual(background.return_value["status"], "ready")
             with CaptureQueriesContext(connection) as queries:
                 response = self.client.get(next_url)
             self.assertEqual(response.status_code, 200)
@@ -837,10 +979,12 @@ class CreateCheatersheetComparisonTests(TestCase):
             self.assertLessEqual(len(response.context["students"]), 50)
             self.assertLessEqual(len(response.context["flagged_comparisons"]), 50)
             for table in ("data_student", "data_comparison"):
-                selects = [query["sql"] for query in queries if 'FROM "%s"' % table in query["sql"]]
+                source = queries if table == "data_student" else worker_queries
+                selects = [query["sql"] for query in source if 'FROM "%s"' % table in query["sql"]]
                 self.assertEqual(len(selects), 1)
                 self.assertIn("LIMIT 51", selects[0])
                 self.assertNotIn("COUNT(", selects[0])
+            self.assertFalse(any('FROM "data_comparison"' in query["sql"] for query in queries))
             if number < 3:
                 for page in ("students_page", "flagged_page"):
                     self.assertIn("all=1", response.context[page]["next_url"])
@@ -1139,6 +1283,21 @@ class CreateCheatersheetComparisonTests(TestCase):
 
 
 class CourseSimilaritySummaryTests(TestCase):
+    def test_postgresql_statement_deadline_is_transaction_local_and_restored(self):
+        with patch("review.decorators.connection") as database:
+            with patch("review.decorators.transaction.atomic"):
+                database.vendor = "postgresql"
+                cursor = database.cursor.return_value.__enter__.return_value
+                cursor.fetchone.return_value = ("17s",)
+                with database_timeout(2000):
+                    cursor.execute("SELECT 1")
+                self.assertEqual(cursor.execute.call_args_list, [
+                    call("SHOW statement_timeout"),
+                    call("SELECT set_config('statement_timeout', %s, true)", ["2000"]),
+                    call("SELECT 1"),
+                    call("SELECT set_config('statement_timeout', %s, true)", ["17s"]),
+                ])
+
     def test_only_qualifying_exercises_count_and_groups_require_every_pair(self):
         exercises = {
             key: SimpleNamespace(name=key.upper())

@@ -392,6 +392,16 @@ update_settings_with_file(
 update_settings_from_environment(__name__, 'RADAR_')
 update_secret_from_file(__name__, os.environ.get('RADAR_SECRET_KEY_FILE', 'secret_key'))
 
+# Keep unavailable shared services from occupying every web worker indefinitely.
+default_cache = CACHES.get("default", {})
+if default_cache.get("BACKEND") == "django.core.cache.backends.memcached.PyLibMCCache":
+    cache_behaviors = default_cache.setdefault("OPTIONS", {}).setdefault("behaviors", {})
+    cache_behaviors.setdefault("connect_timeout", 1000)  # milliseconds
+    cache_behaviors.setdefault("send_timeout", 1000000)  # microseconds
+    cache_behaviors.setdefault("receive_timeout", 1000000)
+if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
+    DATABASES["default"].setdefault("OPTIONS", {}).setdefault("connect_timeout", 3)
+
 # Local safety fallback:
 # In DEBUG, avoid pylibmc crashes unless explicitly opting in to memcached.
 # Set RADAR_DEBUG_USE_MEMCACHED=1 to force memcached in development.

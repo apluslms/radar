@@ -15,6 +15,7 @@
 
 	var POLL_INTERVAL_MS = 2000;
 	var pollHandle = null;
+	var requestPending = false;
 
 	function el(id) {
 		return document.getElementById(id);
@@ -100,11 +101,18 @@
 	}
 
 	function poll() {
+		if (requestPending) {
+			return;
+		}
+		requestPending = true;
 		fetch(statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
 			.then(function (response) { return response.json(); })
 			.then(applyStatus)
 			.catch(function () {
 				// Transient error: keep polling.
+			})
+			.finally(function () {
+				requestPending = false;
 			});
 	}
 
