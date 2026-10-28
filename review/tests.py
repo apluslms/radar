@@ -246,13 +246,63 @@ class CreateCheatersheetComparisonTests(TestCase):
         load_radar_page_data.run(self.course.pk, "summary", [[], 0.83, 1], "summary-roster-test")
 
         sync_roster.assert_not_called()
-        build_summary.assert_called_once_with(self.course, [], 0.83, 1)
+        self.assertEqual(build_summary.call_args.args, (self.course, [], 0.83, 1))
+        self.assertTrue(callable(build_summary.call_args.kwargs["report_progress"]))
         self.assertEqual(
             caches["course_report_progress"].get("summary-roster-test"),
             {"status": "ready", "result": {"pairs": []}},
         )
         caches["default"].clear()
         caches["course_report_progress"].clear()
+
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "partial-summary-locks"},
+        "course_report_progress": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "partial-summary-results",
+        },
+    })
+    @patch("review.views._fetch_dolos_pairs_rows")
+    @patch("review.views._build_pair_rows", return_value=[{"a_key": "studentA", "b_key": "studentB"}])
+    @patch("review.views._build_group_rows", return_value=[])
+    def test_overview_worker_keeps_available_reports_and_discloses_purged_exercises(self, groups, pairs, fetch):
+        ExerciseDolosReport.objects.create(exercise=self.exercise, report_id="PURGED", include_all=False)
+        store = caches["course_report_progress"]
+        self.addCleanup(store.clear)
+        row = {"leftFilePath": "a", "rightFilePath": "b", "similarity": "0.91"}
+
+        def fetch_rows(report_id):
+            if report_id == "PURGED":
+                raise requests.HTTPError(response=Mock(status_code=404))
+            return [row]
+
+        fetch.side_effect = fetch_rows
+        with patch("review.views._collect_pair_exercise_scores", return_value={}) as collect:
+            with self.assertLogs("radar.review", level="WARNING"):
+                load_radar_page_data.run(self.course.pk, "summary", [["PURGED", "AVAILABLE"], .83, 1], "partial")
+        state = store.get("partial")
+        self.assertEqual(state["status"], "ready")
+        self.assertEqual(state["result"]["stats"]["pairs_total"], 1)
+        self.assertEqual(state["result"]["missing_reports"], [
+            {"report_id": "PURGED", "exercise_name": self.exercise.name},
+        ])
+        collect.assert_called_once_with([row], {self.exercise.key: self.exercise})
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        with patch("review.views.background_result", side_effect=[{"status": "ready", "result": []}, state]):
+            response = self.client.get(reverse("students_hub", kwargs={"course_key": self.course.key}))
+        self.assertContains(response, "Missing/failed report for following exercises:")
+        self.assertNotContains(response, "Incomplete summary")
+        self.assertContains(response, self.exercise.name)
+        self.assertContains(response, 'aria-describedby="missing-reports-tooltip"')
+
+    @patch("review.views._fetch_dolos_pairs_rows")
+    def test_overview_does_not_hide_dolos_server_or_network_failures_as_missing_reports(self, fetch):
+        for error in (requests.HTTPError(response=Mock(status_code=500)), requests.Timeout("Dolos timeout")):
+            fetch.side_effect = error
+            with self.subTest(error=type(error).__name__):
+                with self.assertRaises(type(error)):
+                    views._build_course_similarity_summary(self.course, ["REPORT"], .83, 1)
 
     @override_settings(CACHES={
         "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
@@ -1283,6 +1333,33 @@ class CreateCheatersheetComparisonTests(TestCase):
 
 
 class CourseSimilaritySummaryTests(TestCase):
+    @patch("review.views._fetch_dolos_pairs_rows", return_value=[])
+    def test_summary_reports_actual_report_counts_then_calculation_stages(self, fetch):
+        course = Mock()
+        course.exercises.only.return_value = []
+        course.students.only.return_value = []
+        progress = Mock()
+        with patch("review.views.ExerciseDolosReport.objects") as reports:
+            reports.filter.return_value.values_list.return_value = []
+            views._build_course_similarity_summary(course, ["ONE", "TWO"], .83, 1, report_progress=progress)
+        self.assertEqual(progress.call_args_list, [
+            call("Loading exercise reports", 0, 2),
+            call("Loading exercise reports", 1, 2),
+            call("Loading exercise reports", 2, 2),
+            call("Calculating student-pair similarities..."),
+            call("Finding matching student groups..."),
+        ])
+        self.assertEqual(fetch.call_count, 2)
+
+    def test_flagged_lookup_index_is_installed_and_excludes_ordinary_and_template_pairs(self):
+        index = next(index for index in Comparison._meta.indexes if index.name == "comparison_flagged_lookup")
+        self.assertEqual(index.fields, ["submission_a", "-similarity", "-id"])
+        self.assertEqual(index.condition, views.Q(review=10, submission_b__isnull=False))
+        with connection.cursor() as cursor:
+            constraints = connection.introspection.get_constraints(cursor, Comparison._meta.db_table)
+        self.assertTrue(constraints[index.name]["index"])
+        self.assertEqual(constraints[index.name]["columns"], ["submission_a_id", "similarity", "id"])
+
     def test_postgresql_statement_deadline_is_transaction_local_and_restored(self):
         with patch("review.decorators.connection") as database:
             with patch("review.decorators.transaction.atomic"):
@@ -1416,3 +1493,59 @@ class BackgroundStatusTests(TestCase):
             call("key", state, 600),
             call("key:status", {"status": "ready"}, 599),
         ])
+
+    def test_one_day_result_is_reused_after_an_hour_and_expires_after_one_day(self):
+        state = {"status": "ready", "result": {"pair_rows": []}}
+        started = time.time()
+        with patch("time.time", return_value=started):
+            store_background_state(self.store, self.key, state, 86400)
+        with patch("time.time", return_value=started + 3600):
+            self.assertEqual(
+                background_result(self.factory.get("/"), self.course, "summary", self.arguments), state,
+            )
+        with patch("time.time", return_value=started + 86401):
+            self.assertEqual(
+                background_result(self.factory.get("/"), self.course, "summary", self.arguments), {"status": "idle"},
+            )
+
+    @patch("provider.tasks.Course.objects.get")
+    @patch("review.background.store_background_state")
+    def test_overview_results_last_one_day_and_progress_is_small_without_extending_job_deadline(
+        self, store_state, get_course,
+    ):
+        queued_at = time.time() - 10
+        self.store.set("overview:status", {"status": "pending", "started": queued_at}, 900)
+        course = get_course.return_value
+        course.pk = 42
+
+        def build_summary(*args, report_progress):
+            report_progress("Loading exercise reports", 1, 2)
+            self.assertEqual(self.store.get("overview:status"), {
+                "status": "pending", "started": queued_at, "message": "Loading exercise reports",
+                "completed": 1, "total": 2,
+            })
+            self.assertIsNone(self.store.get("overview"))
+            return {"pair_rows": []}
+
+        with patch("review.views._build_course_similarity_summary", side_effect=build_summary):
+            load_radar_page_data.run(42, "summary", [[], .83, 1], "overview")
+        self.assertEqual(store_state.call_args.args[3], 86400)
+        for operation, arguments, builder in (
+            ("course_home", [False, 1, "version"], "provider.tasks._load_course_home_data"),
+            ("overview_flags", [1], "review.views._flagged_comparisons"),
+            ("group_pairs", [[], []], "review.views._build_group_pair_rows"),
+        ):
+            with self.subTest(operation=operation):
+                with patch(builder):
+                    load_radar_page_data.run(42, operation, arguments, "overview")
+                self.assertEqual(
+                    store_state.call_args.args[3], 600 if operation == "group_pairs" else 86400,
+                )
+
+    @patch("provider.tasks.Course.objects.get", side_effect=ValueError("broken course"))
+    @patch("review.background.store_background_state")
+    def test_overview_failures_stay_short_lived(self, store_state, get_course):
+        with self.assertLogs("provider.tasks", level="ERROR"):
+            load_radar_page_data.run(42, "summary", [[], .83, 1], "overview")
+        self.assertEqual(store_state.call_args.args[2]["status"], "failed")
+        self.assertEqual(store_state.call_args.args[3], 600)

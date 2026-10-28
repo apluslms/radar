@@ -42,7 +42,7 @@ def background_result(request, course, operation, arguments):
             locks.delete(key + ":lock")
             state = None
         if state is None:
-            pending = {"status": "pending", "started": time.time()}
+            pending = {"status": "pending", "started": time.time(), "message": "Queued: waiting for a worker..."}
             if locks.add(key + ":lock", pending, 900):
                 store_background_state(store, key, pending, 900)
                 try:

@@ -186,7 +186,7 @@ def course_home(request, course_key=None, course=None) -> HttpResponse:
     if request.method == "POST" and request.POST.get("refresh_metadata") == "1":
         version = str(time.time_ns())
         cache.set("course_home_refresh:%s" % course.pk, version, 86400)
-        cache.set("course_home_version:%s" % course.pk, version, 86400)
+        cache.set("course_home_version:%s" % course.pk, version, None)
         return redirect(request.get_full_path())
 
     include_all = request.GET.get("all") == "1"
@@ -209,14 +209,20 @@ def course_home(request, course_key=None, course=None) -> HttpResponse:
     return render(request, "review/course_home.html", context)
 
 
-def _build_course_home_data(course, include_all, students_page):
+def _build_course_home_data(course, include_all, students_page, report_progress=None):
+    if report_progress:
+        report_progress("Loading exercises and pinned students...")
     exercises = list(
         course.exercises.only("id", "key", "name")
     )
     exercises.sort(key=_natural_sort_key)
     pinned_students = list(course.students.filter(is_pinned=True))
 
+    if report_progress:
+        report_progress("Querying recent flagged comparisons...")
     recent_flags = list(_flagged_comparisons(course)[:10])
+    if report_progress:
+        report_progress("Loading the student page...")
     other_students = Paginator(
         course.students.filter(is_pinned=False).order_by("key"), 50
     ).get_page(students_page)
@@ -239,7 +245,7 @@ def toggle_student_pin(request, course_key=None, student_key=None, course=None, 
     """Pin/unpin a student on the course home page."""
     student.is_pinned = not student.is_pinned
     student.save(update_fields=["is_pinned"])
-    cache.set("course_home_version:%s" % course.pk, time.time(), 86400)
+    cache.set("course_home_version:%s" % course.pk, time.time(), None)
     next_url = request.POST.get("next", "")
     if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
         return redirect(next_url)
@@ -2160,7 +2166,7 @@ def _build_group_pair_rows(course, report_ids, member_keys):
     return comparison_rows, load_errors
 
 
-def _build_course_similarity_summary(course, report_ids, min_similarity, min_exercises):
+def _build_course_similarity_summary(course, report_ids, min_similarity, min_exercises, report_progress=None):
     """Build pair/group summaries from a course-wide Dolos report set.
 
     Returns dict with:
@@ -2190,16 +2196,23 @@ def _build_course_similarity_summary(course, report_ids, min_similarity, min_exe
             )
             return report_id, (), True
 
+    if report_progress:
+        report_progress("Loading exercise reports", 0, len(report_ids))
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        fetched_reports = executor.map(fetch_report, report_ids)
-        for report_id, report_rows, failed in fetched_reports:
+        futures = [executor.submit(fetch_report, report_id) for report_id in report_ids]
+        for completed, future in enumerate(concurrent.futures.as_completed(futures), start=1):
+            report_id, report_rows, failed = future.result()
             if failed:
                 missing_reports.append({
                     "report_id": report_id, "exercise_name": report_exercises.get(report_id, "Unknown exercise"),
                 })
             else:
                 rows.extend(report_rows)
+            if report_progress:
+                report_progress("Loading exercise reports", completed, len(report_ids))
 
+    if report_progress:
+        report_progress("Calculating student-pair similarities...")
     pair_exercise_scores = _collect_pair_exercise_scores(rows, exercises_by_key)
     pair_rows = _build_pair_rows(
         pair_exercise_scores,
@@ -2208,6 +2221,8 @@ def _build_course_similarity_summary(course, report_ids, min_similarity, min_exe
         min_similarity,
         min_exercises,
     )
+    if report_progress:
+        report_progress("Finding matching student groups...")
     group_rows = _build_group_rows(pair_rows, students_by_key)
 
     stats = {
@@ -2470,7 +2485,7 @@ def flag_new_radar_pair(
     else:
         return HttpResponseBadRequest("The pair has not been flagged")
 
-    cache.set("course_home_version:%s" % course.pk, time.time(), 86400)
+    cache.set("course_home_version:%s" % course.pk, time.time(), None)
     return redirect(request.POST.get("next") or reverse("students_hub", kwargs={"course_key": course.key}))
 
 
@@ -2893,7 +2908,7 @@ def comparison(
             request.POST["review"]
         )
         if result:
-            cache.set("course_home_version:%s" % course.pk, time.time(), 86400)
+            cache.set("course_home_version:%s" % course.pk, time.time(), None)
         if is_ajax(request):
             return JsonResponse({"success": result})
 

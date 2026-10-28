@@ -747,6 +747,13 @@ class Comparison(models.Model):
 
     class Meta:
         unique_together = ("submission_a", "submission_b")
+        indexes = [
+            models.Index(
+                fields=["submission_a", "-similarity", "-id"],
+                condition=models.Q(review=10, submission_b__isnull=False),
+                name="comparison_flagged_lookup",
+            ),
+        ]
         ordering = [
             "-similarity",
         ]
