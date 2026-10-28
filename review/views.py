@@ -51,7 +51,7 @@ from radar.settings import (
     DOLOS_PROXY_WEB_URL,
     DOLOS_WEB_SERVER_URL,
 )
-from review.decorators import access_resource
+from review.decorators import access_resource, overview_request
 from review.background import background_result, public_status
 from review.dolos_reports import (
     course_progress_cache_key,
@@ -1310,6 +1310,22 @@ def _current_course_report_status(course, request):
     return payload
 
 
+def _cached_task_status(task_id, cache_key, started_at):
+    progress = _course_report_progress_cache().get(cache_key) or {}
+    if "report_ids" in progress:
+        return _build_success_task_payload(task_id, progress)
+    if progress.get("phase") == "complete":
+        return {"status": "ready", "task_id": task_id}
+    if started_at and time.time() - started_at > COURSE_REPORT_STALE_SECONDS:
+        return {
+            "status": "failed", "task_id": task_id,
+            "message": (
+                "Background job timed out or its progress is unavailable. Check the worker log before retrying."
+            ),
+        }
+    return {**progress, "status": "pending", "task_id": task_id}
+
+
 @access_resource
 def generate_course_dolos_async(request, course_key=None, course=None) -> JsonResponse:
     """
@@ -1406,6 +1422,7 @@ def generate_course_dolos_async(request, course_key=None, course=None) -> JsonRe
     return JsonResponse(response)
 
 
+@overview_request
 @access_resource
 def check_course_dolos_task(request, course_key=None, task_id=None, course=None) -> JsonResponse:
     """
@@ -1416,7 +1433,11 @@ def check_course_dolos_task(request, course_key=None, task_id=None, course=None)
       - {"status": "failed", "message": "..."} if failed
     """
     started = request.session.get(_course_report_started_session_key(course))
-    payload = _resolve_course_task_status(course, task_id, started_at=started)
+    payload = (
+        _cached_task_status(task_id, _course_report_progress_cache_key(task_id), started)
+        if request.GET.get("cache_only") == "1"
+        else _resolve_course_task_status(course, task_id, started_at=started)
+    )
     if payload["status"] == "ready":
         report_ids = payload.get("report_ids") or []
         primary_report_id = payload.get("report_id") or (report_ids[0] if report_ids else None)
@@ -1447,6 +1468,7 @@ def check_course_dolos_task(request, course_key=None, task_id=None, course=None)
     return JsonResponse(payload)
 
 
+@overview_request
 @access_resource
 def check_course_dolos_task_current(request, course_key=None, course=None) -> JsonResponse:
     """Current course-wide Dolos generation status for page refresh restore.
@@ -1461,7 +1483,11 @@ def check_course_dolos_task_current(request, course_key=None, course=None) -> Js
 
     if task_id:
         started = request.session.get(_course_report_started_session_key(course))
-        payload = _resolve_course_task_status(course, task_id, started_at=started)
+        payload = (
+            _cached_task_status(task_id, _course_report_progress_cache_key(task_id), started)
+            if request.GET.get("cache_only") == "1"
+            else _resolve_course_task_status(course, task_id, started_at=started)
+        )
         if payload["status"] == "ready":
             report_ids = payload.get("report_ids") or []
             primary_report_id = payload.get("report_id") or (report_ids[0] if report_ids else None)
@@ -1711,6 +1737,7 @@ def _resolve_refresh_task_status(task_id, started_at=None):
     return {"status": "pending", "task_id": task_id}
 
 
+@overview_request
 @access_resource
 def check_refresh_submissions_task(request, course_key=None, course=None) -> JsonResponse:
     """Progress of this course's submission re-fetch, for the hub's progress
@@ -1719,7 +1746,11 @@ def check_refresh_submissions_task(request, course_key=None, course=None) -> Jso
     if not task_id:
         return JsonResponse({"status": "idle"})
     started = request.session.get(_refresh_started_session_key(course))
-    payload = _resolve_refresh_task_status(task_id, started_at=started)
+    payload = (
+        _cached_task_status(task_id, refresh_progress_cache_key(task_id), started)
+        if request.GET.get("cache_only") == "1"
+        else _resolve_refresh_task_status(task_id, started_at=started)
+    )
     if payload["status"] != "pending":
         request.session.pop(_refresh_task_session_key(course), None)
         request.session.pop(_refresh_started_session_key(course), None)
@@ -2136,8 +2167,8 @@ def _build_course_similarity_summary(course, report_ids, min_similarity, min_exe
     - group_rows: connected student groups (size >= 3) using repeated-pair edges
     - stats: headline counts for quick scanning
     """
-    exercises_by_key = {ex.key: ex for ex in course.exercises.all()}
-    students_by_key = {s.key: s.display_name for s in course.students.all()}
+    exercises_by_key = {ex.key: ex for ex in course.exercises.only("key", "name", "course_id")}
+    students_by_key = {s.key: s.display_name for s in course.students.only("key", "name", "course_id")}
 
     rows = []
 
@@ -2266,13 +2297,20 @@ def _flagged_submission_pairs(course):
     }
 
 
-def _overview_page(request, queryset, parameter):
+def _overview_page_number(request, parameter):
     try:
-        number = max(1, int(request.GET.get(parameter, 1)))
+        return max(1, int(request.GET.get(parameter, 1)))
     except (TypeError, ValueError):
-        number = 1
+        return 1
+
+
+def _overview_page(request, queryset, parameter):
+    number = _overview_page_number(request, parameter)
     offset = (number - 1) * 50
-    rows = list(queryset[offset:offset + 51])
+    return _overview_page_data(request, list(queryset[offset:offset + 51]), parameter, number)
+
+
+def _overview_page_data(request, rows, parameter, number):
     parameters = request.GET.copy()
     parameters.pop("background", None)
 
@@ -2288,12 +2326,21 @@ def _overview_page(request, queryset, parameter):
     }
 
 
+@overview_request
 @access_resource
 def students_hub(request, course_key=None, course=None) -> HttpResponse:
     """New Radar: list of students in the course, linking to their
     cross-exercise Dolos similarity page."""
     if request.session.get("legacy_radar", True):
         return redirect("students_view", course_key=course.key)
+
+    flags_poll = request.GET.get("background") == "1" and request.GET.get("section") == "flags"
+    if flags_poll or request.GET.get("background") != "1":
+        flags_number = _overview_page_number(request, "flags_page")
+        flags_version = cache.get("course_home_version:%s" % course.pk, "initial")
+        flags_state = background_result(request, course, "overview_flags", [flags_number, flags_version])
+        if flags_poll:
+            return JsonResponse(public_status(flags_state))
 
     include_all = request.GET.get("all") == "1"
     latest_course_report_ids = _exercise_report_ids(course, include_all=include_all)
@@ -2328,8 +2375,8 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
         course.students.only("course_id", "key", "name", "is_pinned").order_by("-is_pinned", "key"),
         "students_page",
     )
-    flagged_page = _overview_page(
-        request, _flagged_comparisons(course).order_by("-similarity", "-pk"), "flags_page",
+    flagged_page = _overview_page_data(
+        request, flags_state.get("result", []), "flags_page", flags_number,
     )
     return render(
         request,
@@ -2345,6 +2392,7 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
             "students_page": students_page,
             "flagged_comparisons": flagged_page["items"],
             "flagged_page": flagged_page,
+            "flags_background_state": public_status(flags_state),
             "course_report_id": latest_course_report_id,
             "course_report_completed_at": latest_completed_at,
             "course_report_summary": summary,
@@ -2355,6 +2403,7 @@ def students_hub(request, course_key=None, course=None) -> HttpResponse:
             "exercise_count": exercise_count,
             "include_all": include_all,
             "show_submission_switch": True,
+            "cache_only_status": True,
         },
     )
 
@@ -2830,6 +2879,8 @@ def comparison(
         result = "review" in request.POST and comparison.update_review(
             request.POST["review"]
         )
+        if result:
+            cache.set("course_home_version:%s" % course.pk, time.time(), 86400)
         if is_ajax(request):
             return JsonResponse({"success": result})
 

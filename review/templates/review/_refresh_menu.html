@@ -39,5 +39,5 @@
 	<p class="status-title" id="hubRefreshProgressText">Queuing submission re-fetch&hellip;</p>
 	<progress id="hubRefreshProgressBar"></progress>
 </div>
-<script src="{% static 'refresh_progress.js' %}?v=20260929a"
-	data-status-url="{% url 'check_refresh_submissions_task' course_key=course.key %}"></script>
+<script src="{% static 'refresh_progress.js' %}?v=20261026"
+	data-status-url="{% url 'check_refresh_submissions_task' course_key=course.key %}{% if cache_only_status %}?cache_only=1{% endif %}"></script>

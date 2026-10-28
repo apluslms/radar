@@ -97,7 +97,7 @@ def _load_mini_report(course, arguments, views):
 @celery.shared_task(soft_time_limit=570, time_limit=600, ignore_result=True)
 def load_radar_page_data(course_id, operation, arguments, key):
     # Views also import provider tasks; defer this import until task execution.
-    from review import background, views  # pylint: disable=import-outside-toplevel
+    from review import background, decorators, views  # pylint: disable=import-outside-toplevel
 
     store = caches["course_report_progress"]
     started = time.monotonic()
@@ -105,20 +105,22 @@ def load_radar_page_data(course_id, operation, arguments, key):
 
     try:
         course = Course.objects.get(pk=course_id)
+        if operation in {"summary", "student_matches", "group_pairs"}:
+            report_ids = arguments[2] if operation == "student_matches" else arguments[0]
+            for report_id in report_ids:
+                views._fetch_dolos_pairs_rows(report_id)
         if operation == "course_home":
             result = _load_course_home_data(course, arguments, views)
+        elif operation == "overview_flags":
+            offset = (arguments[0] - 1) * 50
+            with decorators.database_timeout(5000):
+                result = list(views._flagged_comparisons(course).order_by("-similarity", "-pk")[offset:offset + 51])
         elif operation == "summary":
-            for report_id in arguments[0]:
-                views._fetch_dolos_pairs_rows(report_id)
             result = views._build_course_similarity_summary(course, *arguments)
         elif operation == "student_matches":
             student_key, include_all, report_ids = arguments
-            for report_id in report_ids:
-                views._fetch_dolos_pairs_rows(report_id)
             result = views._student_exercise_matches(course, student_key, include_all)
         elif operation == "group_pairs":
-            for report_id in arguments[0]:
-                views._fetch_dolos_pairs_rows(report_id)
             result = views._build_group_pair_rows(course, *arguments)
         elif operation == "mini_report":
             result = _load_mini_report(course, arguments, views)
@@ -149,6 +151,7 @@ def load_radar_page_data(course_id, operation, arguments, key):
             {"status": "failed", "message": "Background loading failed. Check the worker log and retry."}, 600,
         )
     finally:
+        views._fetch_dolos_pairs_rows.cache_clear()
         caches["default"].delete(key + ":lock")
 
 

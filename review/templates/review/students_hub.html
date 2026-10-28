@@ -61,6 +61,8 @@
 
 		<div class="summary-card" id="flagged">
 			<h5>Flagged Pairs and Submissions</h5>
+			{% include 'review/_background_loading.html' with background_state=flags_background_state background_section="flags" %}
+			{% if flags_background_state.status == 'ready' %}
 			<table class="summary-table">
 				<thead>
 					<tr><th>Students</th><th>Exercise</th><th>Submissions</th><th>Similarity</th><th></th></tr>
@@ -87,6 +89,7 @@
 				</tbody>
 			</table>
 			{% include 'review/_overview_pagination.html' with page=flagged_page label="Flagged pair pages" %}
+			{% endif %}
 		</div>
 
 		{% if course_report_summary_error %}
@@ -162,7 +165,7 @@
 						<td>
 							<div class="group-members">
 								{% for member in group.members %}
-								<a href="{% url 'student_hub' course_key=course.key student_key=member.key %}{% if include_all %}?all=1{% endif %}">{{ member.display_name }}</a>
+								<a href="{% url 'student_hub' course_key=course.key student_key=member.key %}{% if include_all %}?all=1{% endif %}">{{ member.name }}</a>
 								{% endfor %}
 							</div>
 						</td>
