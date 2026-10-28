@@ -28,7 +28,7 @@
 	{% include 'review/_course_report_panel.html' %}
 
 	<div class="group-head">
-		<h3>Group mini report</h3>
+		<h3>Group mini report {% include 'review/_missing_reports.html' %}</h3>
 		{% if latest_report_ids %}
 		<span class="muted">Filtered from {{ latest_report_ids|length }} course report(s)</span>
 		{% else %}
@@ -44,22 +44,13 @@
 		</div>
 	</div>
 
-	{% if load_errors %}
-	<div class="group-card warning">
-		<strong>Some report data could not be loaded.</strong>
-		<ul>
-			{% for error in load_errors %}
-			<li>{{ error }}</li>
-			{% endfor %}
-		</ul>
-	</div>
-	{% endif %}
-
 	{% if not latest_report_ids %}
 	<article class="group-card">Generate a course-wide report first to inspect group similarities.</article>
 	{% elif background_state.status != 'ready' %}
+	{% elif missing_reports|length == latest_report_ids|length %}
+	<article class="group-card">No exercise report data is available for this group.</article>
 	{% elif not comparison_rows %}
-	<article class="group-card">No similarities found between these students in the latest course report(s).</article>
+	<article class="group-card">No similarities found between these students in the available course report(s).</article>
 	{% else %}
 	<div class="group-card">
 		<table class="group-table">

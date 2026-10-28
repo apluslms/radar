@@ -112,6 +112,7 @@ class CourseDolosReportTests(SimpleTestCase):
             SimpleNamespace(id=12, key="ex2", name="Exercise 2"),
         ]
         get_course.return_value.exercises.select_related.return_value.all.return_value = exercises
+        get_course.return_value.pk = 42
         build_report.return_value = {"report_id": "NEW_REPORT", "submissions_included": 2}
         for include_all in (False, True):
             with self.subTest(include_all=include_all):
@@ -140,7 +141,7 @@ class CourseDolosReportTests(SimpleTestCase):
         ]
         exercise_query = mock.MagicMock()
         exercise_query.select_related.return_value.all.return_value = exercises
-        get_course.return_value = SimpleNamespace(name="Course", exercises=exercise_query)
+        get_course.return_value = SimpleNamespace(pk=42, name="Course", exercises=exercise_query)
         build_report.side_effect = [
             {"report_id": "REPORT_1", "submissions_included": 2},
             {"report_id": "REPORT_2", "submissions_included": 3},
@@ -186,7 +187,7 @@ class CourseDolosReportTests(SimpleTestCase):
         ]
         exercise_query = mock.MagicMock()
         exercise_query.select_related.return_value.all.return_value = exercises
-        get_course.return_value = SimpleNamespace(name="Course", exercises=exercise_query)
+        get_course.return_value = SimpleNamespace(pk=42, name="Course", exercises=exercise_query)
         stored_reports = [
             SimpleNamespace(report_id="REPORT_1", submissions_included=2),
             SimpleNamespace(report_id="REPORT_2", submissions_included=3),
@@ -212,14 +213,20 @@ class CourseDolosReportTests(SimpleTestCase):
         exercise = SimpleNamespace(id=11, key="ex1", name="Exercise 1")
         exercise_query = mock.MagicMock()
         exercise_query.select_related.return_value.all.return_value = [exercise]
-        get_course.return_value = SimpleNamespace(name="Course", exercises=exercise_query)
+        get_course.return_value = SimpleNamespace(pk=42, name="Course", exercises=exercise_query)
         build_report.return_value = {
             "report_id": "NEW_REPORT",
             "submissions_included": 2,
         }
 
         with mock.patch("provider.tasks.ExerciseDolosReport.objects") as report_objects:
-            result = tasks.generate_course_dolos_task.run("course", force=True)
+            with mock.patch("provider.tasks.caches") as caches:
+                result = tasks.generate_course_dolos_task.run("course", force=True)
+        version_call = next(
+            item for item in caches["default"].set.call_args_list if item.args[0] == "course_home_version:42"
+        )
+        self.assertEqual(version_call.args[0], "course_home_version:42")
+        self.assertIsNone(version_call.args[2])
 
         report_objects.filter.assert_not_called()
         build_report.assert_called_once()

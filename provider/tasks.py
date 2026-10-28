@@ -43,11 +43,12 @@ from review.dolos_reports import (
 logger = get_task_logger(__name__)
 
 
-def _load_course_home_data(course, arguments, views):
+def _load_course_home_data(course, arguments, views, report_progress):
     include_all, students_page, version = arguments
     refresh_key = "course_home_refresh:%s" % course.pk
     refresh = caches["default"].get(refresh_key) == version
     metadata_started = time.monotonic()
+    report_progress("Loading roster and exercise metadata...")
     aplus.import_missing_course_metadata(course, refresh=refresh)
     logger.info(
         "Radar course-home metadata ready course=%s refresh=%s seconds=%.3f",
@@ -70,7 +71,7 @@ def _load_course_home_data(course, arguments, views):
                 )
 
     with connection.execute_wrapper(time_query):
-        result = views._build_course_home_data(course, include_all, students_page)
+        result = views._build_course_home_data(course, include_all, students_page, report_progress=report_progress)
     logger.info(
         "Radar course-home data ready course=%s seconds=%.3f",
         course.pk, time.monotonic() - build_started,
@@ -102,26 +103,38 @@ def load_radar_page_data(course_id, operation, arguments, key):
     store = caches["course_report_progress"]
     started = time.monotonic()
     logger.info("Radar background start course=%s operation=%s key=%s", course_id, operation, key)
+    queued_state = store.get(key + ":status") or {}
+    queued_at = queued_state.get("started", time.time())
+
+    def report_progress(message, completed=None, total=None):
+        state = {
+            "status": "pending", "started": queued_at, "message": message,
+            "completed": completed, "total": total,
+        }
+        store.set(key + ":status", state, 900)
 
     try:
+        report_progress("Starting background loading...")
         course = Course.objects.get(pk=course_id)
-        if operation in {"student_matches", "group_pairs"}:
-            report_ids = arguments[2] if operation == "student_matches" else arguments[0]
-            for report_id in report_ids:
-                views._fetch_dolos_pairs_rows(report_id)
         if operation == "course_home":
-            result = _load_course_home_data(course, arguments, views)
+            result = _load_course_home_data(course, arguments, views, report_progress)
         elif operation == "overview_flags":
+            report_progress("Querying flagged comparisons...")
             offset = (arguments[0] - 1) * 50
             with decorators.database_timeout(5000):
                 result = list(views._flagged_comparisons(course).order_by("-similarity", "-pk")[offset:offset + 51])
         elif operation == "summary":
-            result = views._build_course_similarity_summary(course, *arguments)
+            result = views._build_course_similarity_summary(course, *arguments, report_progress=report_progress)
         elif operation == "student_matches":
-            student_key, include_all, report_ids = arguments
-            result = views._student_exercise_matches(course, student_key, include_all)
+            student_key, include_all, _report_ids, page = arguments
+            result = views._student_exercise_matches(
+                course, student_key, include_all, report_progress=report_progress, page=page,
+            )
+        elif operation == "student_pair":
+            report_ids, members, page, _version = arguments
+            result = views._build_student_pair_page(course, report_ids, members, page, report_progress=report_progress)
         elif operation == "group_pairs":
-            result = views._build_group_pair_rows(course, *arguments)
+            result = views._build_group_pair_rows(course, *arguments, report_progress=report_progress)
         elif operation == "mini_report":
             result = _load_mini_report(course, arguments, views)
         elif operation == "exercise_report":
@@ -130,20 +143,12 @@ def load_radar_page_data(course_id, operation, arguments, key):
             result = views._build_hub_report_data(exercise, include_all, newest)
         else:
             raise ValueError("Unknown background operation")
-        background.store_background_state(store, key, {"status": "ready", "result": result}, 600)
+        timeout = 86400 if operation in {"course_home", "summary", "overview_flags"} else 600
+        background.store_background_state(store, key, {"status": "ready", "result": result}, timeout)
         logger.info(
             "Radar background ready course=%s operation=%s key=%s seconds=%.3f",
             course_id, operation, key, time.monotonic() - started,
         )
-    except requests.HTTPError as exc:
-        logger.exception("Background Radar page data failed for course=%s operation=%s", course_id, operation)
-        if exc.response is not None and exc.response.status_code == 404 and operation in {
-            "summary", "student_matches", "group_pairs",
-        }:
-            message = "A saved Dolos report is missing. Regenerate the full course report, then reload this page."
-        else:
-            message = "Background loading failed. Check the worker log and retry."
-        background.store_background_state(store, key, {"status": "failed", "message": message}, 600)
     except Exception:
         logger.exception("Background Radar page data failed for course=%s operation=%s", course_id, operation)
         background.store_background_state(
@@ -889,6 +894,8 @@ def generate_course_dolos_task(self, course_key, force=False, include_all=None):
             "reports_reused": sum(1 for r in report_results if r["reused"]),
             "reports_generated": sum(1 for r in report_results if not r["reused"]),
         }
+        if report_results:
+            caches["default"].set("course_home_version:%s" % course.pk, time.time_ns(), None)
         try:
             caches["course_report_progress"].set(
                 course_progress_cache_key(self.request.id),

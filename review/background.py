@@ -14,7 +14,8 @@ def result_key(course_id, operation, arguments):
     digest = hashlib.sha256(
         json.dumps([course_id, operation, arguments], sort_keys=True).encode()
     ).hexdigest()
-    return "radar_background:v2:" + digest
+    version = "v4" if operation == "student_matches" else "v3" if operation == "group_pairs" else "v2"
+    return "radar_background:%s:" % version + digest
 
 
 def store_background_state(store, key, state, timeout):
@@ -42,7 +43,7 @@ def background_result(request, course, operation, arguments):
             locks.delete(key + ":lock")
             state = None
         if state is None:
-            pending = {"status": "pending", "started": time.time()}
+            pending = {"status": "pending", "started": time.time(), "message": "Queued: waiting for a worker..."}
             if locks.add(key + ":lock", pending, 900):
                 store_background_state(store, key, pending, 900)
                 try:

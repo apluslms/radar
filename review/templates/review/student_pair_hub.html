@@ -37,6 +37,7 @@
 			<a href="{% url 'student_hub' course_key=course.key student_key=student_a.key %}{% if include_all %}?all=1{% endif %}">{{ student_a.display_name }}</a>
 			and
 			<a href="{% url 'student_hub' course_key=course.key student_key=student_b.key %}{% if include_all %}?all=1{% endif %}">{{ student_b.display_name }}</a>
+			{% include 'review/_missing_reports.html' %}
 		</h3>
 		{% if latest_report_ids %}
 		<span class="muted">Using {{ latest_report_ids|length }} course report(s)</span>
@@ -45,23 +46,15 @@
 		{% endif %}
 	</div>
 
-	{% if load_errors %}
-	<div class="pair-card warning">
-		<strong>Some report data could not be loaded.</strong>
-		<ul>
-			{% for error in load_errors %}
-			<li>{{ error }}</li>
-			{% endfor %}
-		</ul>
-	</div>
-	{% endif %}
-
 	{% if not latest_report_ids %}
 	<article class="pair-card">Generate a course-wide report first to inspect pair similarities.</article>
 	{% elif background_state.status != 'ready' %}
+	{% elif missing_reports|length == latest_report_ids|length %}
+	<article class="pair-card">No exercise report data is available for this comparison.</article>
 	{% elif not pair_rows %}
-	<article class="pair-card">No similarities found for this pair in the latest course report(s).</article>
+	<article class="pair-card">No similarities found for this pair in the available course report(s).</article>
 	{% else %}
+	<p class="muted">Up to 50 submission comparisons per page, strongest first. Similarities below are for this page.</p>
 	<div class="pair-card">
 		<table class="pair-table">
 			<thead>
@@ -113,5 +106,6 @@
 		</table>
 	</div>
 	{% endif %}
+	{% include 'review/_overview_pagination.html' with page=comparisons_page label="Comparison pages" %}
 </div>
 {% endblock %}

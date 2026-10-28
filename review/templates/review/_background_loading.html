@@ -1,6 +1,8 @@
 {% if background_state.status != 'ready' %}
 <div data-background-loading role="status" aria-live="polite">
     <span data-background-message>{% if background_state.message %}{{ background_state.message }}{% else %}Loading report data...{% endif %}</span>
+    <progress data-background-progress aria-label="Background loading progress"></progress>
+    <small data-background-elapsed></small>
     <form data-background-retry method="post" hidden>
         {% csrf_token %}
         <button type="submit" class="secondary outline">Retry</button>
@@ -11,12 +13,21 @@
     var panel = document.currentScript.previousElementSibling;
     var message = panel.querySelector('[data-background-message]');
     var form = panel.querySelector('form');
+    var progress = panel.querySelector('[data-background-progress]');
+    var elapsed = panel.querySelector('[data-background-elapsed]');
+    var loadingStarted = Date.now();
+    function updateElapsed() {
+        elapsed.textContent = Math.floor((Date.now() - loadingStarted) / 1000) + 's elapsed';
+    }
+    var clock = setInterval(updateElapsed, 1000);
     var url = new URL(location.href);
     url.searchParams.set('background', '1');
     {% if background_section %}url.searchParams.set('section', '{{ background_section|escapejs }}');{% endif %}
     var deadline = Date.now() + 670000;
     function fail(text) {
+        clearInterval(clock);
         message.textContent = text;
+        progress.hidden = true;
         form.hidden = false;
     }
     function check(method, retry) {
@@ -30,16 +41,35 @@
             if (!response.ok) { throw new Error('Background loading request failed.'); }
             return response.json();
         }).then(function (data) {
-            if (data.status === 'ready') { location.reload(); }
+            if (data.status === 'ready') { clearInterval(clock); location.reload(); }
             else if (data.status === 'failed') { fail(data.message); }
-            else { setTimeout(function () { check('GET'); }, 2000); }
+            else {
+                message.textContent = data.message || 'Loading report data...';
+                progress.hidden = false;
+                if (data.total > 0 && typeof data.completed === 'number') {
+                    progress.max = data.total;
+                    progress.value = data.completed;
+                    message.textContent += ': ' + data.completed + '/' + data.total +
+                        ' (' + Math.floor(data.completed / data.total * 100) + '%)';
+                } else {
+                    progress.removeAttribute('value');
+                    progress.removeAttribute('max');
+                }
+                setTimeout(function () { check('GET'); }, 2000);
+            }
         }).catch(function (error) { fail(error.message); });
     }
     form.addEventListener('submit', function (event) {
         event.preventDefault();
         form.hidden = true;
         deadline = Date.now() + 670000;
+        loadingStarted = Date.now();
+        elapsed.textContent = '';
+        clock = setInterval(updateElapsed, 1000);
         message.textContent = 'Loading report data...';
+        progress.hidden = false;
+        progress.removeAttribute('value');
+        progress.removeAttribute('max');
         check('POST', true);
     });
     check('POST');

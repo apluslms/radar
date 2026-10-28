@@ -51,7 +51,7 @@ from radar.settings import (
     DOLOS_PROXY_WEB_URL,
     DOLOS_WEB_SERVER_URL,
 )
-from review.decorators import access_resource, overview_request
+from review.decorators import access_resource, database_timeout, overview_request
 from review.background import background_result, public_status
 from review.dolos_reports import (
     course_progress_cache_key,
@@ -186,7 +186,7 @@ def course_home(request, course_key=None, course=None) -> HttpResponse:
     if request.method == "POST" and request.POST.get("refresh_metadata") == "1":
         version = str(time.time_ns())
         cache.set("course_home_refresh:%s" % course.pk, version, 86400)
-        cache.set("course_home_version:%s" % course.pk, version, 86400)
+        cache.set("course_home_version:%s" % course.pk, version, None)
         return redirect(request.get_full_path())
 
     include_all = request.GET.get("all") == "1"
@@ -209,14 +209,20 @@ def course_home(request, course_key=None, course=None) -> HttpResponse:
     return render(request, "review/course_home.html", context)
 
 
-def _build_course_home_data(course, include_all, students_page):
+def _build_course_home_data(course, include_all, students_page, report_progress=None):
+    if report_progress:
+        report_progress("Loading exercises and pinned students...")
     exercises = list(
         course.exercises.only("id", "key", "name")
     )
     exercises.sort(key=_natural_sort_key)
     pinned_students = list(course.students.filter(is_pinned=True))
 
+    if report_progress:
+        report_progress("Querying recent flagged comparisons...")
     recent_flags = list(_flagged_comparisons(course)[:10])
+    if report_progress:
+        report_progress("Loading the student page...")
     other_students = Paginator(
         course.students.filter(is_pinned=False).order_by("key"), 50
     ).get_page(students_page)
@@ -239,7 +245,7 @@ def toggle_student_pin(request, course_key=None, student_key=None, course=None, 
     """Pin/unpin a student on the course home page."""
     student.is_pinned = not student.is_pinned
     student.save(update_fields=["is_pinned"])
-    cache.set("course_home_version:%s" % course.pk, time.time(), 86400)
+    cache.set("course_home_version:%s" % course.pk, time.time(), None)
     next_url = request.POST.get("next", "")
     if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
         return redirect(next_url)
@@ -1893,11 +1899,10 @@ def _mini_dolos_report_cache_key(course_key, exercise_key, left_submission_id, r
     )
 
 
-def _dolos_pairs_for_student(report_id, student_key):
+def _dolos_pairs_for_student(rows, student_key):
     """This student's matches in an already-generated report, sourced from
     Dolos's own pairs data (never recomputed by Radar), highest similarity
     first. Each match is (other_student_key, similarity)."""
-    rows = _fetch_dolos_pairs_rows(report_id)
     matches = []
     for row in rows:
         left = _student_key_from_path(row["leftFilePath"])
@@ -2073,28 +2078,24 @@ def _build_group_rows(pair_rows, students_by_key, limit=20):
     return group_rows
 
 
-def _build_group_pair_rows(course, report_ids, member_keys):
+def _build_group_pair_rows(course, report_ids, member_keys, report_progress=None):
     """Build raw comparison rows for a group-scoped mini Dolos report."""
     member_keys = [key for key in member_keys if key]
     member_set = set(member_keys)
-    exercises_by_key = {ex.key: ex for ex in sorted(course.exercises.all(), key=_natural_sort_key)}
-    students_by_key = {s.key: s.display_name for s in course.students.all()}
+    exercises_by_key = {
+        ex.key: ex for ex in sorted(course.exercises.only("id", "course_id", "key", "name"), key=_natural_sort_key)
+    }
+    students_by_key = {
+        s.key: s.display_name
+        for s in course.students.filter(key__in=member_set).only("course_id", "key", "name")
+    }
 
     comparison_rows = {}
-    load_errors = []
+    reports, missing_reports = _load_available_report_pairs(course, report_ids, report_progress)
+    if report_progress:
+        report_progress("Calculating student comparisons...")
 
-    for report_id in report_ids:
-        try:
-            rows = _fetch_dolos_pairs_rows(report_id)
-        except Exception as exc:
-            logger.exception(
-                "Failed to load Dolos pair rows for group report course=%s report=%s",
-                course.key,
-                report_id,
-            )
-            load_errors.append("%s: %s" % (report_id, exc))
-            continue
-
+    for report_id, rows in reports.items():
         for row in rows:
             left_path = row.get("leftFilePath", "")
             right_path = row.get("rightFilePath", "")
@@ -2154,24 +2155,17 @@ def _build_group_pair_rows(course, report_ids, member_keys):
             item["exercise"].name.lower(),
             item["left_name"].lower(),
             item["right_name"].lower(),
+            item["left_path"],
+            item["right_path"],
         ),
         reverse=True,
     )
-    return comparison_rows, load_errors
+    return comparison_rows, missing_reports
 
 
-def _build_course_similarity_summary(course, report_ids, min_similarity, min_exercises):
-    """Build pair/group summaries from a course-wide Dolos report set.
-
-    Returns dict with:
-    - pair_rows: strongest student pairs ranked by shared exercises
-    - group_rows: connected student groups (size >= 3) using repeated-pair edges
-    - stats: headline counts for quick scanning
-    """
-    exercises_by_key = {ex.key: ex for ex in course.exercises.only("key", "name", "course_id")}
-    students_by_key = {s.key: s.display_name for s in course.students.only("key", "name", "course_id")}
-
-    rows = []
+def _load_available_report_pairs(course, report_ids, report_progress=None):
+    """Load available exercise reports; disclose missing pair data without hiding other errors."""
+    reports = {}
     missing_reports = []
     report_exercises = dict(
         ExerciseDolosReport.objects.filter(exercise__course=course, report_id__in=report_ids)
@@ -2185,21 +2179,38 @@ def _build_course_similarity_summary(course, report_ids, min_similarity, min_exe
             if exc.response is None or exc.response.status_code != 404:
                 raise
             logger.warning(
-                "Unavailable Dolos pair data in overview course=%s report=%s", course.key, report_id,
+                "Unavailable Dolos pair data course=%s report=%s", course.key, report_id,
                 exc_info=True,
             )
             return report_id, (), True
 
+    if report_progress:
+        report_progress("Loading exercise reports", 0, len(report_ids))
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        fetched_reports = executor.map(fetch_report, report_ids)
-        for report_id, report_rows, failed in fetched_reports:
+        futures = [executor.submit(fetch_report, report_id) for report_id in report_ids]
+        for completed, future in enumerate(concurrent.futures.as_completed(futures), start=1):
+            report_id, report_rows, failed = future.result()
             if failed:
                 missing_reports.append({
                     "report_id": report_id, "exercise_name": report_exercises.get(report_id, "Unknown exercise"),
                 })
             else:
-                rows.extend(report_rows)
+                reports[report_id] = report_rows
+            if report_progress:
+                report_progress("Loading exercise reports", completed, len(report_ids))
+    missing_reports.sort(key=lambda item: (item["exercise_name"], item["report_id"]))
+    return reports, missing_reports
 
+
+def _build_course_similarity_summary(course, report_ids, min_similarity, min_exercises, report_progress=None):
+    """Build pair/group summaries from available course reports, disclosing unavailable exercises."""
+    exercises_by_key = {ex.key: ex for ex in course.exercises.only("key", "name", "course_id")}
+    students_by_key = {s.key: s.display_name for s in course.students.only("key", "name", "course_id")}
+    reports, missing_reports = _load_available_report_pairs(course, report_ids, report_progress)
+    rows = [row for report_id in report_ids for row in reports.get(report_id, ())]
+
+    if report_progress:
+        report_progress("Calculating student-pair similarities...")
     pair_exercise_scores = _collect_pair_exercise_scores(rows, exercises_by_key)
     pair_rows = _build_pair_rows(
         pair_exercise_scores,
@@ -2208,6 +2219,8 @@ def _build_course_similarity_summary(course, report_ids, min_similarity, min_exe
         min_similarity,
         min_exercises,
     )
+    if report_progress:
+        report_progress("Finding matching student groups...")
     group_rows = _build_group_rows(pair_rows, students_by_key)
 
     stats = {
@@ -2232,7 +2245,7 @@ def _compress_matches_by_student(matches):
     return sorted(best_by_student.items(), key=lambda item: item[1], reverse=True)
 
 
-def _student_exercise_matches(course, student_key, include_all=False):
+def _student_exercise_matches(course, student_key, include_all=False, report_progress=None, page=1):
     """Per exercise in course, this student's best Dolos match -- sourced
     straight from that exercise's own generated report so it always agrees
     with what the report itself shows, instead of a separately-computed
@@ -2240,31 +2253,39 @@ def _student_exercise_matches(course, student_key, include_all=False):
     yet (nothing to show); ``match`` is None if the report has no match for
     this student, otherwise (other_student_key, similarity).
 
-    Uses only reports for the requested submission set."""
-    exercises = sorted(course.exercises.all(), key=_natural_sort_key)
+    Uses only reports for the requested submission set and 50-exercise page.
+    Returns rows with up to 50 strongest matches each, full match counts,
+    unavailable reports, and whether another exercise page exists.
+    """
+    exercises = sorted(course.exercises.only("id", "course_id", "key", "name"), key=_natural_sort_key)
+    offset = (page - 1) * 50
+    has_next = len(exercises) > offset + 50
+    exercises = exercises[offset:offset + 50]
     reports_by_exercise = dict(
         ExerciseDolosReport.objects.filter(
-            exercise__course=course, include_all=include_all
+            exercise__course=course, exercise_id__in=[ex.pk for ex in exercises], include_all=include_all,
         ).values_list("exercise_id", "report_id")
     )
+    reports, missing_reports = _load_available_report_pairs(
+        course, list(reports_by_exercise.values()), report_progress,
+    )
+    if report_progress:
+        report_progress("Calculating student matches...")
 
-    def fallback_lookup(exercise):
+    rows = []
+    match_counts = {}
+    for exercise in exercises:
         report_id = reports_by_exercise.get(exercise.id)
-
         match = None
         all_matches = []
-        if report_id:
-            try:
-                matches = _dolos_pairs_for_student(report_id, student_key)
-                all_matches = _compress_matches_by_student(matches)
-                match = all_matches[0] if all_matches else None
-            except Exception:
-                match = None
-                all_matches = []
-        return exercise, report_id, match, all_matches
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        return list(executor.map(fallback_lookup, exercises))
+        if report_id in reports:
+            matches = _dolos_pairs_for_student(reports[report_id], student_key)
+            all_matches = _compress_matches_by_student(matches)
+            match = all_matches[0] if all_matches else None
+        match_counts[exercise.key] = len(all_matches)
+        all_matches = all_matches[:50]
+        rows.append((exercise, report_id, match, all_matches))
+    return {"rows": rows, "missing_reports": missing_reports, "match_counts": match_counts, "has_next": has_next}
 
 
 def _exercise_report_ids(course, include_all=False):
@@ -2299,14 +2320,16 @@ def _flagged_comparisons(course):
     )
 
 
-def _flagged_submission_pairs(course):
+def _flagged_submission_pairs(course, submission_ids):
     return {
-        tuple(sorted((left_id, right_id)))
+        tuple(sorted((str(left_id), str(right_id))))
         for left_id, right_id in Comparison.objects.filter(
             submission_a__exercise__course=course,
             submission_b__isnull=False,
+            submission_a_id__in=submission_ids,
+            submission_b_id__in=submission_ids,
             review=10,
-        ).values_list("submission_a_id", "submission_b_id")
+        ).order_by().values_list("submission_a_id", "submission_b_id")
     }
 
 
@@ -2323,9 +2346,11 @@ def _overview_page(request, queryset, parameter):
     return _overview_page_data(request, list(queryset[offset:offset + 51]), parameter, number)
 
 
-def _overview_page_data(request, rows, parameter, number):
+def _overview_page_data(request, rows, parameter, number, has_next=None):
     parameters = request.GET.copy()
     parameters.pop("background", None)
+    if has_next is None:
+        has_next = len(rows) > 50
 
     def page_url(page_number):
         parameters[parameter] = page_number
@@ -2335,7 +2360,7 @@ def _overview_page_data(request, rows, parameter, number):
         "items": rows[:50],
         "number": number,
         "previous_url": page_url(number - 1) if number > 1 else None,
-        "next_url": page_url(number + 1) if len(rows) > 50 else None,
+        "next_url": page_url(number + 1) if has_next else None,
     }
 
 
@@ -2470,27 +2495,26 @@ def flag_new_radar_pair(
     else:
         return HttpResponseBadRequest("The pair has not been flagged")
 
-    cache.set("course_home_version:%s" % course.pk, time.time(), 86400)
+    cache.set("course_home_version:%s" % course.pk, time.time(), None)
     return redirect(request.POST.get("next") or reverse("students_hub", kwargs={"course_key": course.key}))
 
 
-@access_resource
-def student_pair_hub(request, course_key=None, a_key=None, b_key=None, course=None) -> HttpResponse:
-    """New Radar: show pair similarities across exercises from course-wide Dolos reports."""
-    student_a = get_object_or_404(Student, course=course, key=a_key)
-    student_b = get_object_or_404(Student, course=course, key=b_key)
-
-    include_all = request.GET.get("all") == "1"
-    latest_report_ids = _exercise_report_ids(course, include_all=include_all)
-    state = (
-        background_result(request, course, "group_pairs", [latest_report_ids, [a_key, b_key]])
-        if latest_report_ids else {"status": "ready"}
+def _build_student_pair_page(course, report_ids, member_keys, page, report_progress=None):
+    comparison_rows, missing_reports = _build_group_pair_rows(
+        course, report_ids, member_keys, report_progress=report_progress,
     )
-    if request.GET.get("background") == "1":
-        return JsonResponse(public_status(state))
+    offset = (page - 1) * 50
+    has_next = len(comparison_rows) > offset + 50
+    comparison_rows = comparison_rows[offset:offset + 50]
+    submission_ids = {
+        row[field] for row in comparison_rows for field in ("left_submission_id", "right_submission_id")
+    }
+    if report_progress:
+        report_progress("Loading flags for this comparison page...")
+    with database_timeout(5000):
+        flagged_pairs = _flagged_submission_pairs(course, submission_ids) if submission_ids else set()
     pair_exercise_scores = {}
     pair_exercise_rows = {}
-    comparison_rows, load_errors = state.get("result", ([], []))
     for comparison_row in comparison_rows:
         exercise_key = comparison_row["exercise"].key
         pair_exercise_rows.setdefault(exercise_key, []).append(comparison_row)
@@ -2512,7 +2536,6 @@ def student_pair_hub(request, course_key=None, a_key=None, b_key=None, course=No
             reverse=True,
         )
 
-    flagged_pairs = _flagged_submission_pairs(course)
     for row in pair_rows:
         for comparison_row in row["comparison_rows"]:
             comparison_row["flagged"] = tuple(
@@ -2525,6 +2548,30 @@ def student_pair_hub(request, course_key=None, a_key=None, b_key=None, course=No
             ) in flagged_pairs
         row["flagged"] = any(c["flagged"] for c in row["comparison_rows"])
 
+    return {"pair_rows": pair_rows, "missing_reports": missing_reports, "has_next": has_next}
+
+
+@overview_request
+@access_resource
+def student_pair_hub(request, course_key=None, a_key=None, b_key=None, course=None) -> HttpResponse:
+    """Render a bounded, worker-built page of comparisons for two students."""
+    student_a = get_object_or_404(Student, course=course, key=a_key)
+    student_b = get_object_or_404(Student, course=course, key=b_key)
+    include_all = request.GET.get("all") == "1"
+    latest_report_ids = _exercise_report_ids(course, include_all=include_all)
+    page_number = _overview_page_number(request, "comparisons_page")
+    version = cache.get("course_home_version:%s" % course.pk, "initial")
+    state = (
+        background_result(request, course, "student_pair", [
+            latest_report_ids, [a_key, b_key], page_number, version,
+        ]) if latest_report_ids else {"status": "ready"}
+    )
+    if request.GET.get("background") == "1":
+        return JsonResponse(public_status(state))
+    result = state.get("result", {})
+    comparisons_page = _overview_page_data(
+        request, [], "comparisons_page", page_number, has_next=result.get("has_next", False),
+    )
     return render(
         request,
         "review/student_pair_hub.html",
@@ -2540,9 +2587,10 @@ def student_pair_hub(request, course_key=None, a_key=None, b_key=None, course=No
             "student_b": student_b,
             "background_state": public_status(state),
             "latest_report_ids": latest_report_ids,
-            "pair_rows": pair_rows,
-            "load_errors": load_errors,
-            "course_report_task_status": _current_course_report_status(course, request),
+            "pair_rows": result.get("pair_rows", []),
+            "missing_reports": result.get("missing_reports", []),
+            "comparisons_page": comparisons_page,
+            "cache_only_status": True,
             "include_all": include_all,
         },
     )
@@ -2766,13 +2814,13 @@ def student_group_hub(request, course_key=None, member_keys=None, course=None) -
     include_all = request.GET.get("all") == "1"
     latest_report_ids = _exercise_report_ids(course, include_all=include_all)
     comparison_rows = []
-    load_errors = []
+    missing_reports = []
 
     if latest_report_ids:
         state = background_result(request, course, "group_pairs", [latest_report_ids, resolved_member_keys])
         if request.GET.get("background") == "1":
             return JsonResponse(public_status(state))
-        comparison_rows, load_errors = state.get("result", ([], []))
+        comparison_rows, missing_reports = state.get("result", ([], []))
     else:
         state = {"status": "ready"}
 
@@ -2791,13 +2839,14 @@ def student_group_hub(request, course_key=None, member_keys=None, course=None) -
             "background_state": public_status(state),
             "latest_report_ids": latest_report_ids,
             "comparison_rows": comparison_rows,
-            "load_errors": load_errors,
+            "missing_reports": missing_reports,
             "course_report_task_status": _current_course_report_status(course, request),
             "include_all": include_all,
         },
     )
 
 
+@overview_request
 @access_resource
 def student_hub(request, course_key=None, student_key=None, course=None, student=None) -> HttpResponse:
     """
@@ -2813,16 +2862,25 @@ def student_hub(request, course_key=None, student_key=None, course=None, student
         return redirect("student_view", course_key=course.key, student_key=student_key)
 
     include_all = request.GET.get("all") == "1"
+    exercises_number = _overview_page_number(request, "exercises_page")
     state = background_result(request, course, "student_matches", [
-        student_key, include_all, _exercise_report_ids(course, include_all),
+        student_key, include_all, _exercise_report_ids(course, include_all), exercises_number,
     ])
     if request.GET.get("background") == "1":
         return JsonResponse(public_status(state))
-    students_by_key = {s.key: s.display_name for s in course.students.all()}
+    result = state.get("result", {})
+    matched_keys = {
+        other_key for _, _, _, matches in result.get("rows", []) for other_key, _ in matches
+    }
+    students_by_key = {
+        s.key: s.display_name for s in course.students.filter(key__in=matched_keys).only("course_id", "key", "name")
+    }
+    missing_report_ids = {missing["report_id"] for missing in result.get("missing_reports", [])}
     rows = [
         {
             "exercise": exercise,
             "generated": report_id is not None,
+            "unavailable": report_id in missing_report_ids,
             "match": match,
             "all_matches": [
                 {
@@ -2832,13 +2890,21 @@ def student_hub(request, course_key=None, student_key=None, course=None, student
                 }
                 for other_key, similarity in all_matches
             ],
+            "match_count": result.get("match_counts", {}).get(exercise.key, len(all_matches)),
             "report_url": reverse(
                 "dolos_hub_exercise",
                 kwargs={"course_key": course.key, "exercise_key": exercise.key},
             ) + ("?all=1" if include_all else ""),
         }
-        for exercise, report_id, match, all_matches in state.get("result", [])
+        for exercise, report_id, match, all_matches in result.get("rows", [])
     ]
+    students_page = _overview_page(
+        request, course.students.only("course_id", "key", "name", "is_pinned").order_by("-is_pinned", "key"),
+        "students_page",
+    )
+    exercises_page = _overview_page_data(
+        request, [], "exercises_page", exercises_number, has_next=result.get("has_next", False),
+    )
 
     return render(
         request,
@@ -2852,11 +2918,14 @@ def student_hub(request, course_key=None, student_key=None, course=None, student
             ),
             "course": course,
             "student": student,
-            "students": course.students.order_by("-is_pinned", "key"),
+            "students": students_page["items"],
+            "students_page": students_page,
+            "exercises_page": exercises_page,
             "rows": rows,
+            "missing_reports": result.get("missing_reports", []),
             "background_state": public_status(state),
             "include_all": include_all,
-            "course_report_task_status": _current_course_report_status(course, request),
+            "cache_only_status": True,
         },
     )
 
@@ -2893,7 +2962,7 @@ def comparison(
             request.POST["review"]
         )
         if result:
-            cache.set("course_home_version:%s" % course.pk, time.time(), 86400)
+            cache.set("course_home_version:%s" % course.pk, time.time(), None)
         if is_ajax(request):
             return JsonResponse({"success": result})
 
