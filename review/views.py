@@ -1810,7 +1810,7 @@ def dolos_hub_report(request, course_key=None, exercise_key=None, course=None, e
 
     state = background_result(request, course, "exercise_report", [
         exercise.pk, include_all, newest,
-    ])
+    ], include_result=True)
     if state["status"] == "ready":
         return JsonResponse(state["result"])
     return JsonResponse(public_status(state))

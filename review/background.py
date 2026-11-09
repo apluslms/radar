@@ -24,16 +24,18 @@ def store_background_state(store, key, state, timeout):
     store.set(key + ":status", public_status(state), max(1, timeout - 1))
 
 
-def background_result(request, course, operation, arguments):
+def background_result(request, course, operation, arguments, include_result=False):
     store = caches["course_report_progress"]
     locks = caches["default"]
     key = result_key(course.pk, operation, [arguments, request.GET.get("run", "")])
     polling = request.GET.get("background") == "1"
     state = store.get(key + ":status")
-    if state and state["status"] == "ready" and not polling:
+    if state and state["status"] == "ready" and (not polling or include_result):
         state = store.get(key)
         if state is None:
             store.delete(key + ":status")
+            if include_result:
+                return {"status": "failed", "message": "Background result expired. Reload to retry."}
     if state and state["status"] == "pending" and time.time() - state["started"] > 660:
         state = {"status": "failed", "message": "Background loading timed out. Check the Celery worker."}
         store_background_state(store, key, state, 600)
