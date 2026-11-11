@@ -1425,6 +1425,43 @@ class CreateCheatersheetComparisonTests(TestCase):
         stored_report.refresh_from_db()
         self.assertEqual(stored_report.report_id, "NEW_REPORT")
 
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "hub-report-locks"},
+        "course_report_progress": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "hub-report-results",
+        },
+    })
+    @patch("provider.tasks.load_radar_page_data.apply_async")
+    def test_dolos_hub_report_poll_returns_completed_background_payload(self, enqueue):
+        caches["default"].clear()
+        caches["course_report_progress"].clear()
+        self.addCleanup(caches["default"].clear)
+        self.addCleanup(caches["course_report_progress"].clear)
+        session = self.client.session
+        session["legacy_radar"] = False
+        session.save()
+        url = reverse(
+            "dolos_hub_exercise_report",
+            kwargs={"course_key": self.course.key, "exercise_key": self.exercise.key},
+        ) + "?force=1&background=1&run=hub-report-run"
+        self.assertEqual(self.client.post(url).json()["status"], "pending")
+        key = result_key(
+            self.course.pk, "exercise_report", [[self.exercise.pk, False, None], "hub-report-run"],
+        )
+        payload = {
+            "status": "ready", "report_id": "NEW_REPORT",
+            "report_url": "http://dolos.test/#/share/NEW_REPORT", "reused": False,
+        }
+        store_background_state(caches["course_report_progress"], key, {
+            "status": "ready", "result": payload,
+        }, 600)
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), payload)
+        enqueue.assert_called_once()
+
     @patch("cheatersheet.views.requests.post")
     def test_sends_provider_submission_keys_to_cheatersheet(self, post):
         response = Mock(status_code=201)
@@ -1721,6 +1758,18 @@ class BackgroundStatusTests(TestCase):
         self.assertEqual(
             background_result(self.factory.get("/"), self.course, "summary", self.arguments), state,
         )
+
+    def test_ready_poll_reports_expired_payload_when_result_is_requested(self):
+        self.store.set(self.key + ":status", {"status": "ready"}, 600)
+
+        state = background_result(
+            self.factory.get("/?background=1"), self.course, "summary", self.arguments,
+            include_result=True,
+        )
+
+        self.assertEqual(state["status"], "failed")
+        self.assertIn("expired", state["message"])
+        self.assertIsNone(self.store.get(self.key + ":status"))
 
     @patch("provider.tasks.load_radar_page_data.apply_async")
     def test_missing_payload_invalidates_ready_status_and_can_be_queued_again(self, enqueue):
